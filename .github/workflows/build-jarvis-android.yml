@@ -30,20 +30,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-0.8.1-debug
+          name: Jarvis-Bridge-0.9-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.8.1-Test.apk
-          if gh release view jarvis-0.8.1-preview >/dev/null 2>&1; then
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.9-Test.apk
+          if gh release view jarvis-0.9-preview >/dev/null 2>&1; then
             gh release upload jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk --clobber
           else
             gh release create jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 0.8.1 - Menu appui long" \
-              --notes "Version experimentale 0.8.1 : appui long 2 secondes pour ouvrir le menu de la bulle. Installation distincte de la 0.7 stable. Pour remplacer une ancienne 0.8 Test signee avec une autre cle debug, desinstallez seulement la 0.8 Test au prealable." \
+              --title "Jarvis Bridge 0.9 - Conversation Jarvis" \
+              --notes "Prototype 0.9 : lien de conversation configurable dans l'application; bulle flottante, double toucher et menu de 2 secondes conserves. Application distincte de Jarvis 0.7 et de 0.8.1. Le routage direct vers une conversation sur ChatGPT Android reste a tester." \
               --prerelease
           fi

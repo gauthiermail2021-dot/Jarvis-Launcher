@@ -10,14 +10,14 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 9
-        versionName '0.8.1'
+        versionCode 10
+        versionName '0.9'
     }
 
     buildTypes {
         debug {
             // Installe le prototype 0.8 à côté de l'application stable 0.7.
-            applicationIdSuffix '.preview'
+            applicationIdSuffix '.preview09'
             // Clé debug générée automatiquement par Android Gradle Plugin.
         }
     }

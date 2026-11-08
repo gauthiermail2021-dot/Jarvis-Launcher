@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.ContentValues;
 import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.net.Uri;
 import android.os.Parcelable;
 import android.os.Build;
@@ -76,13 +77,73 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 0.8.1 — prototype");
+        title.setText("Jarvis Bridge 0.9 — prototype");
         title.setTextSize(25);
         layout.addView(title);
 
         TextView description = new TextView(this);
         description.setText("Gmail → notification → SVG xTool (sans vérification périodique)");
         layout.addView(description);
+
+        TextView conversationTitle = new TextView(this);
+        conversationTitle.setText("Conversation Jarvis");
+        conversationTitle.setTextSize(19);
+        layout.addView(conversationTitle);
+
+        TextView conversationHelp = new TextView(this);
+        conversationHelp.setText("Colle l’adresse privée de cette conversation (https://chatgpt.com/c/...). "
+                + "N’utilise pas un lien de partage : il s’agit d’une copie de la conversation.");
+        layout.addView(conversationHelp);
+
+        EditText conversationInput = new EditText(this);
+        conversationInput.setSingleLine(true);
+        conversationInput.setHint("https://chatgpt.com/c/...");
+        conversationInput.setText(getSharedPreferences(JarvisConversationLink.PREFS, MODE_PRIVATE)
+                .getString(JarvisConversationLink.KEY_URL, ""));
+        layout.addView(conversationInput);
+
+        Button pasteConversation = new Button(this);
+        pasteConversation.setText("Coller le lien du presse-papiers");
+        layout.addView(pasteConversation);
+        pasteConversation.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+            if (clipboard == null || !clipboard.hasPrimaryClip()) {
+                showMessage("Presse-papiers vide.");
+                return;
+            }
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip == null || clip.getItemCount() == 0) return;
+            CharSequence text = clip.getItemAt(0).coerceToText(this);
+            conversationInput.setText(text == null ? "" : text.toString().trim());
+        });
+
+        Button saveConversation = new Button(this);
+        saveConversation.setText("Enregistrer et tester le lien");
+        layout.addView(saveConversation);
+        saveConversation.setOnClickListener(v -> {
+            String url = JarvisConversationLink.normalize(conversationInput.getText().toString());
+            if (url == null) {
+                setStatus("Lien non valide : utilise l’adresse privée https://chatgpt.com/c/...");
+                return;
+            }
+            getSharedPreferences(JarvisConversationLink.PREFS, MODE_PRIVATE)
+                    .edit().putString(JarvisConversationLink.KEY_URL, url).apply();
+            conversationInput.setText(url);
+            setStatus("Lien enregistré localement. Ouverture de la conversation...");
+            if (!JarvisConversationLink.open(this)) {
+                setStatus("Lien enregistré, mais impossible d’ouvrir ChatGPT.");
+            }
+        });
+
+        Button clearConversation = new Button(this);
+        clearConversation.setText("Oublier le lien enregistré");
+        layout.addView(clearConversation);
+        clearConversation.setOnClickListener(v -> {
+            getSharedPreferences(JarvisConversationLink.PREFS, MODE_PRIVATE)
+                    .edit().remove(JarvisConversationLink.KEY_URL).apply();
+            conversationInput.setText("");
+            setStatus("Lien effacé. La bulle ouvrira ChatGPT normalement.");
+        });
 
         Button gmail = new Button(this);
         gmail.setText("Ouvrir le dernier SVG Gmail");

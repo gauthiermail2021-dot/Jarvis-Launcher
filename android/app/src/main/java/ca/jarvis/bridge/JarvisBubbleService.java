@@ -301,14 +301,8 @@ public final class JarvisBubbleService extends Service {
     }
 
     private void openChatGPT() {
-        try {
-            Intent intent = getPackageManager().getLaunchIntentForPackage("com.openai.chatgpt");
-            if (intent == null) intent = new Intent(Intent.ACTION_VIEW,
-                    Uri.parse("https://chatgpt.com/"));
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception error) {
-            Toast.makeText(this, "ChatGPT indisponible : " + error.getMessage(),
+        if (!JarvisConversationLink.open(this)) {
+            Toast.makeText(this, "Impossible d'ouvrir ChatGPT.",
                     Toast.LENGTH_LONG).show();
         }
     }
