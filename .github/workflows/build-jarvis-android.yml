@@ -1,9 +1,6 @@
 name: Build Jarvis Bridge Android
 on:
-  push:
-    paths:
-      - 'android/**'
-      - '.github/workflows/build-jarvis-android.yml'
+  # Compilation uniquement sur commande explicite, pas à chaque modification.
   workflow_dispatch:
 permissions:
   contents: write
