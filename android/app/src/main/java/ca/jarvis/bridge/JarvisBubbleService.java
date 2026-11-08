@@ -9,6 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
@@ -23,6 +26,9 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 /** Bulle Jarvis 0.8 : toucher pour agrandir puis ouvrir ChatGPT ; glisser pour déplacer. */
 public final class JarvisBubbleService extends Service {
@@ -32,6 +38,7 @@ public final class JarvisBubbleService extends Service {
     private static final String PREFS = "jarvis_bubble";
     private static final int SMALL_DP = 54;
     private static final int LARGE_DP = 110;
+    private static final long LONG_PRESS_MS = 2000L;
 
     private WindowManager wm;
     private WindowManager.LayoutParams params;
@@ -40,6 +47,11 @@ public final class JarvisBubbleService extends Service {
     private boolean dragging = false;
     private float downX, downY;
     private int startX, startY;
+    private final Handler gestureHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingLongPress;
+    private boolean fingerDown = false;
+    private boolean longPressHandled = false;
+    private View menuView;
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
@@ -120,26 +132,61 @@ public final class JarvisBubbleService extends Service {
         params.y = Math.max(0, Math.min(params.y, display.y - params.height));
     }
 
+
+    private void cancelPendingLongPress() {
+        if (pendingLongPress != null) {
+            gestureHandler.removeCallbacks(pendingLongPress);
+            pendingLongPress = null;
+        }
+    }
+
     private boolean handleTouch(MotionEvent e) {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                cancelPendingLongPress();
                 downX = e.getRawX();
                 downY = e.getRawY();
                 startX = params.x;
                 startY = params.y;
+                fingerDown = true;
                 dragging = false;
+                longPressHandled = false;
+                if (menuView != null) {
+                    dismissMenu();
+                    longPressHandled = true; // ce toucher sert seulement à fermer le menu
+                    return true;
+                }
+                pendingLongPress = () -> {
+                    pendingLongPress = null;
+                    if (!fingerDown || dragging || menuView != null) return;
+                    longPressHandled = true;
+                    showMenu();
+                };
+                gestureHandler.postDelayed(pendingLongPress, LONG_PRESS_MS);
                 return true;
+
             case MotionEvent.ACTION_MOVE:
                 float dx = e.getRawX() - downX, dy = e.getRawY() - downY;
-                if (Math.hypot(dx, dy) > dp(8)) dragging = true;
-                if (dragging) {
+                if (Math.hypot(dx, dy) > dp(8)) {
+                    dragging = true;
+                    cancelPendingLongPress();
+                }
+                if (dragging && !longPressHandled) {
                     params.x = startX + Math.round(dx);
                     params.y = startY + Math.round(dy);
                     clampPosition();
                     wm.updateViewLayout(bubble, params);
                 }
                 return true;
+
             case MotionEvent.ACTION_UP:
+                cancelPendingLongPress();
+                fingerDown = false;
+                if (longPressHandled) {
+                    longPressHandled = false;
+                    dragging = false;
+                    return true;
+                }
                 if (dragging) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                             .putInt("x", params.x).putInt("y", params.y).apply();
@@ -151,11 +198,96 @@ public final class JarvisBubbleService extends Service {
                 }
                 dragging = false;
                 return true;
+
+            case MotionEvent.ACTION_POINTER_DOWN:
+                cancelPendingLongPress();
+                dragging = true; // ignore les gestes à plusieurs doigts
+                return true;
+
             case MotionEvent.ACTION_CANCEL:
+                cancelPendingLongPress();
+                fingerDown = false;
                 dragging = false;
                 return true;
+
             default: return false;
         }
+    }
+
+    private void showMenu() {
+        if (wm == null || bubble == null || menuView != null) return;
+
+        LinearLayout menu = new LinearLayout(this);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setPadding(dp(12), dp(10), dp(12), dp(12));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.rgb(19, 34, 53));
+        background.setCornerRadius(dp(16));
+        background.setStroke(dp(2), Color.rgb(57, 209, 255));
+        menu.setBackground(background);
+
+        TextView title = new TextView(this);
+        title.setText("JARVIS · Menu");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(17);
+        title.setPadding(dp(7), dp(4), dp(7), dp(8));
+        menu.addView(title);
+
+        addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
+            Intent app = new Intent(this, MainActivity.class);
+            app.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(app);
+        });
+        addMenuButton(menu, "Fermer la bulle", this::stopSelf);
+        addMenuButton(menu, "Annuler", () -> { });
+
+        int menuWidth = dp(228);
+        WindowManager.LayoutParams options = new WindowManager.LayoutParams(
+                menuWidth,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT);
+        options.gravity = Gravity.TOP | Gravity.LEFT;
+        Point display = new Point();
+        wm.getDefaultDisplay().getRealSize(display);
+        int left = params.x - menuWidth - dp(8);
+        if (left < 0) left = params.x + params.width + dp(8);
+        options.x = Math.max(0, Math.min(left, display.x - menuWidth));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(220)));
+
+        menuView = menu;
+        try {
+            wm.addView(menu, options);
+        } catch (Exception error) {
+            menuView = null;
+            Toast.makeText(this, "Menu Jarvis indisponible : " + error.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void addMenuButton(LinearLayout menu, String text, Runnable action) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        menu.addView(button, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        button.setOnClickListener(v -> {
+            dismissMenu();
+            action.run();
+        });
+    }
+
+    private void dismissMenu() {
+        if (wm != null && menuView != null) {
+            try { wm.removeView(menuView); }
+            catch (IllegalArgumentException ignored) { }
+        }
+        menuView = null;
     }
 
     private void setExpanded(boolean next) {
@@ -182,6 +314,9 @@ public final class JarvisBubbleService extends Service {
     }
 
     @Override public void onDestroy() {
+        cancelPendingLongPress();
+        fingerDown = false;
+        dismissMenu();
         if (wm != null && bubble != null) {
             try { wm.removeView(bubble); }
             catch (IllegalArgumentException ignored) { }
