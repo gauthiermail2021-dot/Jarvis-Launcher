@@ -48,6 +48,12 @@ public final class JarvisBubbleService extends Service {
     private static final long IDLE_COLLAPSE_MS = 5000L;
     private static volatile JarvisBubbleService activeService;
 
+    static boolean isBubbleActive() {
+        JarvisBubbleService current = activeService;
+        return current != null && current.bubble != null
+                && current.bubble.isAttachedToWindow();
+    }
+
     private WindowManager wm;
     private WindowManager.LayoutParams params;
     private BubbleView bubble;
