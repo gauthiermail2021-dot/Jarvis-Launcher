@@ -33,6 +33,19 @@
             </intent-filter>
         </activity>
         <service android:name=".JarvisBubbleService" android:exported="false" />
+        <!-- Facultatif : l'utilisateur doit activer ce service dans Accessibilité. -->
+        <service
+            android:name=".ChatGptBubbleAccessibilityService"
+            android:label="Jarvis Bridge — ouverture ChatGPT"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/chatgpt_bubble_accessibility" />
+        </service>
         <service
             android:name=".JarvisNotificationListener"
             android:label="Jarvis Bridge — Gmail"
