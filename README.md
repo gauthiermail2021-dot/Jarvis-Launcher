@@ -16,3 +16,12 @@ Pour sortir de la boucle déjà installée en 1.0.2 : paramètres Android → Ap
 `ca.jarvis.bridge.preview103` reste séparé des anciennes applications d'essai. Lien de conversation à reconfigurer pour ce package après compilation.
 
 Remarque : xTool doit réellement exposer une activité Android capable de gérer ACTION_VIEW sur un URI `content://` SVG. L'ouverture directe reste à valider sur le téléphone.
+
+## Affichage de la bulle (modification non compilée)
+- Mode réduit (54 dp) : heure locale seulement.
+- Mode agrandi (110 dp) : titre et état de Jarvis, **sans horloge**; l'espace central sert à afficher les activités.
+- Appui long de 1,5 seconde et retour automatique après 5 secondes conservés.
+
+## Prochain objectif distinct (non encore implémenté)
+- À la réception d'un courriel avec SVG, tenter la récupération et l'ouverture xTool sans le toucher sur la notification.
+- Avant de promettre une ouverture entièrement silencieuse, vérifier les restrictions d'Android concernant le lancement d'une activité depuis l'arrière-plan et les autorisations OAuth Gmail. Prévoir une notification actionnable de secours.
