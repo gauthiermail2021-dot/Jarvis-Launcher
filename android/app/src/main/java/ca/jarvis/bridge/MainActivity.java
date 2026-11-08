@@ -58,6 +58,8 @@ public class MainActivity extends Activity {
     private static volatile MainActivity foregroundActivity;
     private static final int MAX_SVG_BYTES = 5000000;
     private static final String PREFS = "jarvis_bridge";
+    private static final String LAST_STATUS = "last_status";
+    private static final String AUTH_PENDING = "gmail_auth_pending";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
@@ -176,7 +178,10 @@ public class MainActivity extends Activity {
         });
 
         status = new TextView(this);
-        status.setText("Prêt. Activer l’accès aux notifications Android.");
+        // Ne pas effacer le diagnostic lorsque Google ramène l'application
+        // au premier plan ou qu'Android recrée l'activité.
+        status.setText(getSharedPreferences(PREFS, MODE_PRIVATE).getString(
+                LAST_STATUS, "Prêt. En attente d'un SVG Gmail."));
         layout.addView(status);
 
         urlInput = new EditText(this);
@@ -266,10 +271,18 @@ public class MainActivity extends Activity {
                 if (result.hasResolution()) {
                     try {
                         PendingIntent pendingIntent = result.getPendingIntent();
+                        if (pendingIntent == null) {
+                            throw new IllegalStateException("Choix du compte Google indisponible");
+                        }
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                .putBoolean(AUTH_PENDING, true).apply();
+                        setStatus("Google : en attente du choix de compte...");
                         startIntentSenderForResult(
                             pendingIntent.getIntentSender(), AUTH_REQUEST,
                             null, 0, 0, 0);
                     } catch (Exception e) {
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                                .putBoolean(AUTH_PENDING, false).apply();
                         isBusy = false;
                         JarvisBubbleService.onOperationFailed();
                         setStatus("Autorisation impossible : " + e.getMessage());
@@ -372,9 +385,7 @@ public class MainActivity extends Activity {
                             .putString(LAST_GMAIL_ID, identity)
                             .apply();
                     setStatus("Demande d'ouverture envoyée à xTool : " + filename);
-                } else {
-                    setStatus("SVG enregistré, ouverture xTool impossible");
-                }
+                } // En cas d'échec, conserver le diagnostic précis de openSvg().
             });
             return;
         }
@@ -591,16 +602,21 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == AUTH_REQUEST) {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean(AUTH_PENDING, false).apply();
             if (resultCode == RESULT_OK && data != null) {
                 try {
+                    setStatus("Google : compte choisi, vérification de l'accès Gmail...");
                     acceptAuthorizationResult(authorizationClient.getAuthorizationResultFromIntent(data));
                 } catch (Exception e) {
                     isBusy = false;
-                    setStatus("Autorisation refusée ou impossible : " + e.getMessage());
+                    JarvisBubbleService.onOperationFailed();
+                    setStatus("Retour Google impossible : " + e.getMessage());
                 }
             } else {
                 isBusy = false;
-                setStatus("Autorisation Gmail annulée.");
+                JarvisBubbleService.onOperationFailed();
+                setStatus("Google : sélection de compte annulée (résultat " + resultCode + ")");
             }
             return;
         }
@@ -665,6 +681,7 @@ public class MainActivity extends Activity {
 
         if (externalIntents.isEmpty()) {
             JarvisBubbleService.onOperationFailed();
+            setStatus("SVG enregistré, mais aucun lecteur SVG externe détecté (xTool compris).");
             showMessage("Aucune application externe compatible SVG. Vérifie l'installation xTool.");
             return false;
         }
@@ -687,12 +704,16 @@ public class MainActivity extends Activity {
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();
+            setStatus("Ouverture du SVG impossible : " + e.getMessage());
             showMessage("Ouverture du SVG impossible : " + e.getMessage());
             return false;
         }
     }
 
     private void setStatus(String value) {
+        // Persistance locale du statut, sans conserver de jeton ou de données Gmail.
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString(LAST_STATUS, value).apply();
         if (status != null) status.setText(value);
     }
     private void showMessage(String message) {
