@@ -1,32 +1,67 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
-  <title>Jarvis Launcher</title>
+  <title>Jarvis Launcher 0.5</title>
 </head>
-<body>
-  <h2>Jarvis Bridge 0.4</h2>
-  <p>Test de lancement vers xTool Creative Space</p>
+<body style="font-family:Arial;padding:20px">
 
-  <button id="launch" type="button"
-          style="font-size:20px;padding:16px;">
-    Ouvrir le SVG dans xTool
+  <h2>Jarvis Launcher 0.5</h2>
+  <p>Envoyer un SVG vers Jarvis Bridge et xTool</p>
+
+  <label for="svgUrl">Adresse HTTPS du SVG :</label>
+
+  <input
+    id="svgUrl"
+    type="url"
+    style="width:100%;padding:12px;box-sizing:border-box;margin:12px 0"
+    placeholder="https://exemple.com/dessin.svg">
+
+  <button
+    id="launch"
+    type="button"
+    style="font-size:20px;padding:16px;width:100%">
+    Ouvrir dans xTool
   </button>
 
+  <p id="status"></p>
+
   <script>
+    const input = document.getElementById("svgUrl");
+    const status = document.getElementById("status");
+
+    const params = new URLSearchParams(window.location.search);
+    const suppliedUrl = params.get("svg");
+
+    if (suppliedUrl) {
+      input.value = suppliedUrl;
+    } else {
+      input.value =
+        "https://loremfile.dev/svg/simple-shapes.svg";
+    }
+
     document.getElementById("launch")
       .addEventListener("click", function () {
-        const svg =
-          "https://loremfile.dev/svg/simple-shapes.svg";
+        try {
+          const svg = new URL(input.value.trim());
 
-        const link =
-          "jarvisbridge://open?url=" +
-          encodeURIComponent(svg);
+          if (svg.protocol !== "https:") {
+            throw new Error("Adresse HTTPS obligatoire");
+          }
 
-        window.location.href = link;
+          const link =
+            "jarvisbridge://open?url=" +
+            encodeURIComponent(svg.href);
+
+          status.textContent = "Ouverture de Jarvis Bridge...";
+          window.location.href = link;
+
+        } catch (error) {
+          status.textContent =
+            "Adresse invalide : " + error.message;
+        }
       });
   </script>
 </body>
