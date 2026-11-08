@@ -37,3 +37,9 @@ Remarque : xTool doit réellement exposer une activité Android capable de gére
 **Limite de l'essai :** avec Jarvis Bridge en arrière-plan, l'utilisateur doit encore toucher la notification « Toucher pour ouvrir » avant la récupération Gmail. Une ouverture vraiment sans toucher nécessitera un mécanisme d'autorisation Gmail en arrière-plan et le traitement des restrictions Android de lancement d'activité. Ce comportement n'est pas annoncé comme déjà réalisé.
 
 Téléchargement APK : https://github.com/gauthiermail2021-dot/Jarvis-Launcher/releases/download/jarvis-1.0.3-preview/Jarvis-Bridge-1.0.3-Test.apk
+
+## Correctif supplémentaire après test simultané 0.7 / 1.0.3 (non compilé)
+- Sur Android, chaque ancienne version de Jarvis Bridge peut apparaître comme une application SVG externe à la version 1.0.3.
+- Le code filtre maintenant **tous** les packages de la famille `ca.jarvis.bridge` et les activités nommées « Jarvis Bridge », au lieu de seulement exclure le package courant.
+- xTool demeure prioritaire s'il expose un gestionnaire Android SVG. En son absence, Jarvis demande un choix au lieu d'ouvrir arbitrairement une application.
+- Le binaire 1.0.3 publié **ne contient pas encore** ce correctif supplémentaire. Il sera inclus à la prochaine compilation sur demande explicite.
