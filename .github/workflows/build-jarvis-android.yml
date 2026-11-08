@@ -1,13 +1,6 @@
 name: Build Jarvis Bridge Android
 on:
-  # Déclenchement exceptionnel de cette version à la demande explicite « Compile ».
-  push:
-    branches:
-      - feature/android-jarvis-svg-loop-fix-v1.0.3
-    paths:
-      - 'android/**'
-      - 'README.md'
-      - '.github/workflows/build-jarvis-android.yml'
+  # Compilation uniquement sur demande explicite de l'utilisateur.
   workflow_dispatch:
 permissions:
   contents: write
