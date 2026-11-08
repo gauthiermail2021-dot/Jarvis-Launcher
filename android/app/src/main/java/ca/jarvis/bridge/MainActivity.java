@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 1.0.1 — prototype visuel");
+        title.setText("Jarvis Bridge 1.0.2 — prototype visuel");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -252,6 +252,7 @@ public class MainActivity extends Activity {
     private void requestGmailAndOpen() {
         if (isBusy) return;
         isBusy = true;
+        JarvisBubbleService.onGmailWorkStarted();
         setStatus("Connexion Google...");
         AuthorizationRequest request = AuthorizationRequest.builder()
                 .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SCOPE)))
@@ -267,6 +268,7 @@ public class MainActivity extends Activity {
                             null, 0, 0, 0);
                     } catch (Exception e) {
                         isBusy = false;
+                        JarvisBubbleService.onOperationFailed();
                         setStatus("Autorisation impossible : " + e.getMessage());
                     }
                 } else {
@@ -275,6 +277,7 @@ public class MainActivity extends Activity {
             })
             .addOnFailureListener(e -> {
                 isBusy = false;
+                JarvisBubbleService.onOperationFailed();
                 setStatus("Google : " + e.getMessage());
             });
     }
@@ -283,6 +286,7 @@ public class MainActivity extends Activity {
         String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
             isBusy = false;
+            JarvisBubbleService.onOperationFailed();
             setStatus("Aucun jeton Gmail. Autorisation nécessaire.");
             return;
         }
@@ -291,6 +295,7 @@ public class MainActivity extends Activity {
             try {
                 fetchNewestGmailSvg(token);
             } catch (Exception e) {
+                JarvisBubbleService.onOperationFailed();
                 runOnUiThread(() -> setStatus("Gmail : " + e.getMessage()));
             } finally {
                 runOnUiThread(() -> isBusy = false);
@@ -458,6 +463,7 @@ public class MainActivity extends Activity {
     }
 
     private void importSharedSvg(Uri uri) {
+        JarvisBubbleService.onSvgWorkStarted();
         showMessage("Réception du SVG...");
         new Thread(() -> {
             try {
@@ -482,6 +488,7 @@ public class MainActivity extends Activity {
                 return;
             }
         } catch (Exception e) { showMessage("Adresse HTTPS invalide"); return; }
+        JarvisBubbleService.onSvgWorkStarted();
         showMessage("Téléchargement en cours...");
         new Thread(() -> {
             HttpURLConnection connection = null;
@@ -615,8 +622,10 @@ public class MainActivity extends Activity {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         try {
             startActivity(intent);
+            JarvisBubbleService.onSvgOpenRequested();
             return true;
         } catch (Exception e) {
+            JarvisBubbleService.onOperationFailed();
             showMessage("Aucune application compatible ou fichier inaccessible");
             return false;
         }
@@ -629,6 +638,7 @@ public class MainActivity extends Activity {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
     }
     private void showError(String prefix, Exception error) {
+        JarvisBubbleService.onOperationFailed();
         runOnUiThread(() -> showMessage(prefix + " : " + error.getMessage()));
     }
 }

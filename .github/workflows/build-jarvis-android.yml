@@ -30,20 +30,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.0.1-debug
+          name: Jarvis-Bridge-1.0.2-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.1-Test.apk
-          if gh release view jarvis-1.0.1-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.0.1-preview Jarvis-Bridge-1.0.1-Test.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.2-Test.apk
+          if gh release view jarvis-1.0.2-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.0.2-preview Jarvis-Bridge-1.0.2-Test.apk --clobber
           else
-            gh release create jarvis-1.0.1-preview Jarvis-Bridge-1.0.1-Test.apk \
+            gh release create jarvis-1.0.2-preview Jarvis-Bridge-1.0.2-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.0.1 - Appui long 1.5 seconde" \
-              --notes "Version experimentale 1.0.1 : appui long de 1,5 seconde au lieu de 2 secondes. Tous les autres gestes et informations de la bulle sont conserves. Installation separee pour ne pas modifier la version 1.0 existante." \
+              --title "Jarvis Bridge 1.0.2 - Horloge et etats Jarvis" \
+              --notes "Prototype 1.0.2 : horloge uniquement en petit, ni batterie ni animation constante, grand affichage et orbe lumineux pendant notification Gmail ou action SVG, retour en 5 s, appui long 1,5 s. Les versions precedentes restent installees separement." \
               --prerelease
           fi

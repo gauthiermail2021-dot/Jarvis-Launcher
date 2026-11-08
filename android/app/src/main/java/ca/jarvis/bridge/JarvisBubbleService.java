@@ -9,7 +9,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
-import android.os.BatteryManager;
+import android.graphics.Path;
+import android.graphics.PathMeasure;
 import android.os.SystemClock;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -61,7 +62,15 @@ public final class JarvisBubbleService extends Service {
     private View menuView;
     private Runnable collapseRunnable;
     private boolean animationsEnabled = true;
-    private long gmailSignalUntil = 0L;
+    private static final int STATE_READY = 0;
+    private static final int STATE_GMAIL = 1;
+    private static final int STATE_WORKING = 2;
+    private static final int STATE_SUCCESS = 3;
+    private static final int STATE_ERROR = 4;
+    private int visualState = STATE_READY;
+    private String visualTitle = "JARVIS";
+    private String visualDetail = "PRÊT";
+    private long visualUntil = 0L;
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
@@ -145,15 +154,43 @@ public final class JarvisBubbleService extends Service {
     }
 
 
-    /** Only Gmail signals from the existing notification listener are supported in this version. */
+    /** Signaux exclusivement liés à des événements que Jarvis Bridge peut observer. */
     static void onGmailNotificationReceived() {
         JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(current::showGmailSignal);
+        if (current != null) current.gestureHandler.post(() ->
+                current.showActivity(STATE_GMAIL, "GMAIL", "NOTIFICATION"));
     }
 
-    private void showGmailSignal() {
+    static void onSvgWorkStarted() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() ->
+                current.showActivity(STATE_WORKING, "SVG", "TRAITEMENT"));
+    }
+
+    static void onGmailWorkStarted() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() ->
+                current.showActivity(STATE_WORKING, "GMAIL", "RECHERCHE"));
+    }
+
+    static void onSvgOpenRequested() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() ->
+                current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ"));
+    }
+
+    static void onOperationFailed() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() ->
+                current.showActivity(STATE_ERROR, "JARVIS", "ERREUR"));
+    }
+
+    private void showActivity(int state, String title, String detail) {
         if (bubble == null || wm == null) return;
-        gmailSignalUntil = SystemClock.uptimeMillis() + IDLE_COLLAPSE_MS;
+        visualState = state;
+        visualTitle = title;
+        visualDetail = detail;
+        visualUntil = SystemClock.uptimeMillis() + IDLE_COLLAPSE_MS;
         setExpanded(true);
     }
 
@@ -176,12 +213,6 @@ public final class JarvisBubbleService extends Service {
             }
         };
         gestureHandler.postDelayed(collapseRunnable, IDLE_COLLAPSE_MS);
-    }
-
-    private int batteryPercent() {
-        BatteryManager manager = (BatteryManager) getSystemService(BATTERY_SERVICE);
-        return manager == null ? -1 :
-                manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
     }
 
     private void cancelPendingLongPress() {
@@ -362,7 +393,11 @@ public final class JarvisBubbleService extends Service {
         bubble.invalidate();
         wm.updateViewLayout(bubble, params);
         if (next) scheduleCollapse();
-        else cancelCollapse();
+        else {
+            cancelCollapse();
+            visualState = STATE_READY;
+            visualUntil = 0L;
+        }
     }
 
     private void openChatGPT() {
@@ -387,18 +422,23 @@ public final class JarvisBubbleService extends Service {
         super.onDestroy();
     }
 
-    /** Façade légère ; seules les informations réelles (heure, batterie, Gmail) sont affichées. */
+    /** Au repos, afficher seulement l'heure. Pendant une action réelle, animer le contour. */
     private final class BubbleView extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF rect = new RectF();
+        private final Path orbit = new Path();
+        private final PathMeasure orbitMeasure = new PathMeasure();
+        private final float[] orbitPoint = new float[2];
+        private final SimpleDateFormat clockFormat =
+                new SimpleDateFormat("HH:mm", Locale.CANADA_FRENCH);
 
         BubbleView(Context context) {
             super(context);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
 
-        private void drawCentered(Canvas canvas, String value, float x, float y, int size,
-                                  int color, boolean bold) {
+        private void drawCentered(Canvas canvas, String value, float x, float y,
+                                  int size, int color, boolean bold) {
             p.setStyle(Paint.Style.FILL);
             p.setColor(color);
             p.setTextAlign(Paint.Align.CENTER);
@@ -408,58 +448,83 @@ public final class JarvisBubbleService extends Service {
             p.setFakeBoldText(false);
         }
 
+        private int getAccent(int state) {
+            switch (state) {
+                case STATE_GMAIL: return Color.rgb(255, 190, 65);
+                case STATE_WORKING: return Color.rgb(55, 220, 255);
+                case STATE_SUCCESS: return Color.rgb(80, 235, 150);
+                case STATE_ERROR: return Color.rgb(255, 100, 110);
+                default: return Color.rgb(55, 208, 245);
+            }
+        }
+
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float w = getWidth(), h = getHeight(), side = Math.min(w, h);
+            float w = getWidth(), h = getHeight();
             if (w < 1 || h < 1) return;
             long now = SystemClock.uptimeMillis();
-            boolean gmail = gmailSignalUntil > now;
-            boolean animating = animationsEnabled && isAttachedToWindow();
-            float phase = animating ? (float)Math.sin(now / 420.0) : 0f;
-            float brightness = animating ? .60f + .40f * (phase + 1f) / 2f : .82f;
+            boolean eventVisible = expanded && visualState != STATE_READY
+                    && now < visualUntil;
+            boolean animating = eventVisible && animationsEnabled && isAttachedToWindow();
+            int color = getAccent(eventVisible ? visualState : STATE_READY);
             float inset = dp(expanded ? 7 : 5);
+            float rounded = Math.min(w, h) * .23f;
             rect.set(inset, inset, w - inset, h - inset);
-            float rounded = side * .25f;
 
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.argb(223, 10, 25, 45));
+            p.setColor(Color.argb(230, 10, 25, 45));
             canvas.drawRoundRect(rect, rounded, rounded, p);
 
-            // Le contour passe en ambre uniquement lors d'une notification Gmail reçue.
-            int red = gmail ? 255 : 40;
-            int green = gmail ? 184 : 212;
-            int blue = gmail ? 55 : 255;
             p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(dp(expanded ? 3 : 2));
-            p.setColor(Color.argb(Math.round(150 + 105 * brightness), red, green, blue));
+            p.setStrokeWidth(dp(expanded ? 2.5f : 2f));
+            p.setColor(color);
             canvas.drawRoundRect(rect, rounded, rounded, p);
 
-            float innerInset = inset + dp(expanded ? 6 : 5);
-            rect.set(innerInset, innerInset, w - innerInset, h - innerInset);
+            float gap = inset + dp(expanded ? 6 : 5);
+            RectF inside = new RectF(gap, gap, w - gap, h - gap);
             p.setStrokeWidth(dp(1));
-            p.setColor(Color.argb(170, 118, 230, 245));
-            canvas.drawRoundRect(rect, rounded * .77f, rounded * .77f, p);
-            p.setStyle(Paint.Style.FILL);
-            p.setColor(gmail ? Color.rgb(255, 205, 85) : Color.rgb(88, 244, 228));
-            canvas.drawCircle(w / 2f, h - inset - dp(4), dp(expanded ? 3 : 2), p);
+            p.setColor(Color.argb(155, 118, 225, 244));
+            canvas.drawRoundRect(inside, rounded * .76f, rounded * .76f, p);
 
-            if (expanded) {
-                drawCentered(canvas, gmail ? "GMAIL" : "JARVIS",
-                        w / 2f, h * .36f, 12, gmail ? Color.rgb(255, 215, 125) : Color.WHITE, true);
-                String clock = new SimpleDateFormat("HH:mm", Locale.CANADA_FRENCH).format(new Date());
-                drawCentered(canvas, clock, w / 2f, h * .57f, 17,
-                        Color.rgb(155, 235, 255), true);
-                int battery = batteryPercent();
-                drawCentered(canvas, battery >= 0 && battery <= 100
-                                ? "BAT " + battery + "%" : "BAT --",
-                        w / 2f, h * .73f, 10, Color.rgb(198, 223, 235), false);
-            } else {
-                drawCentered(canvas, "J", w / 2f, h * .59f, 17, Color.WHITE, true);
+            if (animating) {
+                // Une lumière parcourt le contour uniquement durant une activité réelle.
+                orbit.reset();
+                orbit.addRoundRect(rect, rounded, rounded, Path.Direction.CW);
+                orbitMeasure.setPath(orbit, false);
+                float distance = (now % 1900L) / 1900f * orbitMeasure.getLength();
+                if (orbitMeasure.getPosTan(distance, orbitPoint, null)) {
+                    p.setStyle(Paint.Style.FILL);
+                    p.setColor(Color.argb(95, Color.red(color),
+                            Color.green(color), Color.blue(color)));
+                    canvas.drawCircle(orbitPoint[0], orbitPoint[1], dp(7), p);
+                    p.setColor(Color.WHITE);
+                    canvas.drawCircle(orbitPoint[0], orbitPoint[1], dp(2.6f), p);
+                }
             }
 
-            // L'animation de veille reste discrète pour limiter les rafraîchissements.
-            if (animating) postInvalidateDelayed(expanded ? 130L : 360L);
-            else if (gmail) postInvalidateDelayed(600L);
+            String clock = clockFormat.format(new Date());
+            if (expanded) {
+                String title = eventVisible ? visualTitle : "JARVIS";
+                String detail = eventVisible ? visualDetail : "PRÊT";
+                drawCentered(canvas, title, w / 2f, h * .36f, 12,
+                        eventVisible ? color : Color.WHITE, true);
+                drawCentered(canvas, detail, w / 2f, h * .56f, 11,
+                        Color.rgb(191, 234, 245), true);
+                drawCentered(canvas, clock, w / 2f, h * .76f, 15,
+                        Color.rgb(155, 235, 255), false);
+            } else {
+                // Pas de J, pas de batterie : seulement l'heure, même en mode réduit.
+                drawCentered(canvas, clock, w / 2f, h * .56f, 13,
+                        Color.rgb(226, 250, 255), true);
+            }
+
+            if (animating) {
+                postInvalidateDelayed(85L);
+            } else {
+                // Au repos, ne rafraîchir qu'au changement de minute.
+                long millis = System.currentTimeMillis();
+                postInvalidateDelayed(Math.max(100L, 60025L - millis % 60000L));
+            }
         }
     }
 }
