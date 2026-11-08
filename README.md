@@ -1,3 +1,24 @@
+# Jarvis Bridge 1.0.4 — version test corrigée
+
+**Compilation demandée explicitement le 8 novembre 2026.**
+
+Version de test **1.0.4** (application Android distincte `ca.jarvis.bridge.preview104`) pour éviter un conflit de signature debug avec les anciennes versions et ne pas perturber la 0.7 validée. Les anciennes versions ne sont pas désinstallées automatiquement.
+
+- Menu par appui long **1 seconde**.
+- Bulle de 54 dp : heure seulement; bulle agrandie de 110 dp : statut sans heure; retour automatique après 5 secondes.
+- Notification Gmail → « Toucher pour ouvrir » → récupération du dernier SVG non lu portant le libellé `Jarvis SVG` → demande d'ouverture dans xTool.
+- Priorité à xTool si le système reconnaît son activité SVG; sinon sélection d'une application extérieure.
+- Ignore **tous** les packages `ca.jarvis.bridge`, `ca.jarvis.bridge.*` et les activités nommées Jarvis Bridge, empêchant le renvoi accidentel d'un SVG à une autre version du prototype.
+- Les statuts de la bulle correspondent à des opérations réellement lancées; « Ouverture xTool » signifie demande d'ouverture Android, pas confirmation d'import réussi.
+
+**Attention** : l'ouverture xTool sans toucher à la notification n'est pas encore implémentée. Cette version doit être testée directement sur le téléphone et dans xTool avant de supprimer l'ancienne 0.7 fonctionnelle. Sur Samsung, n'autoriser qu'**une seule** version de Jarvis à lire les notifications Gmail pour éviter les notifications en double.
+
+**Après validation sur 1.0.4**, supprimer les anciennes versions et ne conserver qu'une installation Jarvis Bridge. La signature debug est éphémère et le package de test change à chaque version : une future version stable devra recevoir une signature persistante.
+
+**Commandes futures** : nouvelle compilation uniquement après autorisation explicite, via `workflow_dispatch`.
+
+---
+
 # Jarvis Bridge 1.0.3 — Correctif de boucle Android SVG
 
 **Statut : compilation GitHub Actions réussie (run 42517609412). APK publié sous la version 1.0.3.** Compilation uniquement sur commande explicite via GitHub Actions (`workflow_dispatch`).
@@ -42,7 +63,7 @@ Téléchargement APK : https://github.com/gauthiermail2021-dot/Jarvis-Launcher/r
 - Sur Android, chaque ancienne version de Jarvis Bridge peut apparaître comme une application SVG externe à la version 1.0.3.
 - Le code filtre maintenant **tous** les packages de la famille `ca.jarvis.bridge` et les activités nommées « Jarvis Bridge », au lieu de seulement exclure le package courant.
 - xTool demeure prioritaire s'il expose un gestionnaire Android SVG. En son absence, Jarvis demande un choix au lieu d'ouvrir arbitrairement une application.
-- Le binaire 1.0.3 publié **ne contient pas encore** ce correctif supplémentaire. Il sera inclus à la prochaine compilation sur demande explicite.
+- Le correctif est inclus dans le code destiné à la **1.0.4**; ne pas confondre avec l'ancien APK 1.0.3.
 
 ## Passage à une installation unique (procédure de test)
 
