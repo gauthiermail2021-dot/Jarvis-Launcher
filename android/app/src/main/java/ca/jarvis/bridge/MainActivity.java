@@ -451,28 +451,28 @@ public class MainActivity extends ComponentActivity {
                 }
                 // Résultat contradictoire : jamais supposer la réussite.
                 isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat non confirmé (" + resultCode
                         + "), aucun accès Gmail lancé.");
                 return;
             } catch (ApiException error) {
                 isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google OAuth : code " + error.getStatusCode()
                         + " — vérifier le client OAuth Android et le certificat SHA-1.");
                 return;
             } catch (Exception error) {
                 isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat illisible — " + error.getClass().getSimpleName());
                 return;
             }
         }
         isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
         JarvisBubbleService.onOperationFailed();
         setStatus("Google : aucune donnée de retour (résultat " + resultCode
                 + "). Vérifier package Android, SHA-1 et consentement OAuth.");
@@ -482,7 +482,7 @@ public class MainActivity extends ComponentActivity {
         String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
             isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
             JarvisBubbleService.onOperationFailed();
             setStatus("Aucun jeton Gmail. Autorisation nécessaire.");
             return;
@@ -537,6 +537,27 @@ public class MainActivity extends ComponentActivity {
         String previous = prefs.getString(LAST_GMAIL_ID, "");
         long lastProcessedTime = prefs.getLong(LAST_GMAIL_TIMESTAMP, 0L);
         String lastHash = prefs.getString(LAST_SVG_SHA256, "");
+        // Migration depuis Jarvis 1.2.1 : utiliser la date du dernier
+        // courriel réellement traité, pour ne pas rouvrir les anciens
+        // SVG non lus après la mise à jour.
+        if (lastProcessedTime == 0L && !previous.isEmpty()) {
+            int separator = previous.indexOf(':');
+            String previousMessageId = separator > 0
+                    ? previous.substring(0, separator) : previous;
+            try {
+                JSONObject lastMessage = getJson(API + "/messages/"
+                        + URLEncoder.encode(previousMessageId, "UTF-8")
+                        + "?format=minimal", token);
+                lastProcessedTime = Long.parseLong(
+                        lastMessage.optString("internalDate", "0"));
+                if (lastProcessedTime > 0L) {
+                    prefs.edit().putLong(LAST_GMAIL_TIMESTAMP, lastProcessedTime).apply();
+                }
+            } catch (Exception ignored) {
+                // Si l'ancien courriel a été effacé, la liste des IDs
+                // traités demeure notre deuxième protection.
+            }
+        }
 
         // Gmail peut afficher deux notifications pour un message. De plus,
         // une correction vocale peut générer deux courriels différents.
