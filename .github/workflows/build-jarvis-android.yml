@@ -39,9 +39,9 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.9-Test.apk
           if gh release view jarvis-0.9-preview >/dev/null 2>&1; then
-            gh release upload jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk --clobber
+            gh release upload jarvis-0.9-preview Jarvis-Bridge-0.9-Test.apk --clobber
           else
-            gh release create jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk \
+            gh release create jarvis-0.9-preview Jarvis-Bridge-0.9-Test.apk \
               --target "$GITHUB_SHA" \
               --title "Jarvis Bridge 0.9 - Conversation Jarvis" \
               --notes "Prototype 0.9 : lien de conversation configurable dans l'application; bulle flottante, double toucher et menu de 2 secondes conserves. Application distincte de Jarvis 0.7 et de 0.8.1. Le routage direct vers une conversation sur ChatGPT Android reste a tester." \
