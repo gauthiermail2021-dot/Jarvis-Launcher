@@ -8,7 +8,7 @@
     </queries>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="Jarvis Bridge 1.0.5 Test"
+        android:label="Jarvis Bridge"
         android:allowBackup="true"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false">
@@ -29,7 +29,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="jarvisbridgepreview105" android:host="open" />
+                <data android:scheme="jarvisbridge" android:host="open" />
             </intent-filter>
         </activity>
         <service android:name=".JarvisBubbleService" android:exported="false" />

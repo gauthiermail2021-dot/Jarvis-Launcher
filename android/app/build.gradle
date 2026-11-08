@@ -7,18 +7,36 @@ android {
     compileSdk 35
 
     defaultConfig {
+        // Identité stable. Plus de suffixe preview pour les APK officiels.
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 16
-        versionName '1.0.5'
+        versionCode 17
+        versionName '1.1.0'
+    }
+
+    signingConfigs {
+        release {
+            // La clé privée n'est jamais conservée dans ce dépôt public.
+            // Elle est injectée uniquement pendant la compilation GitHub Actions.
+            def signingFile = System.getenv('JARVIS_KEYSTORE_PATH')
+            if (signingFile != null && !signingFile.isEmpty()) {
+                storeFile file(signingFile)
+                storePassword System.getenv('JARVIS_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('JARVIS_KEY_ALIAS')
+                keyPassword System.getenv('JARVIS_KEY_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
         debug {
-            // Package de test 1.0.5 isole, car les APK de GitHub Actions utilisent une signature debug ephemere.
-            applicationIdSuffix '.preview105'
-            // Clé debug générée automatiquement par Android Gradle Plugin.
+            // Usage de développement local uniquement : NE PAS livrer comme version stable.
+            applicationIdSuffix '.dev'
         }
     }
 
@@ -29,6 +47,6 @@ android {
 }
 
 dependencies {
-    // Connexion Google OAuth pour Gmail
     implementation 'com.google.android.gms:play-services-auth:21.5.0'
+    implementation 'androidx.activity:activity:1.9.3'
 }

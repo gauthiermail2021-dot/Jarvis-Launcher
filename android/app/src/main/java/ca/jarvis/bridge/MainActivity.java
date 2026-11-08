@@ -1,6 +1,10 @@
 package ca.jarvis.bridge;
 
 import android.app.Activity;
+import androidx.activity.ComponentActivity;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.result.IntentSenderRequest;
 import android.app.PendingIntent;
 import android.app.NotificationManager;
 import android.Manifest;
@@ -33,6 +37,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest;
 import com.google.android.gms.auth.api.identity.AuthorizationResult;
 import com.google.android.gms.auth.api.identity.Identity;
 import com.google.android.gms.common.api.Scope;
+import com.google.android.gms.common.api.ApiException;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -50,9 +55,8 @@ import java.util.HashSet;
 import java.util.Collections;
 import java.util.Locale;
 
-public class MainActivity extends Activity {
+public class MainActivity extends ComponentActivity {
     private static final int PICK_SVG = 1001;
-    private static final int AUTH_REQUEST = 1002;
     private static final int NOTIFICATION_PERMISSION = 1003;
     public static final String ACTION_CHECK_GMAIL = "ca.jarvis.bridge.ACTION_CHECK_GMAIL";
     private static volatile MainActivity foregroundActivity;
@@ -69,6 +73,7 @@ public class MainActivity extends Activity {
     private EditText urlInput;
     private TextView status;
     private AuthorizationClient authorizationClient;
+    private ActivityResultLauncher<IntentSenderRequest> authorizationLauncher;
     private boolean isBusy = false;
     private boolean startBubbleAfterPermission = false;
 
@@ -76,13 +81,19 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         authorizationClient = Identity.getAuthorizationClient(this);
+        // Cycle de vie géré par AndroidX : le résultat Google est livré même
+        // après la recréation de l'Activity, avec un diagnostic explicite.
+        authorizationLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartIntentSenderForResult(),
+                activityResult -> handleGoogleAuthorizationReturn(
+                        activityResult.getResultCode(), activityResult.getData()));
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 1.0.5 — diagnostic Gmail");
+        title.setText("Jarvis Bridge 1.1 — connexion Gmail");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -277,9 +288,9 @@ public class MainActivity extends Activity {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean(AUTH_PENDING, true).apply();
                         setStatus("Google : en attente du choix de compte...");
-                        startIntentSenderForResult(
-                            pendingIntent.getIntentSender(), AUTH_REQUEST,
-                            null, 0, 0, 0);
+                        authorizationLauncher.launch(
+                                new IntentSenderRequest.Builder(
+                                        pendingIntent.getIntentSender()).build());
                     } catch (Exception e) {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean(AUTH_PENDING, false).apply();
@@ -296,6 +307,48 @@ public class MainActivity extends Activity {
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : " + e.getMessage());
             });
+    }
+
+
+    /**
+     * Reçoit l'autorisation depuis le contrat AndroidX. Ne jamais conclure
+     * à une annulation sans examiner d'abord les données retournées par Google.
+     */
+    private void handleGoogleAuthorizationReturn(int resultCode, Intent data) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putBoolean(AUTH_PENDING, false).apply();
+        if (data != null) {
+            try {
+                AuthorizationResult authorized =
+                        authorizationClient.getAuthorizationResultFromIntent(data);
+                if (resultCode == Activity.RESULT_OK) {
+                    setStatus("Google : autorisation reçue, lecture Gmail...");
+                    acceptAuthorizationResult(authorized);
+                    return;
+                }
+                // Résultat contradictoire : jamais supposer la réussite.
+                isBusy = false;
+                JarvisBubbleService.onOperationFailed();
+                setStatus("Google : résultat non confirmé (" + resultCode
+                        + "), aucun accès Gmail lancé.");
+                return;
+            } catch (ApiException error) {
+                isBusy = false;
+                JarvisBubbleService.onOperationFailed();
+                setStatus("Google OAuth : code " + error.getStatusCode()
+                        + " — vérifier le client OAuth Android et le certificat SHA-1.");
+                return;
+            } catch (Exception error) {
+                isBusy = false;
+                JarvisBubbleService.onOperationFailed();
+                setStatus("Google : résultat illisible — " + error.getClass().getSimpleName());
+                return;
+            }
+        }
+        isBusy = false;
+        JarvisBubbleService.onOperationFailed();
+        setStatus("Google : aucune donnée de retour (résultat " + resultCode
+                + "). Vérifier package Android, SHA-1 et consentement OAuth.");
     }
 
     private void acceptAuthorizationResult(AuthorizationResult result) {
@@ -441,7 +494,7 @@ public class MainActivity extends Activity {
         Uri data = intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && data != null
                 && ("jarvisbridge".equalsIgnoreCase(data.getScheme())
-                     || "jarvisbridgepreview105".equalsIgnoreCase(data.getScheme()))
+                     || "jarvisbridge".equalsIgnoreCase(data.getScheme()))
                 && "open".equalsIgnoreCase(data.getHost())) {
             String address = data.getQueryParameter("url");
             if (address == null || address.trim().isEmpty())
@@ -601,25 +654,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == AUTH_REQUEST) {
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                    .putBoolean(AUTH_PENDING, false).apply();
-            if (resultCode == RESULT_OK && data != null) {
-                try {
-                    setStatus("Google : compte choisi, vérification de l'accès Gmail...");
-                    acceptAuthorizationResult(authorizationClient.getAuthorizationResultFromIntent(data));
-                } catch (Exception e) {
-                    isBusy = false;
-                    JarvisBubbleService.onOperationFailed();
-                    setStatus("Retour Google impossible : " + e.getMessage());
-                }
-            } else {
-                isBusy = false;
-                JarvisBubbleService.onOperationFailed();
-                setStatus("Google : sélection de compte annulée (résultat " + resultCode + ")");
-            }
-            return;
-        }
         if (requestCode == PICK_SVG && resultCode == RESULT_OK
                 && data != null && data.getData() != null) importSharedSvg(data.getData());
     }
