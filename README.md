@@ -1,17 +1,19 @@
-# Jarvis Bridge 1.0.5 — diagnostic Gmail
+# Jarvis Bridge 1.1.0 — Identité stable & Gmail OAuth
 
-**Compilation explicitement demandée le 8 novembre 2026.**
+**Branche : `feature/android-jarvis-stable-oauth`. Aucun APK 1.1.0 compilé à ce stade.**
 
-Version Android de test séparée `ca.jarvis.bridge.preview105`, pour préserver les APK installés.
+Le prototype 0.7 a permis un test Gmail → SVG → xTool réussi. Les versions 1.0.x ont introduit une identité de test Android différente à chaque compilation; la 1.0.5 affiche « sélection de compte annulée (résultat 0) » sur le Samsung. Ce symptôme ne prouve pas à lui seul une erreur de signature, mais rend nécessaire la vérification du client OAuth Android.
 
-- Correction inter-versions : ne jamais renvoyer un SVG à un ancien Jarvis Bridge.
-- Menus et bulle inchangés : appui long 1 s; heure uniquement en petite bulle; statut sans heure en grande bulle; retour après 5 s.
-- Détection Gmail : notification « Toucher pour ouvrir » → compte Google → recherche du dernier courriel non lu marqué `Jarvis SVG` → ouverture SVG xTool si le système prend en charge le fichier.
-- Diagnostic renforcé : affichage durable du statut après le retour du sélecteur Google, erreurs explicites lorsque l'accès Gmail ou le lancement du lecteur SVG échoue.
-- **Le choix du compte pourrait encore être nécessaire** : la cause du problème initial n'est pas confirmée et le diagnostic vise à l'identifier, pas à garantir sa correction.
-- Si le traitement ne parvient pas jusqu'à xTool, vérifier précisément le message d'état sous le bouton « Arrêter la bulle ».
+La branche 1.1.0 prépare :
+- un package **fixe** `ca.jarvis.bridge`;
+- une signature de version `release` **réutilisable** au lieu d'une nouvelle clé debug à chaque compilation;
+- un flux d'autorisation Google basé sur AndroidX ActivityResult;
+- des messages d'erreur Gmail persistants et une vérification stricte de la réussite OAuth;
+- la protection empêchant de renvoyer un SVG à une autre version Jarvis;
+- la bulle 54 dp / 110 dp, heure seulement en petit, menu 1 seconde, repli 5 secondes.
 
-Ne pas désinstaller la version 0.7 fonctionnelle avant d'avoir confirmé le fonctionnement de la 1.0.5. N'autoriser qu'une version à lire les notifications Gmail pendant le test.
+Le certificat privé est fourni séparément à l'utilisateur, **pas** dans le dépôt GitHub. Pour fonctionner, Google Cloud doit autoriser le package et le SHA-1 de ce certificat et les 4 secrets GitHub Actions doivent être configurés.
 
-La récupération entièrement automatique sans toucher la notification n'est pas encore disponible.
+Consulter **`android/GOOGLE_OAUTH_CONFIGURATION.md`** pour les étapes précises.
 
+**Compilation exclusivement sur demande explicite.** Le fonctionnement Gmail → xTool doit être retesté sur le Samsung après l'autorisation Google; il n'est pas encore confirmé.
