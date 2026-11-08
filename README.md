@@ -43,3 +43,16 @@ Téléchargement APK : https://github.com/gauthiermail2021-dot/Jarvis-Launcher/r
 - Le code filtre maintenant **tous** les packages de la famille `ca.jarvis.bridge` et les activités nommées « Jarvis Bridge », au lieu de seulement exclure le package courant.
 - xTool demeure prioritaire s'il expose un gestionnaire Android SVG. En son absence, Jarvis demande un choix au lieu d'ouvrir arbitrairement une application.
 - Le binaire 1.0.3 publié **ne contient pas encore** ce correctif supplémentaire. Il sera inclus à la prochaine compilation sur demande explicite.
+
+## Passage à une installation unique (procédure de test)
+
+**IMPORTANT : la version 1.0.3 déjà publiée n'inclut pas le filtre des *autres* versions de Jarvis Bridge.** Ce filtre est présent dans les sources, en attente de la prochaine compilation demandée par l'utilisateur.
+
+1. Conserver une copie installable de l'ancienne application 0.7 si possible : c'est la version Gmail → SVG → xTool déjà vérifiée.
+2. Avant d'installer la prochaine APK corrigée, arrêter les anciennes versions et leur retirer « Accès aux notifications ».
+3. Vérifier l'activation de l'accès aux notifications Gmail pour la seule version récente, son autorisation de superposition, sa configuration ChatGPT et l'autorisation Gmail OAuth.
+4. **Sur la version corrigée**, tester un nouveau courriel non lu avec libellé `Jarvis SVG`; utiliser la notification « Toucher pour ouvrir ». Vérifier que xTool reçoit le SVG sans lancement d'ancienne version.
+5. **Après ce test réussi uniquement**, désinstaller 0.7, 1.0.2 et les prototypes inutilisés et retirer les anciennes associations « Toujours ».
+6. Ne pas lancer de nouvelle compilation avant la demande explicite « Compile ».
+
+Ne pas considérer le simple fait de forcer l'arrêt de 0.7 comme une protection suffisante : si le code d'un autre APK la choisit comme gestionnaire SVG, Android peut la relancer.
