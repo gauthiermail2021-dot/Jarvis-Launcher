@@ -502,18 +502,17 @@ public final class JarvisBubbleService extends Service {
                 }
             }
 
-            String clock = clockFormat.format(new Date());
             if (expanded) {
+                // Afficher uniquement l'activité Jarvis au centre, jamais l'heure.
                 String title = eventVisible ? visualTitle : "JARVIS";
                 String detail = eventVisible ? visualDetail : "PRÊT";
-                drawCentered(canvas, title, w / 2f, h * .36f, 12,
+                drawCentered(canvas, title, w / 2f, h * .44f, 13,
                         eventVisible ? color : Color.WHITE, true);
-                drawCentered(canvas, detail, w / 2f, h * .56f, 11,
+                drawCentered(canvas, detail, w / 2f, h * .66f, 12,
                         Color.rgb(191, 234, 245), true);
-                drawCentered(canvas, clock, w / 2f, h * .76f, 15,
-                        Color.rgb(155, 235, 255), false);
             } else {
-                // Pas de J, pas de batterie : seulement l'heure, même en mode réduit.
+                // Au repos, seulement l'heure; aucune batterie et aucun logo.
+                String clock = clockFormat.format(new Date());
                 drawCentered(canvas, clock, w / 2f, h * .56f, 13,
                         Color.rgb(226, 250, 255), true);
             }
