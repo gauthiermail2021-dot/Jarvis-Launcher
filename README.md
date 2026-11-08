@@ -1,6 +1,6 @@
 # Jarvis Bridge 1.0.3 — Correctif de boucle Android SVG
 
-**Statut : source préparée, NON COMPILÉE.** Compilation uniquement sur commande explicite via GitHub Actions (`workflow_dispatch`).
+**Statut : compilation GitHub Actions réussie (run 42517609412). APK publié sous la version 1.0.3.** Compilation uniquement sur commande explicite via GitHub Actions (`workflow_dispatch`).
 
 Bogue reproduit conceptuellement : Android choisit Jarvis Bridge « Toujours » pour ouvrir un SVG; Jarvis importe le SVG puis relance un ACTION_VIEW implicite, que le système réachemine à Jarvis → boucle infinie.
 
@@ -35,3 +35,5 @@ Remarque : xTool doit réellement exposer une activité Android capable de gére
 - L'ouverture en boucle a été bloquée en excluant Jarvis Bridge lui-même des gestionnaires SVG externes.
 
 **Limite de l'essai :** avec Jarvis Bridge en arrière-plan, l'utilisateur doit encore toucher la notification « Toucher pour ouvrir » avant la récupération Gmail. Une ouverture vraiment sans toucher nécessitera un mécanisme d'autorisation Gmail en arrière-plan et le traitement des restrictions Android de lancement d'activité. Ce comportement n'est pas annoncé comme déjà réalisé.
+
+Téléchargement APK : https://github.com/gauthiermail2021-dot/Jarvis-Launcher/releases/download/jarvis-1.0.3-preview/Jarvis-Bridge-1.0.3-Test.apk
