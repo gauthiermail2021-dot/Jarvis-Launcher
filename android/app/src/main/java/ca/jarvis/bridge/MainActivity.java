@@ -65,6 +65,7 @@ public class MainActivity extends ComponentActivity {
     private static final String LAST_STATUS = "last_status";
     private static final String AUTH_PENDING = "gmail_auth_pending";
     static final String AUTO_OPEN_ENABLED = "auto_open_enabled";
+    static final String AUTO_BUBBLE_ON_LAUNCH = "auto_bubble_on_launch";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
@@ -197,6 +198,40 @@ public class MainActivity extends ComponentActivity {
             startActivity(settings);
         });
 
+        Button bubbleOnLaunch = new Button(this);
+        boolean bubbleOn = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(AUTO_BUBBLE_ON_LAUNCH, true);
+        bubbleOnLaunch.setText(bubbleOn
+                ? "Bulle au lancement de Jarvis : ACTIVÉE"
+                : "Bulle au lancement de Jarvis : DÉSACTIVÉE");
+        layout.addView(bubbleOnLaunch);
+        bubbleOnLaunch.setOnClickListener(v -> {
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            boolean enabled = !prefs.getBoolean(AUTO_BUBBLE_ON_LAUNCH, true);
+            prefs.edit().putBoolean(AUTO_BUBBLE_ON_LAUNCH, enabled).apply();
+            bubbleOnLaunch.setText(enabled
+                    ? "Bulle au lancement de Jarvis : ACTIVÉE"
+                    : "Bulle au lancement de Jarvis : DÉSACTIVÉE");
+            if (enabled) requestBubble();
+            else setStatus("Ouverture automatique de la bulle désactivée. Bulle manuelle toujours disponible.");
+        });
+
+        TextView chatgptAutoHelp = new TextView(this);
+        chatgptAutoHelp.setText("Option ChatGPT : activer le service d'accessibilité Jarvis "
+                + "pour détecter uniquement l'ouverture de ChatGPT. "
+                + "Autorisation facultative, désactivée par défaut. "
+                + "Jarvis ne lit pas le contenu de vos conversations.");
+        layout.addView(chatgptAutoHelp);
+        Button chatgptAuto = new Button(this);
+        chatgptAuto.setText("Configurer la bulle à l'ouverture de ChatGPT");
+        layout.addView(chatgptAuto);
+        chatgptAuto.setOnClickListener(v -> {
+            Intent settings = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
+            startActivity(settings);
+            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — ChatGPT. "
+                    + "Autorise aussi l'affichage par-dessus les applications.");
+        });
+
         Button startBubble = new Button(this);
         startBubble.setText("Activer la bulle flottante");
         layout.addView(startBubble);
@@ -241,6 +276,13 @@ public class MainActivity extends ComponentActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(layout);
         setContentView(scroll);
+        // La bulle accompagne automatiquement Jarvis après la première
+        // autorisation de superposition. Aucun dialogue intrusif au lancement.
+        if (getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(AUTO_BUBBLE_ON_LAUNCH, true)
+                && Settings.canDrawOverlays(this)) {
+            startBubbleService();
+        }
         JarvisNotificationListener.ensureChannel(this);
         if (Build.VERSION.SDK_INT >= 33 &&
                 checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
