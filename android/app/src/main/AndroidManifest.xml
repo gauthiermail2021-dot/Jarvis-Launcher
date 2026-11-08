@@ -8,7 +8,7 @@
     </queries>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="Jarvis Bridge 0.8 Test"
+        android:label="Jarvis Bridge 0.8.1 Test"
         android:allowBackup="true"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false">
