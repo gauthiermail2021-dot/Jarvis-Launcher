@@ -64,6 +64,7 @@ public class MainActivity extends ComponentActivity {
     private static final String PREFS = "jarvis_bridge";
     private static final String LAST_STATUS = "last_status";
     private static final String AUTH_PENDING = "gmail_auth_pending";
+    static final String AUTO_OPEN_ENABLED = "auto_open_enabled";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
@@ -165,6 +166,28 @@ public class MainActivity extends ComponentActivity {
         gmail.setText("Ouvrir le dernier SVG Gmail");
         layout.addView(gmail);
         gmail.setOnClickListener(v -> requestGmailAndOpen());
+
+        // L'utilisateur choisit explicitement d'autoriser les ouvertures
+        // automatiques lors d'une notification Gmail Jarvis SVG.
+        // Désactivé par défaut : aucune fenêtre surprise pour d'autres courriels.
+        Button autoOpen = new Button(this);
+        boolean autoEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(AUTO_OPEN_ENABLED, false);
+        autoOpen.setText(autoEnabled
+                ? "Ouverture automatique xTool : ACTIVÉE"
+                : "Ouverture automatique xTool : DÉSACTIVÉE");
+        layout.addView(autoOpen);
+        autoOpen.setOnClickListener(v -> {
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            boolean enabled = !prefs.getBoolean(AUTO_OPEN_ENABLED, false);
+            prefs.edit().putBoolean(AUTO_OPEN_ENABLED, enabled).apply();
+            autoOpen.setText(enabled
+                    ? "Ouverture automatique xTool : ACTIVÉE"
+                    : "Ouverture automatique xTool : DÉSACTIVÉE");
+            setStatus(enabled
+                    ? "Automatique activé : conserver la bulle affichée ; Android peut limiter les ouvertures en arrière-plan."
+                    : "Automatique désactivé : notification Jarvis avec ouverture par toucher.");
+        });
 
         Button access = new Button(this);
         access.setText("Autoriser la détection des notifications Gmail");
