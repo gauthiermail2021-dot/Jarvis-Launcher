@@ -356,9 +356,9 @@ public final class JarvisBubbleService extends Service {
 
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
-            app.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
+            // transparente créée par le lancement compact de l'icône.
+            app.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(app);
         });
         addMenuButton(menu, animationsEnabled ? "Animations : activées" : "Animations : désactivées", () -> {
