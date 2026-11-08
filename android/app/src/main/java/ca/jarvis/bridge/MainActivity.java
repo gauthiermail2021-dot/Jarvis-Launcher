@@ -671,70 +671,94 @@ public class MainActivity extends ComponentActivity {
     }
 
     /**
-     * Ouvrir le SVG dans une application EXTERNE. Ne jamais renvoyer ACTION_VIEW
-     * à Jarvis Bridge, même si Android l'avait enregistré avec « Toujours ».
+     * Ouvre les SVG avec xTool s'il est declare compatible, en essayant les
+     * types utilises par les gestionnaires de fichiers Samsung. La v0.7
+     * laissait Android resoudre ACTION_VIEW directement ; la v1.1.0
+     * imposait un chooser qui pouvait masquer l'association par defaut.
+     *
+     * Ne jamais cibler explicitement une autre version de Jarvis Bridge :
+     * cela creerait une boucle de reouverture des fichiers.
      */
     private boolean openSvg(Uri uri) {
-        Intent prototype = new Intent(Intent.ACTION_VIEW);
-        prototype.setDataAndType(uri, "image/svg+xml");
-        prototype.setClipData(ClipData.newUri(getContentResolver(), "Jarvis SVG", uri));
-        prototype.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         PackageManager pm = getPackageManager();
-        List<ResolveInfo> handlers = pm.queryIntentActivities(
-                prototype, PackageManager.MATCH_DEFAULT_ONLY);
-        ArrayList<Intent> externalIntents = new ArrayList<>();
-        Intent preferredXTool = null;
+        String[] mimeTypes = {
+                "image/svg+xml", "application/octet-stream",
+                "application/xml", "text/xml", "*/*"
+        };
+        Intent xToolIntent = null;
+        ArrayList<Intent> safeViewers = new ArrayList<>();
 
-        for (ResolveInfo handler : handlers) {
-            if (handler.activityInfo == null) continue;
-            String packageName = handler.activityInfo.packageName;
-            String activityName = handler.activityInfo.name;
-            if (packageName == null || activityName == null) continue;
+        for (String mime : mimeTypes) {
+            Intent probe = new Intent(Intent.ACTION_VIEW);
+            probe.setDataAndType(uri, mime);
+            probe.setClipData(ClipData.newUri(getContentResolver(), "Jarvis SVG", uri));
+            probe.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            // Les versions de test ont des applicationId differents (preview102,
-            // preview103, etc.). Ne JAMAIS reexpedier un SVG a une autre version
-            // de Jarvis Bridge; celle-ci pourrait ensuite rouvrir la version courante.
-            String normalizedPackage = packageName.toLowerCase(Locale.ROOT);
-            String label = String.valueOf(handler.loadLabel(pm)).toLowerCase(Locale.ROOT);
-            if (normalizedPackage.equals("ca.jarvis.bridge")
-                    || normalizedPackage.startsWith("ca.jarvis.bridge.")
-                    || label.startsWith("jarvis bridge")) continue;
+            List<ResolveInfo> handlers = pm.queryIntentActivities(
+                    probe, PackageManager.MATCH_DEFAULT_ONLY);
+            for (ResolveInfo handler : handlers) {
+                if (handler.activityInfo == null) continue;
+                String packageName = handler.activityInfo.packageName;
+                String activityName = handler.activityInfo.name;
+                if (packageName == null || activityName == null) continue;
+                String normalized = packageName.toLowerCase(Locale.ROOT);
+                String label = String.valueOf(handler.loadLabel(pm))
+                        .toLowerCase(Locale.ROOT);
+                if (normalized.equals("ca.jarvis.bridge")
+                        || normalized.startsWith("ca.jarvis.bridge.")
+                        || label.startsWith("jarvis bridge")) continue;
 
-            Intent explicit = new Intent(prototype);
-            explicit.setClassName(packageName, activityName);
-            externalIntents.add(explicit);
-
-            // xTool est prioritaire, uniquement si Android lui reconnait
-            // reellement la capacite d'ouvrir ce type de fichier.
-            if (preferredXTool == null
-                    && (packageName.toLowerCase(Locale.ROOT).contains("xtool")
-                         || label.contains("xtool"))) {
-                preferredXTool = explicit;
+                Intent explicit = new Intent(probe);
+                explicit.setClassName(packageName, activityName);
+                if (normalized.contains("xtool") || label.contains("xtool")) {
+                    xToolIntent = explicit;
+                    break;
+                }
+                if ("image/svg+xml".equals(mime)) safeViewers.add(explicit);
             }
-        }
-
-        if (externalIntents.isEmpty()) {
-            JarvisBubbleService.onOperationFailed();
-            setStatus("SVG enregistré, mais aucun lecteur SVG externe détecté (xTool compris).");
-            showMessage("Aucune application externe compatible SVG. Vérifie l'installation xTool.");
-            return false;
+            if (xToolIntent != null) break;
         }
 
         try {
-            if (preferredXTool != null) {
-                startActivity(preferredXTool);
-            } else {
-                // Aucun gestionnaire xTool reconnu : demander un choix explicite
-                // et ne pas lancer silencieusement une autre application par hasard.
-                Intent first = externalIntents.remove(0);
-                Intent chooser = Intent.createChooser(first, "Ouvrir le SVG avec");
-                if (!externalIntents.isEmpty()) {
-                    chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS,
-                            externalIntents.toArray(new Intent[0]));
-                }
-                startActivity(chooser);
+            if (xToolIntent != null) {
+                startActivity(xToolIntent);
+                JarvisBubbleService.onSvgOpenRequested(true);
+                setStatus("SVG transmis directement à xTool.");
+                return true;
             }
-            JarvisBubbleService.onSvgOpenRequested(preferredXTool != null);
+
+            // Retour au comportement de la v0.7 : Android conserve sa
+            // propre association par defaut (comme depuis Mes fichiers).
+            Intent standard = new Intent(Intent.ACTION_VIEW);
+            standard.setDataAndType(uri, "image/svg+xml");
+            standard.setClipData(ClipData.newUri(
+                    getContentResolver(), "Jarvis SVG", uri));
+            standard.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            ResolveInfo defaultHandler = pm.resolveActivity(
+                    standard, PackageManager.MATCH_DEFAULT_ONLY);
+            if (defaultHandler != null && defaultHandler.activityInfo != null) {
+                String pkg = defaultHandler.activityInfo.packageName;
+                String label = String.valueOf(defaultHandler.loadLabel(pm))
+                        .toLowerCase(Locale.ROOT);
+                if (pkg != null
+                        && (pkg.equals("ca.jarvis.bridge")
+                            || pkg.startsWith("ca.jarvis.bridge.")
+                            || label.startsWith("jarvis bridge"))) {
+                    JarvisBubbleService.onOperationFailed();
+                    setStatus("Association SVG vers Jarvis détectée ; ouverture bloquée pour éviter une boucle.");
+                    return false;
+                }
+            }
+
+            if (defaultHandler == null && safeViewers.isEmpty()) {
+                JarvisBubbleService.onOperationFailed();
+                setStatus("SVG sauvegardé ; aucune application externe détectée.");
+                return false;
+            }
+            startActivity(standard);
+            JarvisBubbleService.onSvgOpenRequested(false);
+            setStatus("SVG envoyé à Android pour ouverture (association par défaut).");
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();
