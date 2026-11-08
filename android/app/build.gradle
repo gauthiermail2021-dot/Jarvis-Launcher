@@ -29,6 +29,12 @@ android {
         }
     }
 
+    lint {
+        // APK distribue directement pour tests; niveau cible actuel conserve pour
+        // compatibilite des notifications et de la bulle, sans publication Play Store.
+        disable 'ExpiredTargetSdkVersion'
+    }
+
     buildTypes {
         release {
             minifyEnabled false
