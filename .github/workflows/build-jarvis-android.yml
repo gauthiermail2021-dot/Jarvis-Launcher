@@ -30,20 +30,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-0.9-debug
+          name: Jarvis-Bridge-1.0-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.9-Test.apk
-          if gh release view jarvis-0.9-preview >/dev/null 2>&1; then
-            gh release upload jarvis-0.9-preview Jarvis-Bridge-0.9-Test.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0-Test.apk
+          if gh release view jarvis-1.0-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.0-preview Jarvis-Bridge-1.0-Test.apk --clobber
           else
-            gh release create jarvis-0.9-preview Jarvis-Bridge-0.9-Test.apk \
+            gh release create jarvis-1.0-preview Jarvis-Bridge-1.0-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 0.9 - Conversation Jarvis" \
-              --notes "Prototype 0.9 : lien de conversation configurable dans l'application; bulle flottante, double toucher et menu de 2 secondes conserves. Application distincte de Jarvis 0.7 et de 0.8.1. Le routage direct vers une conversation sur ChatGPT Android reste a tester." \
+              --title "Jarvis Bridge 1.0 - Informations et signaux lumineux" \
+              --notes "Version experimentale 1.0 : bulle qui revient petite apres 5 secondes sans interaction, signaux lumineux discrets, heure et batterie a l'agrandissement, signal amber pour Gmail. Le lien prive ChatGPT reste configurable. Installation independante des versions anterieures." \
               --prerelease
           fi

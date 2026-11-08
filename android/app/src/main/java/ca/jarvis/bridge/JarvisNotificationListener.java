@@ -23,6 +23,8 @@ public class JarvisNotificationListener extends NotificationListenerService {
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn == null || !"com.google.android.gm".equals(sbn.getPackageName())) return;
+        // Le signal concerne Gmail en général, pas nécessairement un fichier SVG.
+        JarvisBubbleService.onGmailNotificationReceived();
 
         // Les deux notifications Gmail (boîte + étiquette) deviennent un signal unique.
         if (pending != null) handler.removeCallbacks(pending);

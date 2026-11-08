@@ -77,7 +77,7 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 0.9 — prototype");
+        title.setText("Jarvis Bridge 1.0 — prototype visuel");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -239,7 +239,7 @@ public class MainActivity extends Activity {
         Intent intent = new Intent(this, JarvisBubbleService.class);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
         else startService(intent);
-        setStatus("Bulle activée : 1 toucher agrandit, 2e toucher ouvre ChatGPT.");
+        setStatus("Bulle active : agrandissement puis réduction après 5 s d’inactivité.");
     }
 
     public static boolean handleGmailNoticeIfVisible() {

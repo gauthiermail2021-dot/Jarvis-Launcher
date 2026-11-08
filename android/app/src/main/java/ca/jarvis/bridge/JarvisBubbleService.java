@@ -9,6 +9,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
+import android.os.BatteryManager;
+import android.os.SystemClock;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,7 +35,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-/** Bulle Jarvis 0.8 : toucher pour agrandir puis ouvrir ChatGPT ; glisser pour déplacer. */
+/** Bulle Jarvis 1.0 : informations locales, signaux lumineux et réduction automatique. */
 public final class JarvisBubbleService extends Service {
     public static final String ACTION_STOP = "ca.jarvis.bridge.STOP_BUBBLE";
     private static final String CHANNEL = "jarvis_bubble_foreground";
@@ -39,6 +44,8 @@ public final class JarvisBubbleService extends Service {
     private static final int SMALL_DP = 54;
     private static final int LARGE_DP = 110;
     private static final long LONG_PRESS_MS = 2000L;
+    private static final long IDLE_COLLAPSE_MS = 5000L;
+    private static volatile JarvisBubbleService activeService;
 
     private WindowManager wm;
     private WindowManager.LayoutParams params;
@@ -52,6 +59,9 @@ public final class JarvisBubbleService extends Service {
     private boolean fingerDown = false;
     private boolean longPressHandled = false;
     private View menuView;
+    private Runnable collapseRunnable;
+    private boolean animationsEnabled = true;
+    private long gmailSignalUntil = 0L;
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
@@ -117,12 +127,14 @@ public final class JarvisBubbleService extends Service {
         Point display = new Point();
         wm.getDefaultDisplay().getRealSize(display);
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        animationsEnabled = prefs.getBoolean("animations", true);
         params.x = prefs.getInt("x", Math.max(0, display.x - dp(80)));
         params.y = prefs.getInt("y", Math.max(dp(100), display.y / 3));
         clampPosition();
         bubble = new BubbleView(this);
         bubble.setOnTouchListener((v, event) -> handleTouch(event));
         wm.addView(bubble, params);
+        activeService = this;
     }
 
     private void clampPosition() {
@@ -132,6 +144,45 @@ public final class JarvisBubbleService extends Service {
         params.y = Math.max(0, Math.min(params.y, display.y - params.height));
     }
 
+
+    /** Only Gmail signals from the existing notification listener are supported in this version. */
+    static void onGmailNotificationReceived() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(current::showGmailSignal);
+    }
+
+    private void showGmailSignal() {
+        if (bubble == null || wm == null) return;
+        gmailSignalUntil = SystemClock.uptimeMillis() + IDLE_COLLAPSE_MS;
+        setExpanded(true);
+    }
+
+    private void cancelCollapse() {
+        if (collapseRunnable != null) {
+            gestureHandler.removeCallbacks(collapseRunnable);
+            collapseRunnable = null;
+        }
+    }
+
+    private void scheduleCollapse() {
+        cancelCollapse();
+        if (!expanded || bubble == null || menuView != null) return;
+        collapseRunnable = () -> {
+            collapseRunnable = null;
+            if (fingerDown || dragging || menuView != null) {
+                scheduleCollapse();
+            } else {
+                setExpanded(false);
+            }
+        };
+        gestureHandler.postDelayed(collapseRunnable, IDLE_COLLAPSE_MS);
+    }
+
+    private int batteryPercent() {
+        BatteryManager manager = (BatteryManager) getSystemService(BATTERY_SERVICE);
+        return manager == null ? -1 :
+                manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+    }
 
     private void cancelPendingLongPress() {
         if (pendingLongPress != null) {
@@ -143,6 +194,7 @@ public final class JarvisBubbleService extends Service {
     private boolean handleTouch(MotionEvent e) {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                cancelCollapse();
                 cancelPendingLongPress();
                 downX = e.getRawX();
                 downY = e.getRawY();
@@ -190,6 +242,7 @@ public final class JarvisBubbleService extends Service {
                 if (dragging) {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                             .putInt("x", params.x).putInt("y", params.y).apply();
+                    scheduleCollapse();
                 } else if (!expanded) {
                     setExpanded(true);
                 } else {
@@ -208,6 +261,7 @@ public final class JarvisBubbleService extends Service {
                 cancelPendingLongPress();
                 fingerDown = false;
                 dragging = false;
+                scheduleCollapse();
                 return true;
 
             default: return false;
@@ -216,6 +270,7 @@ public final class JarvisBubbleService extends Service {
 
     private void showMenu() {
         if (wm == null || bubble == null || menuView != null) return;
+        cancelCollapse();
 
         LinearLayout menu = new LinearLayout(this);
         menu.setOrientation(LinearLayout.VERTICAL);
@@ -240,6 +295,12 @@ public final class JarvisBubbleService extends Service {
                     | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(app);
         });
+        addMenuButton(menu, animationsEnabled ? "Animations : activées" : "Animations : désactivées", () -> {
+            animationsEnabled = !animationsEnabled;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("animations", animationsEnabled).apply();
+            bubble.invalidate();
+        });
         addMenuButton(menu, "Fermer la bulle", this::stopSelf);
         addMenuButton(menu, "Annuler", () -> { });
 
@@ -257,7 +318,7 @@ public final class JarvisBubbleService extends Service {
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(220)));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(285)));
 
         menuView = menu;
         try {
@@ -288,9 +349,11 @@ public final class JarvisBubbleService extends Service {
             catch (IllegalArgumentException ignored) { }
         }
         menuView = null;
+        if (bubble != null) scheduleCollapse();
     }
 
     private void setExpanded(boolean next) {
+        if (bubble == null || wm == null) return;
         expanded = next;
         int side = dp(next ? LARGE_DP : SMALL_DP);
         params.width = side;
@@ -298,6 +361,8 @@ public final class JarvisBubbleService extends Service {
         clampPosition();
         bubble.invalidate();
         wm.updateViewLayout(bubble, params);
+        if (next) scheduleCollapse();
+        else cancelCollapse();
     }
 
     private void openChatGPT() {
@@ -308,6 +373,8 @@ public final class JarvisBubbleService extends Service {
     }
 
     @Override public void onDestroy() {
+        if (activeService == this) activeService = null;
+        cancelCollapse();
         cancelPendingLongPress();
         fingerDown = false;
         dismissMenu();
@@ -320,41 +387,79 @@ public final class JarvisBubbleService extends Service {
         super.onDestroy();
     }
 
-    /** Façade provisoire, centre libre pour les informations futures. */
+    /** Façade légère ; seules les informations réelles (heure, batterie, Gmail) sont affichées. */
     private final class BubbleView extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final RectF r = new RectF();
-        BubbleView(Context ctx) {
-            super(ctx);
+        private final RectF rect = new RectF();
+
+        BubbleView(Context context) {
+            super(context);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
-        @Override protected void onDraw(Canvas canvas) {
-            float w = getWidth(), h = getHeight(), s = Math.min(w, h);
-            float inset = dp(expanded ? 9 : 6);
-            r.set(inset, inset, w - inset, h - inset);
+
+        private void drawCentered(Canvas canvas, String value, float x, float y, int size,
+                                  int color, boolean bold) {
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.argb(200, 12, 28, 54));
-            canvas.drawRoundRect(r, s * .26f, s * .26f, p);
+            p.setColor(color);
+            p.setTextAlign(Paint.Align.CENTER);
+            p.setTextSize(dp(size));
+            p.setFakeBoldText(bold);
+            canvas.drawText(value, x, y, p);
+            p.setFakeBoldText(false);
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth(), h = getHeight(), side = Math.min(w, h);
+            if (w < 1 || h < 1) return;
+            long now = SystemClock.uptimeMillis();
+            boolean gmail = gmailSignalUntil > now;
+            boolean animating = animationsEnabled && isAttachedToWindow();
+            float phase = animating ? (float)Math.sin(now / 420.0) : 0f;
+            float brightness = animating ? .60f + .40f * (phase + 1f) / 2f : .82f;
+            float inset = dp(expanded ? 7 : 5);
+            rect.set(inset, inset, w - inset, h - inset);
+            float rounded = side * .25f;
+
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(Color.argb(223, 10, 25, 45));
+            canvas.drawRoundRect(rect, rounded, rounded, p);
+
+            // Le contour passe en ambre uniquement lors d'une notification Gmail reçue.
+            int red = gmail ? 255 : 40;
+            int green = gmail ? 184 : 212;
+            int blue = gmail ? 55 : 255;
             p.setStyle(Paint.Style.STROKE);
             p.setStrokeWidth(dp(expanded ? 3 : 2));
-            p.setColor(Color.rgb(57, 209, 255));
-            canvas.drawRoundRect(r, s * .26f, s * .26f, p);
-            float inner = inset + dp(6);
-            r.set(inner, inner, w - inner, h - inner);
-            p.setStrokeWidth(dp(1.2f));
-            p.setColor(Color.argb(180, 130, 240, 255));
-            canvas.drawRoundRect(r, s * .20f, s * .20f, p);
+            p.setColor(Color.argb(Math.round(150 + 105 * brightness), red, green, blue));
+            canvas.drawRoundRect(rect, rounded, rounded, p);
+
+            float innerInset = inset + dp(expanded ? 6 : 5);
+            rect.set(innerInset, innerInset, w - innerInset, h - innerInset);
+            p.setStrokeWidth(dp(1));
+            p.setColor(Color.argb(170, 118, 230, 245));
+            canvas.drawRoundRect(rect, rounded * .77f, rounded * .77f, p);
             p.setStyle(Paint.Style.FILL);
-            p.setColor(Color.rgb(88, 244, 228));
-            canvas.drawCircle(w / 2f, h - inset - dp(4), dp(expanded ? 4 : 2), p);
+            p.setColor(gmail ? Color.rgb(255, 205, 85) : Color.rgb(88, 244, 228));
+            canvas.drawCircle(w / 2f, h - inset - dp(4), dp(expanded ? 3 : 2), p);
+
             if (expanded) {
-                p.setColor(Color.WHITE);
-                p.setTextAlign(Paint.Align.CENTER);
-                p.setTextSize(dp(12));
-                p.setFakeBoldText(true);
-                canvas.drawText("JARVIS", w/2f, h/2f + dp(4), p);
-                p.setFakeBoldText(false);
+                drawCentered(canvas, gmail ? "GMAIL" : "JARVIS",
+                        w / 2f, h * .36f, 12, gmail ? Color.rgb(255, 215, 125) : Color.WHITE, true);
+                String clock = new SimpleDateFormat("HH:mm", Locale.CANADA_FRENCH).format(new Date());
+                drawCentered(canvas, clock, w / 2f, h * .57f, 17,
+                        Color.rgb(155, 235, 255), true);
+                int battery = batteryPercent();
+                drawCentered(canvas, battery >= 0 && battery <= 100
+                                ? "BAT " + battery + "%" : "BAT --",
+                        w / 2f, h * .73f, 10, Color.rgb(198, 223, 235), false);
+            } else {
+                drawCentered(canvas, "J", w / 2f, h * .59f, 17, Color.WHITE, true);
             }
+
+            // L'animation de veille reste discrète pour limiter les rafraîchissements.
+            if (animating) postInvalidateDelayed(expanded ? 130L : 360L);
+            else if (gmail) postInvalidateDelayed(600L);
         }
     }
 }
