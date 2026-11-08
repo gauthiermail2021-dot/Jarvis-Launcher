@@ -11,6 +11,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Bundle;
+import java.util.Locale;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -29,11 +31,31 @@ public class JarvisNotificationListener extends NotificationListenerService {
         // Les deux notifications Gmail (boîte + étiquette) deviennent un signal unique.
         if (pending != null) handler.removeCallbacks(pending);
         pending = () -> {
-            if (!MainActivity.handleGmailNoticeIfVisible()) {
-                showJarvisAlert();
-            }
+            if (MainActivity.handleGmailNoticeIfVisible()) return;
+            // Ne pas ouvrir xTool pour les courriels ordinaires. Seules
+            // les notifications mentionnant Jarvis SVG peuvent déclencher
+            // l'ouverture automatique, après activation par l'utilisateur.
+            boolean enabled = getSharedPreferences("jarvis_bridge", MODE_PRIVATE)
+                    .getBoolean(MainActivity.AUTO_OPEN_ENABLED, false);
+            if (enabled && mentionsJarvisSvg(sbn)
+                    && JarvisBubbleService.tryAutoOpenFromNotification(this)) return;
+            // Si Android bloque les activités en arrière-plan, le parcours
+            // éprouvé de la version 1.1.1 reste disponible en un toucher.
+            showJarvisAlert();
         };
         handler.postDelayed(pending, 2000L); // Anti-doublon, pas une interrogation périodique.
+    }
+
+    private static boolean mentionsJarvisSvg(StatusBarNotification notice) {
+        Notification notification = notice.getNotification();
+        Bundle extras = notification == null ? null : notification.extras;
+        if (extras == null) return false;
+        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
+        CharSequence text = extras.getCharSequence(Notification.EXTRA_TEXT);
+        CharSequence bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
+        String combined = (String.valueOf(title) + " " + String.valueOf(text)
+                + " " + String.valueOf(bigText)).toLowerCase(Locale.ROOT);
+        return combined.contains("jarvis svg");
     }
 
     static void ensureChannel(Context context) {
