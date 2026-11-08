@@ -357,6 +357,7 @@ public class MainActivity extends Activity {
             if (encoded.isEmpty()) continue;
             byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
             validateSvg(bytes);
+            JarvisBubbleService.onSvgWorkStarted();
             Uri saved = saveSvg(bytes);
 
             runOnUiThread(() -> {
@@ -675,7 +676,7 @@ public class MainActivity extends Activity {
                     startActivity(chooser);
                 }
             }
-            JarvisBubbleService.onSvgOpenRequested();
+            JarvisBubbleService.onSvgOpenRequested(preferredXTool != null);
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();

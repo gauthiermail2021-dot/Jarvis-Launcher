@@ -1,6 +1,13 @@
 name: Build Jarvis Bridge Android
 on:
-  # Compilation uniquement sur commande explicite, pas à chaque modification.
+  # Déclenchement exceptionnel sur la branche de test, à la demande de l'utilisateur.
+  push:
+    branches:
+      - feature/android-jarvis-svg-loop-fix-v1.0.3
+    paths:
+      - 'android/**'
+      - 'README.md'
+      - '.github/workflows/build-jarvis-android.yml'
   workflow_dispatch:
 permissions:
   contents: write
@@ -41,6 +48,6 @@ jobs:
             gh release create jarvis-1.0.3-preview Jarvis-Bridge-1.0.3-Test.apk \
               --target "$GITHUB_SHA" \
               --title "Jarvis Bridge 1.0.3 - Correction boucle SVG" \
-              --notes "Prototype 1.0.3 : correction de boucle ACTION_VIEW quand Jarvis etait choisi comme application SVG par defaut. Ouverture externe uniquement, xTool prefere si disponible. Appui long 1,5 s et bulle conserves." \
+              --notes "Prototype 1.0.3 : correction de boucle ACTION_VIEW quand Jarvis etait choisi comme application SVG par defaut. Ouverture externe uniquement, xTool prefere si disponible. Appui long 1 s et bulle conserves; grande bulle sans heure; statut Reception SVG et Ouverture xTool." \
               --prerelease
           fi

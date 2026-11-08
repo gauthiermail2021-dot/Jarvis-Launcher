@@ -44,7 +44,7 @@ public final class JarvisBubbleService extends Service {
     private static final String PREFS = "jarvis_bubble";
     private static final int SMALL_DP = 54;
     private static final int LARGE_DP = 110;
-    private static final long LONG_PRESS_MS = 1500L;
+    private static final long LONG_PRESS_MS = 1000L;
     private static final long IDLE_COLLAPSE_MS = 5000L;
     private static volatile JarvisBubbleService activeService;
 
@@ -164,7 +164,7 @@ public final class JarvisBubbleService extends Service {
     static void onSvgWorkStarted() {
         JarvisBubbleService current = activeService;
         if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_WORKING, "SVG", "TRAITEMENT"));
+                current.showActivity(STATE_WORKING, "RÉCEPTION", ".SVG"));
     }
 
     static void onGmailWorkStarted() {
@@ -173,10 +173,16 @@ public final class JarvisBubbleService extends Service {
                 current.showActivity(STATE_WORKING, "GMAIL", "RECHERCHE"));
     }
 
-    static void onSvgOpenRequested() {
+    static void onSvgOpenRequested(boolean xToolTarget) {
         JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ"));
+        if (current != null) current.gestureHandler.post(() -> {
+            if (xToolTarget) {
+                // Le lancement est demandé, sans prétendre que le dessin est déjà chargé.
+                current.showActivity(STATE_SUCCESS, "OUVERTURE", "xTool");
+            } else {
+                current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ");
+            }
+        });
     }
 
     static void onOperationFailed() {

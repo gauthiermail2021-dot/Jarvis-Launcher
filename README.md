@@ -9,7 +9,7 @@ Correctifs :
 - Lors de l'ouverture du SVG, consulter la liste des applications externes capables de le traiter, **exclure le propre package Jarvis Bridge**, et utiliser des intents explicites.
 - Si xTool apparaît comme gestionnaire compatible, privilégier son application; sinon proposer un choix parmi les applications **externes seulement**.
 - Si aucun gestionnaire externe n'est disponible, afficher une erreur au lieu de boucler.
-- Conserver le délai d'appui long à 1,5 s, l'horloge au repos, les animations d'activité et le retour à 54 dp après 5 secondes.
+- Conserver le délai d'appui long à 1 s, l'horloge au repos, les animations d'activité et le retour à 54 dp après 5 secondes.
 
 Pour sortir de la boucle déjà installée en 1.0.2 : paramètres Android → Applications → Jarvis Bridge 1.0.2 Test → Forcer l'arrêt, puis effacer le choix « Toujours » pour les SVG ou désinstaller **uniquement** cette version de test.
 
@@ -20,8 +20,18 @@ Remarque : xTool doit réellement exposer une activité Android capable de gére
 ## Affichage de la bulle (modification non compilée)
 - Mode réduit (54 dp) : heure locale seulement.
 - Mode agrandi (110 dp) : titre et état de Jarvis, **sans horloge**; l'espace central sert à afficher les activités.
-- Appui long de 1,5 seconde et retour automatique après 5 secondes conservés.
+- Appui long de 1 seconde et retour automatique après 5 secondes conservés.
 
 ## Prochain objectif distinct (non encore implémenté)
 - À la réception d'un courriel avec SVG, tenter la récupération et l'ouverture xTool sans le toucher sur la notification.
 - Avant de promettre une ouverture entièrement silencieuse, vérifier les restrictions d'Android concernant le lancement d'une activité depuis l'arrière-plan et les autorisations OAuth Gmail. Prévoir une notification actionnable de secours.
+
+## Améliorations ajoutées dans la version compilable
+- Appui immobile de **1 seconde** pour afficher le menu de la bulle.
+- Lors de la réception ou de la préparation d'un SVG : **RÉCEPTION / .SVG** dans la bulle agrandie.
+- Quand Jarvis demande à Android de lancer xTool : **OUVERTURE / xTool** dans la bulle agrandie. Ce message n'est **pas** une confirmation que xTool a chargé le dessin.
+- En cas d'autre application SVG externe : **SVG / ENVOYÉ**.
+- L'heure ne s'affiche **qu'en mode réduit**.
+- L'ouverture en boucle a été bloquée en excluant Jarvis Bridge lui-même des gestionnaires SVG externes.
+
+**Limite de l'essai :** avec Jarvis Bridge en arrière-plan, l'utilisateur doit encore toucher la notification « Toucher pour ouvrir » avant la récupération Gmail. Une ouverture vraiment sans toucher nécessitera un mécanisme d'autorisation Gmail en arrière-plan et le traitement des restrictions Android de lancement d'activité. Ce comportement n'est pas annoncé comme déjà réalisé.
