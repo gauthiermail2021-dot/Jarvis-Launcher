@@ -76,7 +76,7 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 0.8 — prototype");
+        title.setText("Jarvis Bridge 0.8.1 — prototype");
         title.setTextSize(25);
         layout.addView(title);
 
