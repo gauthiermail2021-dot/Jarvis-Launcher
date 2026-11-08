@@ -78,9 +78,22 @@ public class MainActivity extends ComponentActivity {
     private ActivityResultLauncher<IntentSenderRequest> authorizationLauncher;
     private boolean isBusy = false;
     private boolean startBubbleAfterPermission = false;
+    // Seulement les ouvertures automatiques Gmail : aucune interface géante
+    // à afficher pendant le transfert SVG. Les réglages restent accessibles.
+    private boolean silentAutoCheck = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Intent launchIntent = getIntent();
+        silentAutoCheck = launchIntent != null
+                && ACTION_CHECK_GMAIL.equals(launchIntent.getAction())
+                && getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getBoolean(AUTO_OPEN_ENABLED, false);
+        if (silentAutoCheck) {
+            // Une fenêtre transparente plutôt qu'une interface de réglages.
+            // Conserver une Activity valide pour le résultat OAuth AndroidX.
+            setTheme(android.R.style.Theme_Translucent_NoTitleBar);
+        }
         super.onCreate(savedInstanceState);
         authorizationClient = Identity.getAuthorizationClient(this);
         // Cycle de vie géré par AndroidX : le résultat Google est livré même
@@ -275,7 +288,13 @@ public class MainActivity extends ComponentActivity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(layout);
-        setContentView(scroll);
+        if (silentAutoCheck) {
+            // Le service de notification peut déclencher Gmail en arrière-plan
+            // sans exposer la grande interface Jarvis au-dessus de ChatGPT.
+            setContentView(new android.view.View(this));
+        } else {
+            setContentView(scroll);
+        }
         // La bulle accompagne automatiquement Jarvis après la première
         // autorisation de superposition. Aucun dialogue intrusif au lancement.
         if (getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -430,7 +449,10 @@ public class MainActivity extends ComponentActivity {
                 fetchNewestGmailSvg(token);
             } catch (Exception e) {
                 JarvisBubbleService.onOperationFailed();
-                runOnUiThread(() -> setStatus("Gmail : " + e.getMessage()));
+                runOnUiThread(() -> {
+                    setStatus("Gmail : " + e.getMessage());
+                    if (silentAutoCheck) finish();
+                });
             } finally {
                 runOnUiThread(() -> isBusy = false);
             }
@@ -455,7 +477,10 @@ public class MainActivity extends ComponentActivity {
                 + "&labelIds=UNREAD&maxResults=50";
         JSONArray messages = getJson(query, token).optJSONArray("messages");
         if (messages == null || messages.length() == 0) {
-            runOnUiThread(() -> setStatus("Aucun courriel non lu sous Jarvis SVG"));
+            runOnUiThread(() -> {
+                setStatus("Aucun courriel non lu sous Jarvis SVG");
+                if (silentAutoCheck) finish();
+            });
             return;
         }
 
@@ -503,11 +528,19 @@ public class MainActivity extends ComponentActivity {
                             .putString(LAST_GMAIL_ID, identity)
                             .apply();
                     setStatus("Demande d'ouverture envoyée à xTool : " + filename);
-                } // En cas d'échec, conserver le diagnostic précis de openSvg().
+                    if (silentAutoCheck) finish();
+                } else if (silentAutoCheck) {
+                    // La bulle conserve le diagnostic, aucune fenêtre cachée
+                    // ne doit bloquer la navigation dans ChatGPT.
+                    finish();
+                }
             });
             return;
         }
-        runOnUiThread(() -> setStatus("Aucun nouveau SVG non traité"));
+        runOnUiThread(() -> {
+            setStatus("Aucun nouveau SVG non traité");
+            if (silentAutoCheck) finish();
+        });
     }
 
     private JSONObject findSvgPart(JSONObject part) {
