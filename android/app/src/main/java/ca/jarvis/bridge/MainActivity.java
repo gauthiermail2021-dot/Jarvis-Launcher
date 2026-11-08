@@ -66,6 +66,7 @@ public class MainActivity extends ComponentActivity {
     private static final String AUTH_PENDING = "gmail_auth_pending";
     static final String AUTO_OPEN_ENABLED = "auto_open_enabled";
     static final String AUTO_BUBBLE_ON_LAUNCH = "auto_bubble_on_launch";
+    static final String COMPACT_LAUNCH = "compact_launch";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
@@ -81,6 +82,7 @@ public class MainActivity extends ComponentActivity {
     // Seulement les ouvertures automatiques Gmail : aucune interface géante
     // à afficher pendant le transfert SVG. Les réglages restent accessibles.
     private boolean silentAutoCheck = false;
+    private boolean compactLauncher = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,9 +91,14 @@ public class MainActivity extends ComponentActivity {
                 && ACTION_CHECK_GMAIL.equals(launchIntent.getAction())
                 && getSharedPreferences(PREFS, MODE_PRIVATE)
                         .getBoolean(AUTO_OPEN_ENABLED, false);
-        if (silentAutoCheck) {
-            // Une fenêtre transparente plutôt qu'une interface de réglages.
-            // Conserver une Activity valide pour le résultat OAuth AndroidX.
+        compactLauncher = launchIntent != null
+                && Intent.ACTION_MAIN.equals(launchIntent.getAction())
+                && getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getBoolean(COMPACT_LAUNCH, true)
+                && Settings.canDrawOverlays(this);
+        if (silentAutoCheck || compactLauncher) {
+            // Éviter le clignotement des réglages. L'icône lance seulement
+            // la bulle; les réglages complets restent au menu de la bulle.
             setTheme(android.R.style.Theme_Translucent_NoTitleBar);
         }
         super.onCreate(savedInstanceState);
@@ -245,6 +252,23 @@ public class MainActivity extends ComponentActivity {
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
+        Button compactMode = new Button(this);
+        boolean compact = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(COMPACT_LAUNCH, true);
+        compactMode.setText(compact
+                ? "Icône Jarvis : bulle uniquement (ACTIVÉ)"
+                : "Icône Jarvis : afficher les réglages (ACTIVÉ)");
+        layout.addView(compactMode);
+        compactMode.setOnClickListener(v -> {
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            boolean next = !prefs.getBoolean(COMPACT_LAUNCH, true);
+            prefs.edit().putBoolean(COMPACT_LAUNCH, next).apply();
+            compactMode.setText(next
+                    ? "Icône Jarvis : bulle uniquement (ACTIVÉ)"
+                    : "Icône Jarvis : afficher les réglages (ACTIVÉ)");
+            setStatus("Réglages accessibles via appui long (1 s) sur la bulle → Ouvrir Jarvis Bridge.");
+        });
+
         Button startBubble = new Button(this);
         startBubble.setText("Activer la bulle flottante");
         layout.addView(startBubble);
@@ -288,9 +312,9 @@ public class MainActivity extends ComponentActivity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(layout);
-        if (silentAutoCheck) {
-            // Le service de notification peut déclencher Gmail en arrière-plan
-            // sans exposer la grande interface Jarvis au-dessus de ChatGPT.
+        if (silentAutoCheck || compactLauncher) {
+            // Aucun écran géant pendant le traitement automatique ni
+            // lors du lancement de la bulle depuis l'icône Android.
             setContentView(new android.view.View(this));
         } else {
             setContentView(scroll);
@@ -308,6 +332,12 @@ public class MainActivity extends ComponentActivity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION);
         }
         if (savedInstanceState == null) handleIncomingIntent(getIntent());
+        if (compactLauncher) {
+            // L'application continue via son service flottant ; l'écran
+            // courant de l'utilisateur redevient visible immédiatement.
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .post(() -> moveTaskToBack(true));
+        }
     }
 
     @Override
