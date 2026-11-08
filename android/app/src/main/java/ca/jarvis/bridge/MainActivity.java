@@ -5,6 +5,9 @@ import android.app.PendingIntent;
 import android.app.NotificationManager;
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import java.util.ArrayList;
+import java.util.List;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.content.Intent;
@@ -77,7 +80,7 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 1.0.2 — prototype visuel");
+        title.setText("Jarvis Bridge 1.0.3 — correctif SVG");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -615,18 +618,68 @@ public class MainActivity extends Activity {
         openSvg(Uri.parse(saved));
     }
 
+    /**
+     * Ouvrir le SVG dans une application EXTERNE. Ne jamais renvoyer ACTION_VIEW
+     * à Jarvis Bridge, même si Android l'avait enregistré avec « Toujours ».
+     */
     private boolean openSvg(Uri uri) {
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, "image/svg+xml");
-        intent.setClipData(ClipData.newUri(getContentResolver(), "Jarvis SVG", uri));
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        Intent prototype = new Intent(Intent.ACTION_VIEW);
+        prototype.setDataAndType(uri, "image/svg+xml");
+        prototype.setClipData(ClipData.newUri(getContentResolver(), "Jarvis SVG", uri));
+        prototype.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        PackageManager pm = getPackageManager();
+        List<ResolveInfo> handlers = pm.queryIntentActivities(
+                prototype, PackageManager.MATCH_DEFAULT_ONLY);
+        ArrayList<Intent> externalIntents = new ArrayList<>();
+        Intent preferredXTool = null;
+
+        for (ResolveInfo handler : handlers) {
+            if (handler.activityInfo == null) continue;
+            String packageName = handler.activityInfo.packageName;
+            String activityName = handler.activityInfo.name;
+            if (packageName == null || activityName == null
+                    || getPackageName().equals(packageName)) continue;
+
+            Intent explicit = new Intent(prototype);
+            explicit.setClassName(packageName, activityName);
+            externalIntents.add(explicit);
+
+            // xTool est prioritaire, uniquement si Android lui reconnaît
+            // réellement la capacité d'ouvrir ce type de fichier.
+            String label = String.valueOf(handler.loadLabel(pm)).toLowerCase(Locale.ROOT);
+            if (preferredXTool == null
+                    && (packageName.toLowerCase(Locale.ROOT).contains("xtool")
+                         || label.contains("xtool"))) {
+                preferredXTool = explicit;
+            }
+        }
+
+        if (externalIntents.isEmpty()) {
+            JarvisBubbleService.onOperationFailed();
+            showMessage("Aucune application externe compatible SVG. Vérifie l'installation xTool.");
+            return false;
+        }
+
         try {
-            startActivity(intent);
+            if (preferredXTool != null) {
+                startActivity(preferredXTool);
+            } else {
+                // Choix limité aux applications EXTERNES, sans Jarvis Bridge.
+                Intent first = externalIntents.remove(0);
+                if (externalIntents.isEmpty()) {
+                    startActivity(first);
+                } else {
+                    Intent chooser = Intent.createChooser(first, "Ouvrir le SVG avec");
+                    chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS,
+                            externalIntents.toArray(new Intent[0]));
+                    startActivity(chooser);
+                }
+            }
             JarvisBubbleService.onSvgOpenRequested();
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();
-            showMessage("Aucune application compatible ou fichier inaccessible");
+            showMessage("Ouverture du SVG impossible : " + e.getMessage());
             return false;
         }
     }

@@ -1,17 +1,18 @@
-# Jarvis Bridge 1.0.2 — Horloge et activité visuelle
+# Jarvis Bridge 1.0.3 — Correctif de boucle Android SVG
 
-Version d'essai pour Samsung Android, dérivée de 1.0.1 sans remplacer les versions déjà installées.
+**Statut : source préparée, NON COMPILÉE.** Compilation uniquement sur commande explicite via GitHub Actions (`workflow_dispatch`).
 
-- **Réduite (54 dp)** : n'affiche que l'heure locale `HH:mm`, sans pourcentage de batterie, sans animation continue. Rafraîchissement au changement de minute.
-- **Agrandie (110 dp)** : affiche `JARVIS`, `PRÊT` et l'heure en l'absence d'activité. Retour automatique à 54 dp après **5 secondes d'inactivité**.
-- **Activité réelle** : une notification Gmail (ambre), une tentative de traitement de SVG (cyan), une demande d'ouverture SVG envoyée à Android (vert) ou une erreur (rouge) provoque un agrandissement et une lumière qui circule autour du cadre pendant environ 5 secondes.
-- L'indicateur « ENVOYÉ » signifie seulement que la demande d'ouverture du SVG a été transmise à Android, pas que xTool a terminé la tâche.
-- **Appui long de 1,5 seconde** : affiche le menu. Un premier toucher agrandit, un deuxième ouvre la conversation ChatGPT configurée et réduit la bulle. La bulle est déplaçable.
-- Dans le menu, une option désactive la lumière animée tout en conservant les changements de couleur.
+Bogue reproduit conceptuellement : Android choisit Jarvis Bridge « Toujours » pour ouvrir un SVG; Jarvis importe le SVG puis relance un ACTION_VIEW implicite, que le système réachemine à Jarvis → boucle infinie.
 
-Cette version ne peut **pas** détecter si ChatGPT réfléchit, écoute, ou a fini de répondre : aucun état de ce type n'est affiché.
-Le signal Gmail est déclenché par une notification Gmail, pas forcément un mail SVG.
+Correctifs :
+- Supprimer le filtre d'ouverture `ACTION_VIEW image/svg+xml` dans le manifeste, tout en gardant le partage `ACTION_SEND` et la réception Gmail.
+- Lors de l'ouverture du SVG, consulter la liste des applications externes capables de le traiter, **exclure le propre package Jarvis Bridge**, et utiliser des intents explicites.
+- Si xTool apparaît comme gestionnaire compatible, privilégier son application; sinon proposer un choix parmi les applications **externes seulement**.
+- Si aucun gestionnaire externe n'est disponible, afficher une erreur au lieu de boucler.
+- Conserver le délai d'appui long à 1,5 s, l'horloge au repos, les animations d'activité et le retour à 54 dp après 5 secondes.
 
-APK de test avec identifiant Android `ca.jarvis.bridge.preview102`, distinct de 0.7 / 0.8.1 / 0.9 / 1.0 / 1.0.1.
-Il faut reconfigurer le lien de conversation **une seule fois** pour cette application de test.
-Une stratégie de signature Android stable est nécessaire pour de véritables mises à jour qui préservent automatiquement les données.
+Pour sortir de la boucle déjà installée en 1.0.2 : paramètres Android → Applications → Jarvis Bridge 1.0.2 Test → Forcer l'arrêt, puis effacer le choix « Toujours » pour les SVG ou désinstaller **uniquement** cette version de test.
+
+`ca.jarvis.bridge.preview103` reste séparé des anciennes applications d'essai. Lien de conversation à reconfigurer pour ce package après compilation.
+
+Remarque : xTool doit réellement exposer une activité Android capable de gérer ACTION_VIEW sur un URI `content://` SVG. L'ouverture directe reste à valider sur le téléphone.

@@ -27,20 +27,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.0.2-debug
+          name: Jarvis-Bridge-1.0.3-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.2-Test.apk
-          if gh release view jarvis-1.0.2-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.0.2-preview Jarvis-Bridge-1.0.2-Test.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.3-Test.apk
+          if gh release view jarvis-1.0.3-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.0.3-preview Jarvis-Bridge-1.0.3-Test.apk --clobber
           else
-            gh release create jarvis-1.0.2-preview Jarvis-Bridge-1.0.2-Test.apk \
+            gh release create jarvis-1.0.3-preview Jarvis-Bridge-1.0.3-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.0.2 - Horloge et etats Jarvis" \
-              --notes "Prototype 1.0.2 : horloge uniquement en petit, ni batterie ni animation constante, grand affichage et orbe lumineux pendant notification Gmail ou action SVG, retour en 5 s, appui long 1,5 s. Les versions precedentes restent installees separement." \
+              --title "Jarvis Bridge 1.0.3 - Correction boucle SVG" \
+              --notes "Prototype 1.0.3 : correction de boucle ACTION_VIEW quand Jarvis etait choisi comme application SVG par defaut. Ouverture externe uniquement, xTool prefere si disponible. Appui long 1,5 s et bulle conserves." \
               --prerelease
           fi
