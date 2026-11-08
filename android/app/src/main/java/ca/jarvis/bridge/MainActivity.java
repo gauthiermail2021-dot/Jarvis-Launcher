@@ -54,6 +54,8 @@ import java.util.Set;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.security.MessageDigest;
 
 public class MainActivity extends ComponentActivity {
     private static final int PICK_SVG = 1001;
@@ -69,6 +71,11 @@ public class MainActivity extends ComponentActivity {
     static final String COMPACT_LAUNCH = "compact_launch";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
+    private static final String LAST_GMAIL_TIMESTAMP = "last_gmail_timestamp";
+    private static final String LAST_SVG_SHA256 = "last_svg_sha256";
+    // Garde-fou partagé par toutes les activités Jarvis ; les notifications
+    // successives ne doivent pas lancer plusieurs chargements simultanés.
+    private static final AtomicBoolean GMAIL_CHECK_IN_PROGRESS = new AtomicBoolean(false);
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
     private static final String GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
     private static final String LABEL_NAME = "Jarvis SVG";
@@ -383,7 +390,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void requestGmailAndOpen() {
-        if (isBusy) return;
+        if (isBusy || !GMAIL_CHECK_IN_PROGRESS.compareAndSet(false, true)) return;
         isBusy = true;
         JarvisBubbleService.onGmailWorkStarted();
         setStatus("Connexion Google...");
@@ -409,6 +416,7 @@ public class MainActivity extends ComponentActivity {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean(AUTH_PENDING, false).apply();
                         isBusy = false;
+                        GMAIL_CHECK_IN_PROGRESS.set(false);
                         JarvisBubbleService.onOperationFailed();
                         setStatus("Autorisation impossible : " + e.getMessage());
                     }
@@ -418,6 +426,7 @@ public class MainActivity extends ComponentActivity {
             })
             .addOnFailureListener(e -> {
                 isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false);
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : " + e.getMessage());
             });
@@ -442,24 +451,28 @@ public class MainActivity extends ComponentActivity {
                 }
                 // Résultat contradictoire : jamais supposer la réussite.
                 isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false;
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat non confirmé (" + resultCode
                         + "), aucun accès Gmail lancé.");
                 return;
             } catch (ApiException error) {
                 isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false;
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google OAuth : code " + error.getStatusCode()
                         + " — vérifier le client OAuth Android et le certificat SHA-1.");
                 return;
             } catch (Exception error) {
                 isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false;
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat illisible — " + error.getClass().getSimpleName());
                 return;
             }
         }
         isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false;
         JarvisBubbleService.onOperationFailed();
         setStatus("Google : aucune donnée de retour (résultat " + resultCode
                 + "). Vérifier package Android, SHA-1 et consentement OAuth.");
@@ -469,6 +482,7 @@ public class MainActivity extends ComponentActivity {
         String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
             isBusy = false;
+                GMAIL_CHECK_IN_PROGRESS.set(false;
             JarvisBubbleService.onOperationFailed();
             setStatus("Aucun jeton Gmail. Autorisation nécessaire.");
             return;
@@ -484,7 +498,10 @@ public class MainActivity extends ComponentActivity {
                     if (silentAutoCheck) finish();
                 });
             } finally {
-                runOnUiThread(() -> isBusy = false);
+                runOnUiThread(() -> {
+                    isBusy = false;
+                    GMAIL_CHECK_IN_PROGRESS.set(false);
+                });
             }
         }).start();
     }
@@ -518,57 +535,107 @@ public class MainActivity extends ComponentActivity {
         Set<String> processed = new HashSet<>(prefs.getStringSet(
                 HANDLED_GMAIL_IDS, Collections.emptySet()));
         String previous = prefs.getString(LAST_GMAIL_ID, "");
-        // Traite un SVG par déclenchement. Les doublons sont ignorés.
+        long lastProcessedTime = prefs.getLong(LAST_GMAIL_TIMESTAMP, 0L);
+        String lastHash = prefs.getString(LAST_SVG_SHA256, "");
+
+        // Gmail peut afficher deux notifications pour un message. De plus,
+        // une correction vocale peut générer deux courriels différents.
+        // On choisit seulement le SVG valide le plus récent, jamais un ancien
+        // dessin en attente qui pourrait rouvrir xTool au prochain signal.
+        JSONObject newestMessage = null;
+        JSONObject newestPart = null;
+        String newestId = null;
+        String newestFilename = null;
+        String newestIdentity = null;
+        long newestTime = lastProcessedTime;
         for (int i = 0; i < messages.length(); i++) {
             String id = messages.getJSONObject(i).getString("id");
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
             JSONObject part = findSvgPart(message.optJSONObject("payload"));
             if (part == null) continue;
+            long timestamp;
+            try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
+            catch (NumberFormatException ignored) { continue; }
             String filename = part.optString("filename", "piece.svg");
             String identity = id + ":" + filename;
-            if (processed.contains(identity) || previous.equals(identity)) continue;
+            if (timestamp <= newestTime || processed.contains(identity)
+                    || previous.equals(identity)) continue;
+            newestTime = timestamp;
+            newestMessage = message;
+            newestPart = part;
+            newestId = id;
+            newestFilename = filename;
+            newestIdentity = identity;
+        }
 
-            JSONObject body = part.optJSONObject("body");
-            if (body == null) continue;
-            String encoded = body.optString("data", "");
-            if (encoded.isEmpty()) {
-                String attachmentId = body.optString("attachmentId", "");
-                if (attachmentId.isEmpty()) continue;
-                JSONObject attachment = getJson(API + "/messages/"
-                        + URLEncoder.encode(id, "UTF-8")
-                        + "/attachments/" + URLEncoder.encode(attachmentId, "UTF-8"), token);
-                encoded = attachment.optString("data", "");
-            }
-            if (encoded.isEmpty()) continue;
-            byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
-            validateSvg(bytes);
-            JarvisBubbleService.onSvgWorkStarted();
-            Uri saved = saveSvg(bytes);
-
+        if (newestMessage == null) {
             runOnUiThread(() -> {
-                saveLastSvg(saved);
-                if (openSvg(saved)) {
-                    processed.add(identity);
-                    // Conserve au plus 100 identifiants pour éviter l'accumulation.
-                    if (processed.size() > 100) processed.clear();
-                    processed.add(identity);
-                    prefs.edit()
-                            .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
-                            .putString(LAST_GMAIL_ID, identity)
-                            .apply();
-                    setStatus("Demande d'ouverture envoyée à xTool : " + filename);
-                    if (silentAutoCheck) finish();
-                } else if (silentAutoCheck) {
-                    // La bulle conserve le diagnostic, aucune fenêtre cachée
-                    // ne doit bloquer la navigation dans ChatGPT.
-                    finish();
-                }
+                setStatus("Aucun nouveau dessin SVG à ouvrir");
+                if (silentAutoCheck) finish();
             });
             return;
         }
+
+        JSONObject body = newestPart.optJSONObject("body");
+        if (body == null) throw new Exception("Pièce SVG sans contenu");
+        String encoded = body.optString("data", "");
+        if (encoded.isEmpty()) {
+            String attachmentId = body.optString("attachmentId", "");
+            if (attachmentId.isEmpty()) throw new Exception("Pièce SVG sans identifiant");
+            JSONObject attachment = getJson(API + "/messages/"
+                    + URLEncoder.encode(newestId, "UTF-8")
+                    + "/attachments/" + URLEncoder.encode(attachmentId, "UTF-8"), token);
+            encoded = attachment.optString("data", "");
+        }
+        if (encoded.isEmpty()) throw new Exception("Pièce SVG vide");
+        byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
+        validateSvg(bytes);
+        byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+        StringBuilder hashBuilder = new StringBuilder(digest.length * 2);
+        for (byte value : digest) {
+            hashBuilder.append(Character.forDigit((value >>> 4) & 15, 16));
+            hashBuilder.append(Character.forDigit(value & 15, 16));
+        }
+        String svgHash = hashBuilder.toString();
+        final String chosenIdentity = newestIdentity;
+        final String chosenFilename = newestFilename;
+        final long chosenTime = newestTime;
+
+        if (svgHash.equals(lastHash)) {
+            // Contenu identique, même envoyé dans un courriel différent :
+            // ne pas rouvrir xTool. Avancer quand même le curseur temporel.
+            processed.add(chosenIdentity);
+            prefs.edit()
+                    .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
+                    .putString(LAST_GMAIL_ID, chosenIdentity)
+                    .putLong(LAST_GMAIL_TIMESTAMP, chosenTime)
+                    .apply();
+            runOnUiThread(() -> {
+                setStatus("SVG identique déjà traité : ouverture évitée");
+                if (silentAutoCheck) finish();
+            });
+            return;
+        }
+
+        JarvisBubbleService.onSvgWorkStarted();
+        Uri saved = saveSvg(bytes);
         runOnUiThread(() -> {
-            setStatus("Aucun nouveau SVG non traité");
+            saveLastSvg(saved);
+            if (openSvg(saved)) {
+                processed.add(chosenIdentity);
+                if (processed.size() > 100) {
+                    processed.clear();
+                    processed.add(chosenIdentity);
+                }
+                prefs.edit()
+                        .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
+                        .putString(LAST_GMAIL_ID, chosenIdentity)
+                        .putString(LAST_SVG_SHA256, svgHash)
+                        .putLong(LAST_GMAIL_TIMESTAMP, chosenTime)
+                        .apply();
+                setStatus("SVG le plus récent envoyé à xTool : " + chosenFilename);
+            }
             if (silentAutoCheck) finish();
         });
     }
