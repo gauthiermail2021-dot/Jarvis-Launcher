@@ -43,7 +43,7 @@ public final class JarvisBubbleService extends Service {
     private static final String PREFS = "jarvis_bubble";
     private static final int SMALL_DP = 54;
     private static final int LARGE_DP = 110;
-    private static final long LONG_PRESS_MS = 2000L;
+    private static final long LONG_PRESS_MS = 1500L;
     private static final long IDLE_COLLAPSE_MS = 5000L;
     private static volatile JarvisBubbleService activeService;
 
