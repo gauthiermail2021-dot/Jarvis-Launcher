@@ -46,6 +46,15 @@ android {
     }
 }
 
+// Aligner les variantes Kotlin utilisees transitivement par les bibliotheques Android.
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.jetbrains.kotlin' && details.requested.name.startsWith('kotlin-stdlib')) {
+            details.useVersion '1.8.22'
+        }
+    }
+}
+
 dependencies {
     implementation 'com.google.android.gms:play-services-auth:21.5.0'
     implementation 'androidx.activity:activity:1.9.3'
