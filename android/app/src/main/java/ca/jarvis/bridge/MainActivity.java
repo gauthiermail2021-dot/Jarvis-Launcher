@@ -638,16 +638,23 @@ public class MainActivity extends Activity {
             if (handler.activityInfo == null) continue;
             String packageName = handler.activityInfo.packageName;
             String activityName = handler.activityInfo.name;
-            if (packageName == null || activityName == null
-                    || getPackageName().equals(packageName)) continue;
+            if (packageName == null || activityName == null) continue;
+
+            // Les versions de test ont des applicationId differents (preview102,
+            // preview103, etc.). Ne JAMAIS reexpedier un SVG a une autre version
+            // de Jarvis Bridge; celle-ci pourrait ensuite rouvrir la version courante.
+            String normalizedPackage = packageName.toLowerCase(Locale.ROOT);
+            String label = String.valueOf(handler.loadLabel(pm)).toLowerCase(Locale.ROOT);
+            if (normalizedPackage.equals("ca.jarvis.bridge")
+                    || normalizedPackage.startsWith("ca.jarvis.bridge.")
+                    || label.startsWith("jarvis bridge")) continue;
 
             Intent explicit = new Intent(prototype);
             explicit.setClassName(packageName, activityName);
             externalIntents.add(explicit);
 
-            // xTool est prioritaire, uniquement si Android lui reconnaît
-            // réellement la capacité d'ouvrir ce type de fichier.
-            String label = String.valueOf(handler.loadLabel(pm)).toLowerCase(Locale.ROOT);
+            // xTool est prioritaire, uniquement si Android lui reconnait
+            // reellement la capacite d'ouvrir ce type de fichier.
             if (preferredXTool == null
                     && (packageName.toLowerCase(Locale.ROOT).contains("xtool")
                          || label.contains("xtool"))) {
@@ -665,16 +672,15 @@ public class MainActivity extends Activity {
             if (preferredXTool != null) {
                 startActivity(preferredXTool);
             } else {
-                // Choix limité aux applications EXTERNES, sans Jarvis Bridge.
+                // Aucun gestionnaire xTool reconnu : demander un choix explicite
+                // et ne pas lancer silencieusement une autre application par hasard.
                 Intent first = externalIntents.remove(0);
-                if (externalIntents.isEmpty()) {
-                    startActivity(first);
-                } else {
-                    Intent chooser = Intent.createChooser(first, "Ouvrir le SVG avec");
+                Intent chooser = Intent.createChooser(first, "Ouvrir le SVG avec");
+                if (!externalIntents.isEmpty()) {
                     chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS,
                             externalIntents.toArray(new Intent[0]));
-                    startActivity(chooser);
                 }
+                startActivity(chooser);
             }
             JarvisBubbleService.onSvgOpenRequested(preferredXTool != null);
             return true;
