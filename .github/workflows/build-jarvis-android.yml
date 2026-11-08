@@ -38,9 +38,17 @@ jobs:
           test -n "$JARVIS_KEYSTORE_PASSWORD" || { echo "Missing secret: JARVIS_KEYSTORE_PASSWORD"; exit 1; }
           test -n "$JARVIS_KEY_ALIAS" || { echo "Missing secret: JARVIS_KEY_ALIAS"; exit 1; }
           test -n "$JARVIS_KEY_PASSWORD" || { echo "Missing secret: JARVIS_KEY_PASSWORD"; exit 1; }
-          printf '%s' "$JARVIS_KEYSTORE_BASE64" | base64 --decode > android/app/jarvis-release.jks
+          if ! printf '%s' "$JARVIS_KEYSTORE_BASE64" | base64 --decode > android/app/jarvis-release.jks; then
+            echo 'ERREUR: contenu Base64 du keystore invalide.'
+            exit 1
+          fi
           chmod 600 android/app/jarvis-release.jks
-          keytool -list -keystore android/app/jarvis-release.jks -alias "$JARVIS_KEY_ALIAS" -storepass "$JARVIS_KEYSTORE_PASSWORD" >/dev/null
+          echo "Taille du fichier JKS decode: $(wc -c < android/app/jarvis-release.jks) octets"
+          if ! keytool -list -keystore android/app/jarvis-release.jks -alias "$JARVIS_KEY_ALIAS" -storepass "$JARVIS_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo 'ERREUR: impossible de lire la cle JKS (mot de passe, alias ou contenu incorrect).'
+            exit 1
+          fi
+          echo 'Cle JKS validee avec succes.'
       - name: Build release APK with permanent signature
         working-directory: android
         env:
