@@ -1,0 +1,33 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <title>Jarvis Launcher</title>
+</head>
+<body>
+  <h2>Jarvis Bridge 0.4</h2>
+  <p>Test de lancement vers xTool Creative Space</p>
+
+  <button id="launch" type="button"
+          style="font-size:20px;padding:16px;">
+    Ouvrir le SVG dans xTool
+  </button>
+
+  <script>
+    document.getElementById("launch")
+      .addEventListener("click", function () {
+        const svg =
+          "https://loremfile.dev/svg/simple-shapes.svg";
+
+        const link =
+          "jarvisbridge://open?url=" +
+          encodeURIComponent(svg);
+
+        window.location.href = link;
+      });
+  </script>
+</body>
+</html>
