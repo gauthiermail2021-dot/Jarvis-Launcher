@@ -10,14 +10,14 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 15
-        versionName '1.0.4'
+        versionCode 16
+        versionName '1.0.5'
     }
 
     buildTypes {
         debug {
-            // Package de test 1.0.4 isole, car les APK de GitHub Actions utilisent une signature debug ephemere.
-            applicationIdSuffix '.preview104'
+            // Package de test 1.0.5 isole, car les APK de GitHub Actions utilisent une signature debug ephemere.
+            applicationIdSuffix '.preview105'
             // Clé debug générée automatiquement par Android Gradle Plugin.
         }
     }

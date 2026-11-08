@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 1.0.4 — SVG sécurisé");
+        title.setText("Jarvis Bridge 1.0.5 — diagnostic Gmail");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -441,7 +441,7 @@ public class MainActivity extends Activity {
         Uri data = intent.getData();
         if (Intent.ACTION_VIEW.equals(action) && data != null
                 && ("jarvisbridge".equalsIgnoreCase(data.getScheme())
-                     || "jarvisbridgepreview104".equalsIgnoreCase(data.getScheme()))
+                     || "jarvisbridgepreview105".equalsIgnoreCase(data.getScheme()))
                 && "open".equalsIgnoreCase(data.getHost())) {
             String address = data.getQueryParameter("url");
             if (address == null || address.trim().isEmpty())

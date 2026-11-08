@@ -1,6 +1,13 @@
 name: Build Jarvis Bridge Android
 on:
-  # Compilation uniquement sur demande explicite de l'utilisateur.
+  # Déclenchement unique sur la branche d'essai, à la demande « Compile ».
+  push:
+    branches:
+      - feature/android-jarvis-svg-loop-fix-v1.0.3
+    paths:
+      - 'android/**'
+      - 'README.md'
+      - '.github/workflows/build-jarvis-android.yml'
   workflow_dispatch:
 permissions:
   contents: write
@@ -27,20 +34,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.0.4-debug
+          name: Jarvis-Bridge-1.0.5-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.4-Test.apk
-          if gh release view jarvis-1.0.4-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.0.4-preview Jarvis-Bridge-1.0.4-Test.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-1.0.5-Test.apk
+          if gh release view jarvis-1.0.5-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.0.5-preview Jarvis-Bridge-1.0.5-Test.apk --clobber
           else
-            gh release create jarvis-1.0.4-preview Jarvis-Bridge-1.0.4-Test.apk \
+            gh release create jarvis-1.0.5-preview Jarvis-Bridge-1.0.5-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.0.4 - Protection inter-versions" \
-              --notes "Prototype 1.0.4 : correction de boucle ACTION_VIEW et exclusion de TOUTES les autres versions Jarvis Bridge. xTool prefere si disponible. Appui long 1 seconde; heure seulement en petite bulle. Gmail via notification." \
+              --title "Jarvis Bridge 1.0.5 - Diagnostic Gmail" \
+              --notes "Prototype 1.0.5 : conserve les protections SVG, menu 1 s et grande bulle sans heure; ajoute diagnostic Google OAuth avec etat conserve, messages d'erreur exploitables au retour de selection du compte." \
               --prerelease
           fi
