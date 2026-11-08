@@ -154,6 +154,29 @@ public final class JarvisBubbleService extends Service {
     }
 
 
+    /**
+     * Android autorise sous certaines versions le lancement d'activité depuis
+     * une application avec permission de superposition et fenêtre visible.
+     * Ne tente jamais cela lorsque la bulle n'est pas effectivement affichée.
+     * Renvoie false pour conserver la notification manuelle en repli.
+     */
+    static boolean tryAutoOpenFromNotification(Context context) {
+        JarvisBubbleService current = activeService;
+        if (current == null || current.bubble == null || !current.bubble.isAttachedToWindow()
+                || !Settings.canDrawOverlays(context)) return false;
+        try {
+            Intent intent = new Intent(context, MainActivity.class);
+            intent.setAction(MainActivity.ACTION_CHECK_GMAIL);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            context.startActivity(intent);
+            return true;
+        } catch (RuntimeException blocked) {
+            return false;
+        }
+    }
+
     /** Signaux exclusivement liés à des événements que Jarvis Bridge peut observer. */
     static void onGmailNotificationReceived() {
         JarvisBubbleService current = activeService;
