@@ -30,20 +30,20 @@ jobs:
         run: gradle --no-daemon assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-0.8-debug
+          name: Jarvis-Bridge-0.8.1-debug
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
       - name: Publish direct APK download as GitHub prerelease
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.8-Test.apk
-          if gh release view jarvis-0.8-preview >/dev/null 2>&1; then
-            gh release upload jarvis-0.8-preview Jarvis-Bridge-0.8-Test.apk --clobber
+          cp android/app/build/outputs/apk/debug/app-debug.apk Jarvis-Bridge-0.8.1-Test.apk
+          if gh release view jarvis-0.8.1-preview >/dev/null 2>&1; then
+            gh release upload jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk --clobber
           else
-            gh release create jarvis-0.8-preview Jarvis-Bridge-0.8-Test.apk \
+            gh release create jarvis-0.8.1-preview Jarvis-Bridge-0.8.1-Test.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 0.8 - Prototype Android" \
-              --notes "Version experimentale 0.8. Installation distincte de Jarvis Bridge 0.7. Gardez votre application stable. Fonction Gmail de la version test non encore validee." \
+              --title "Jarvis Bridge 0.8.1 - Menu appui long" \
+              --notes "Version experimentale 0.8.1 : appui long 2 secondes pour ouvrir le menu de la bulle. Installation distincte de la 0.7 stable. Pour remplacer une ancienne 0.8 Test signee avec une autre cle debug, desinstallez seulement la 0.8 Test au prealable." \
               --prerelease
           fi
