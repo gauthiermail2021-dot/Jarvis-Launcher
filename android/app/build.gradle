@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 36
-        versionName '1.2.17'
-        // Final build: opening orbit animation + targeted Gmail notifications.
+        versionCode 37
+        versionName '1.2.18'
+        // Punchy opening; preserve targeted Gmail notification filtering.
     }
 
     signingConfigs {
