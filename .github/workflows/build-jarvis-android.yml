@@ -3,6 +3,11 @@ name: Build Jarvis Bridge - signed stable APK
 on:
   # Le build ne se lance QUE sur demande explicite.
   workflow_dispatch:
+  # Déclenchement limité au seul changement de version de la branche corrective.
+  push:
+    branches: [fix/jarvis-autoopen-notification-label-1.2.8]
+    paths:
+      - 'android/app/build.gradle'
 
 permissions:
   contents: write
@@ -61,20 +66,20 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.7-signed
+          name: Jarvis-Bridge-1.2.8-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Publish signed APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.7.apk
-          if gh release view jarvis-1.2.7-preview >/dev/null 2>&1; then
+          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.8.apk
+          if gh release view jarvis-1.2.8-preview >/dev/null 2>&1; then
             gh release upload jarvis-1.2.7-preview Jarvis-Bridge-1.2.7.apk --clobber
           else
             gh release create jarvis-1.2.7-preview Jarvis-Bridge-1.2.7.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.2.7 - OAuth et signature permanents" \
-              --notes "Version signee de maniere permanente, identifiant ca.jarvis.bridge; autorisation Google modernisee. Valider sur Android avant utilisation reguliere." \
+              --title "Jarvis Bridge 1.2.8 - correctif notification Gmail" \
+              --notes "Correctif: verification directe du libelle Gmail sans exiger le texte Jarvis SVG dans la notification. APK signe avec la cle permanente; a verifier sur Android." \
               --prerelease
           fi
