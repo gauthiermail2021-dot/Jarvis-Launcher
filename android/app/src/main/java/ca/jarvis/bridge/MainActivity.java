@@ -837,6 +837,7 @@ public class MainActivity extends ComponentActivity {
                         filename, mimeType, bytes, MAX_SVG_BYTES);
                 Uri saved = saveSvg(bytes);
                 runOnUiThread(() -> {
+                    if (XtoolSessionManager.isActive(this)) return;
                     saveLastSvg(saved);
                     showMessage("SVG reçu et enregistré");
                     openSvg(saved);
@@ -883,6 +884,7 @@ public class MainActivity extends ComponentActivity {
                         bytes, MAX_SVG_BYTES);
                 Uri saved = saveSvg(bytes);
                 runOnUiThread(() -> {
+                    if (XtoolSessionManager.isActive(this)) return;
                     saveLastSvg(saved);
                     showMessage("SVG téléchargé");
                     openSvg(saved);
@@ -1076,8 +1078,8 @@ public class MainActivity extends ComponentActivity {
             startActivity(standard);
             boolean isXtoolFallback = defaultHandler != null
                     && defaultHandler.activityInfo != null
-                    && (defaultHandler.activityInfo.packageName.toLowerCase(Locale.ROOT)
-                            .contains("xtool")
+                    && (String.valueOf(defaultHandler.activityInfo.packageName)
+                            .toLowerCase(Locale.ROOT).contains("xtool")
                         || String.valueOf(defaultHandler.loadLabel(pm))
                             .toLowerCase(Locale.ROOT).contains("xtool"));
             if (isXtoolFallback) {
