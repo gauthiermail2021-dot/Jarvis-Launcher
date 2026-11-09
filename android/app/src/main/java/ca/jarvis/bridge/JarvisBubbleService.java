@@ -4,6 +4,9 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -31,6 +34,7 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.Toast;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -67,6 +71,7 @@ public final class JarvisBubbleService extends Service {
     private boolean longPressHandled = false;
     private View menuView;
     private Runnable collapseRunnable;
+    private ValueAnimator openingAnimator;
     private boolean animationsEnabled = true;
     private boolean soundsEnabled = true;
     private JarvisXylophone xylophone;
@@ -479,15 +484,63 @@ public final class JarvisBubbleService extends Service {
         if (bubble != null) scheduleCollapse();
     }
 
+    /**
+     * Ouverture : agrandissement fluide de 54 à 110 dp sur 280 ms.
+     * Le dessin final de la bulle, les messages et les gestes ne changent pas.
+     * Le réglage existant « Animations » permet de garder l'ouverture instantanée.
+     */
     private void setExpanded(boolean next) {
         if (bubble == null || wm == null) return;
+
+        // Plusieurs événements Gmail peuvent arriver pendant l'ouverture :
+        // ne jamais relancer l'animation ni couper l'agrandissement en cours.
+        if (next && expanded && openingAnimator != null) {
+            scheduleCollapse();
+            return;
+        }
+
+        if (openingAnimator != null) {
+            openingAnimator.cancel();
+            openingAnimator = null;
+        }
+
+        boolean opening = next && !expanded;
         expanded = next;
         int side = dp(next ? LARGE_DP : SMALL_DP);
-        params.width = side;
-        params.height = side;
-        clampPosition();
-        bubble.invalidate();
-        wm.updateViewLayout(bubble, params);
+
+        if (opening && animationsEnabled && params.width < side) {
+            ValueAnimator animator = ValueAnimator.ofInt(params.width, side);
+            animator.setDuration(280L);
+            animator.setInterpolator(new DecelerateInterpolator(1.5f));
+            openingAnimator = animator;
+            animator.addUpdateListener(frame -> {
+                if (openingAnimator != animator || bubble == null || wm == null) return;
+                int current = (Integer) frame.getAnimatedValue();
+                params.width = current;
+                params.height = current;
+                clampPosition();
+                try {
+                    wm.updateViewLayout(bubble, params);
+                    bubble.invalidate();
+                } catch (IllegalArgumentException ignored) {
+                    // La fenêtre a pu être retirée lors de l'arrêt de Jarvis.
+                    animator.cancel();
+                }
+            });
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override public void onAnimationEnd(Animator animation) {
+                    if (openingAnimator == animator) openingAnimator = null;
+                }
+            });
+            animator.start();
+        } else {
+            params.width = side;
+            params.height = side;
+            clampPosition();
+            bubble.invalidate();
+            wm.updateViewLayout(bubble, params);
+        }
+
         if (next) scheduleCollapse();
         else {
             cancelCollapse();
@@ -507,6 +560,10 @@ public final class JarvisBubbleService extends Service {
 
     @Override public void onDestroy() {
         if (activeService == this) activeService = null;
+        if (openingAnimator != null) {
+            openingAnimator.cancel();
+            openingAnimator = null;
+        }
         if (xylophone != null) {
             xylophone.release();
             xylophone = null;
@@ -567,7 +624,10 @@ public final class JarvisBubbleService extends Service {
             if (w < 1 || h < 1) return;
             long now = SystemClock.uptimeMillis();
             boolean xtoolActive = XtoolSessionManager.isActive(JarvisBubbleService.this);
-            boolean eventVisible = expanded && visualState != STATE_READY
+            // Ne montrer le texte grand format qu'une fois suffisamment de
+            // place disponible pendant l'animation d'agrandissement.
+            boolean expandedLayout = expanded && w >= dp(96);
+            boolean eventVisible = expandedLayout && visualState != STATE_READY
                     && now < visualUntil;
             // Le message xTool reste visible jusqu'à la fin de session.
             // Aucune animation permanente coûteuse durant le travail.
@@ -575,7 +635,7 @@ public final class JarvisBubbleService extends Service {
                     && animationsEnabled && isAttachedToWindow();
             int color = getAccent(xtoolActive
                     ? STATE_XTOOL : eventVisible ? visualState : STATE_READY);
-            float inset = dp(expanded ? 7 : 5);
+            float inset = dp(expandedLayout ? 7 : 5);
             float rounded = Math.min(w, h) * .23f;
             rect.set(inset, inset, w - inset, h - inset);
 
@@ -584,11 +644,11 @@ public final class JarvisBubbleService extends Service {
             canvas.drawRoundRect(rect, rounded, rounded, p);
 
             p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(dp(expanded ? 2.5f : 2f));
+            p.setStrokeWidth(dp(expandedLayout ? 2.5f : 2f));
             p.setColor(color);
             canvas.drawRoundRect(rect, rounded, rounded, p);
 
-            float gap = inset + dp(expanded ? 6 : 5);
+            float gap = inset + dp(expandedLayout ? 6 : 5);
             RectF inside = new RectF(gap, gap, w - gap, h - gap);
             p.setStrokeWidth(dp(1));
             p.setColor(Color.argb(155, 118, 225, 244));
@@ -610,7 +670,7 @@ public final class JarvisBubbleService extends Service {
                 }
             }
 
-            if (expanded) {
+            if (expandedLayout) {
                 String title = xtoolActive ? "xTool"
                         : eventVisible ? visualTitle : "JARVIS";
                 String detail = xtoolActive ? "EN COURS"
