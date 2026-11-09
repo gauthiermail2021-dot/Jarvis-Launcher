@@ -11,8 +11,8 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 22
-        versionName '1.2.3'
+        versionCode 23
+        versionName '1.2.4'
     }
 
     signingConfigs {
