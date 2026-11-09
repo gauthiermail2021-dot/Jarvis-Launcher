@@ -416,8 +416,9 @@ public class MainActivity extends ComponentActivity {
             return;
         }
         isBusy = true;
-        JarvisBubbleService.onGmailWorkStarted();
-        setStatus("Connexion Google...");
+        // La bulle ne doit se réveiller qu'une fois un fichier réellement
+        // sélectionné. Une notification Gmail ne prouve pas un nouveau SVG.
+        if (!silentAutoCheck) setStatus("Connexion Google...");
         AuthorizationRequest request = AuthorizationRequest.builder()
                 .setRequestedScopes(Arrays.asList(new Scope(GMAIL_SCOPE)))
                 .build();
@@ -504,7 +505,7 @@ public class MainActivity extends ComponentActivity {
             setStatus("Aucun jeton Gmail. Autorisation nécessaire.");
             return;
         }
-        setStatus("Recherche du dernier SVG dans Gmail...");
+        if (!silentAutoCheck) setStatus("Recherche du dernier SVG dans Gmail...");
         new Thread(() -> {
             try {
                 fetchNewestGmailSvg(token);
@@ -541,10 +542,8 @@ public class MainActivity extends ComponentActivity {
                 + "&maxResults=50";
         JSONArray messages = getJson(query, token).optJSONArray("messages");
         if (messages == null || messages.length() == 0) {
-            runOnUiThread(() -> {
-                setStatus("Aucun courriel sous Jarvis SVG");
-                // La fermeture automatique est centralisée dans completeGmailCheck().
-            });
+            if (!silentAutoCheck) runOnUiThread(() ->
+                    setStatus("Aucun courriel sous Jarvis SVG"));
             return;
         }
 
@@ -588,6 +587,9 @@ public class MainActivity extends ComponentActivity {
         long newestTime = lastProcessedTime;
         for (int i = 0; i < messages.length(); i++) {
             String id = messages.getJSONObject(i).getString("id");
+            // Ne pas recharger une pièce jointe d'un message déjà réglé :
+            // Gmail peut notifier plusieurs fois le même courriel.
+            if (JarvisMailLedger.wasLastMessage(id, previous)) break;
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
             long timestamp;
@@ -616,9 +618,10 @@ public class MainActivity extends ComponentActivity {
             JSONObject part = findSvgPart(payload);
             if (part == null) continue;
             String filename = part.optString("filename", "piece.svg");
-            String identity = id + ":" + filename;
-            if (timestamp <= newestTime || processed.contains(identity)
-                    || previous.equals(identity)) continue;
+            String identity = JarvisMailLedger.identity(id, filename);
+            if (timestamp <= newestTime
+                    || JarvisMailLedger.isAlreadyHandled(identity, previous, processed))
+                continue;
             newestTime = timestamp;
             newestMessage = message;
             newestPart = part;
@@ -630,10 +633,8 @@ public class MainActivity extends ComponentActivity {
         }
 
         if (newestMessage == null) {
-            runOnUiThread(() -> {
-                setStatus("Aucun nouveau dessin SVG à ouvrir");
-                // La fermeture automatique est centralisée dans completeGmailCheck().
-            });
+            if (!silentAutoCheck) runOnUiThread(() ->
+                    setStatus("Aucun nouveau dessin SVG à ouvrir"));
             return;
         }
 
@@ -650,8 +651,22 @@ public class MainActivity extends ComponentActivity {
         }
         if (encoded.isEmpty()) throw new Exception("Pièce SVG vide");
         byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
-        JarvisFileRouter.requireSvgForXtool(newestFilename,
-                newestPart.optString("mimeType", ""), bytes, MAX_SVG_BYTES);
+        try {
+            JarvisFileRouter.requireSvgForXtool(newestFilename,
+                    newestPart.optString("mimeType", ""), bytes, MAX_SVG_BYTES);
+        } catch (JarvisFileRouter.RejectedFileException rejected) {
+            // Un refus définitif n'est PAS une panne réseau. Mémoriser la
+            // décision avant de la signaler à l'utilisateur, pour que les
+            // notifications suivantes ne provoquent pas une deuxième alerte.
+            rememberHandledGmail(prefs, processed, newestIdentity, newestTime);
+            final String rejectedFilename = newestFilename;
+            runOnUiThread(() -> {
+                setStatus("Gmail : fichier refusé (" + rejectedFilename + ") : "
+                        + rejected.getMessage());
+                JarvisBubbleService.onFileRejected(rejected.kind);
+            });
+            return;
+        }
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
         StringBuilder hashBuilder = new StringBuilder(digest.length * 2);
         for (byte value : digest) {
@@ -666,12 +681,7 @@ public class MainActivity extends ComponentActivity {
         if (svgHash.equals(lastHash)) {
             // Contenu identique, même envoyé dans un courriel différent :
             // ne pas rouvrir xTool. Avancer quand même le curseur temporel.
-            processed.add(chosenIdentity);
-            prefs.edit()
-                    .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
-                    .putString(LAST_GMAIL_ID, chosenIdentity)
-                    .putLong(LAST_GMAIL_TIMESTAMP, chosenTime)
-                    .apply();
+            rememberHandledGmail(prefs, processed, chosenIdentity, chosenTime);
             runOnUiThread(() -> {
                 setStatus("SVG identique déjà traité : ouverture évitée");
                 // La fermeture automatique est centralisée dans completeGmailCheck().
@@ -684,21 +694,26 @@ public class MainActivity extends ComponentActivity {
         runOnUiThread(() -> {
             saveLastSvg(saved);
             if (openSvg(saved)) {
-                processed.add(chosenIdentity);
-                if (processed.size() > 100) {
-                    processed.clear();
-                    processed.add(chosenIdentity);
-                }
-                prefs.edit()
-                        .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
-                        .putString(LAST_GMAIL_ID, chosenIdentity)
-                        .putString(LAST_SVG_SHA256, svgHash)
-                        .putLong(LAST_GMAIL_TIMESTAMP, chosenTime)
-                        .apply();
+                rememberHandledGmail(prefs, processed, chosenIdentity, chosenTime);
+                prefs.edit().putString(LAST_SVG_SHA256, svgHash).apply();
                 setStatus("SVG le plus récent envoyé à xTool : " + chosenFilename);
             }
             // La fermeture automatique est centralisée dans completeGmailCheck().
         });
+    }
+
+    private void rememberHandledGmail(SharedPreferences prefs, Set<String> processed,
+            String identity, long timestamp) {
+        Set<String> remembered = JarvisMailLedger.remember(processed, identity, 100);
+        processed.clear();
+        processed.addAll(remembered);
+        // Écrire le résultat complet d'un seul coup : la prochaine notification
+        // doit voir le même message comme déjà traité, même après redémarrage.
+        prefs.edit()
+                .putStringSet(HANDLED_GMAIL_IDS, new HashSet<>(processed))
+                .putString(LAST_GMAIL_ID, identity)
+                .putLong(LAST_GMAIL_TIMESTAMP, timestamp)
+                .apply();
     }
 
     private JSONObject findSvgPart(JSONObject part) {
@@ -706,11 +721,18 @@ public class MainActivity extends ComponentActivity {
         String file = part.optString("filename", "").toLowerCase(Locale.ROOT);
         if (file.endsWith(".svg")) return part;
         JSONArray children = part.optJSONArray("parts");
+        JSONObject otherAttachment = null;
         if (children != null) for (int i = 0; i < children.length(); i++) {
             JSONObject found = findSvgPart(children.optJSONObject(i));
-            if (found != null) return found;
+            if (found == null) continue;
+            String foundName = found.optString("filename", "").toLowerCase(Locale.ROOT);
+            if (foundName.endsWith(".svg")) return found;
+            if (otherAttachment == null) otherAttachment = found;
         }
-        return null;
+        if (otherAttachment != null) return otherAttachment;
+        // Les STEP/STL/DXF joints ne doivent pas être ignorés : on les
+        // transmet au routeur qui les refuse et mémorise ce refus.
+        return file.isEmpty() ? null : part;
     }
 
     private JSONObject getJson(String address, String token) throws Exception {
