@@ -33,6 +33,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.view.WindowManager;
 
 import com.google.android.gms.auth.api.identity.AuthorizationClient;
 import com.google.android.gms.auth.api.identity.AuthorizationRequest;
@@ -114,6 +115,12 @@ public class MainActivity extends ComponentActivity {
             setTheme(android.R.style.Theme_Translucent_NoTitleBar);
         }
         super.onCreate(savedInstanceState);
+        if (silentAutoCheck || compactLauncher) {
+            // Un fond de fenêtre opaque ou atténué peut laisser un écran
+            // noir derrière la bulle, surtout après un lancement Gmail.
+            getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        }
         authorizationClient = Identity.getAuthorizationClient(this);
         // Cycle de vie géré par AndroidX : le résultat Google est livré même
         // après la recréation de l'Activity, avec un diagnostic explicite.
@@ -328,13 +335,9 @@ public class MainActivity extends ComponentActivity {
 
         ScrollView scroll = new ScrollView(this);
         scroll.addView(layout);
-        if (silentAutoCheck || compactLauncher) {
-            // Aucun écran géant pendant le traitement automatique ni
-            // lors du lancement de la bulle depuis l'icône Android.
-            setContentView(new android.view.View(this));
-        } else {
-            setContentView(scroll);
-        }
+        // Les vérifications Gmail et le lancement compact n'ont besoin
+        // d'aucune interface : ne PAS ajouter de vue couvrant tout l'écran.
+        if (!silentAutoCheck && !compactLauncher) setContentView(scroll);
         // La bulle accompagne automatiquement Jarvis après la première
         // autorisation de superposition. Aucun dialogue intrusif au lancement.
         if (getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -349,10 +352,13 @@ public class MainActivity extends ComponentActivity {
         }
         if (savedInstanceState == null) handleIncomingIntent(getIntent());
         if (compactLauncher) {
-            // L'application continue via son service flottant ; l'écran
-            // courant de l'utilisateur redevient visible immédiatement.
+            // Le service flottant continue indépendamment de cette Activity.
+            // moveTaskToBack(true) gardait une fenêtre vide dans la pile
+            // Android, parfois affichée entièrement noire au retour.
             new android.os.Handler(android.os.Looper.getMainLooper())
-                    .post(() -> moveTaskToBack(true));
+                    .post(() -> {
+                        if (!isFinishing() && !isBusy) finish();
+                    });
         }
     }
 
@@ -404,10 +410,17 @@ public class MainActivity extends ComponentActivity {
     private void completeGmailCheck() {
         isBusy = false;
         GMAIL_CHECK_IN_PROGRESS.set(false);
+        // Le SVG a ouvert xTool : aucune vérification supplémentaire ne
+        // doit remettre la fenêtre Jarvis au premier plan.
+        if (XtoolSessionManager.isActive(this)) {
+            GMAIL_RECHECK_REQUESTED.set(false);
+        }
         if (GMAIL_RECHECK_REQUESTED.getAndSet(false)) {
             new android.os.Handler(android.os.Looper.getMainLooper())
                     .postDelayed(this::requestGmailAndOpen, 800L);
-        } else if (silentAutoCheck) {
+        } else if (silentAutoCheck || compactLauncher) {
+            // Ne jamais laisser la fenêtre de service en arrière-plan.
+            // La bulle est un service Android distinct et reste active.
             finish();
         }
     }
@@ -774,6 +787,13 @@ public class MainActivity extends ComponentActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        // Si Android réutilise l'Activity compacte pour une notification,
+        // sa vérification Gmail reste temporaire et doit se fermer à la fin.
+        if (intent != null && ACTION_CHECK_GMAIL.equals(intent.getAction())
+                && compactLauncher && getSharedPreferences(PREFS, MODE_PRIVATE)
+                        .getBoolean(AUTO_OPEN_ENABLED, false)) {
+            silentAutoCheck = true;
+        }
         handleIncomingIntent(intent);
     }
 
