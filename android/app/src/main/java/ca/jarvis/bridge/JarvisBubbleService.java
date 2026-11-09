@@ -50,7 +50,7 @@ public final class JarvisBubbleService extends Service {
     private static final int LARGE_DP = 110;
     private static final long LONG_PRESS_MS = 1000L;
     private static final long IDLE_COLLAPSE_MS = 5000L;
-    private static final long OPENING_SPIN_MS = 560L;
+    private static final long OPENING_SPIN_MS = 510L;
     private static volatile JarvisBubbleService activeService;
 
     static boolean isBubbleActive() {
@@ -488,7 +488,7 @@ public final class JarvisBubbleService extends Service {
     }
 
     /**
-     * Ouverture : agrandissement fluide de 54 à 110 dp sur 280 ms.
+     * Ouverture dynamique : agrandissement rapide, léger rebond et halo rotatif.
      * Le dessin final de la bulle, les messages et les gestes ne changent pas.
      * Le réglage existant « Animations » permet de garder l'ouverture instantanée.
      */
@@ -517,9 +517,12 @@ public final class JarvisBubbleService extends Service {
                 ? SystemClock.uptimeMillis() + OPENING_SPIN_MS : 0L;
 
         if (opening && animationsEnabled && params.width < side) {
-            ValueAnimator animator = ValueAnimator.ofInt(params.width, side);
-            animator.setDuration(280L);
-            animator.setInterpolator(new DecelerateInterpolator(1.5f));
+            // 54 -> 110 -> 103 -> 110 dp : un rebond net sans jamais
+            // dépasser la fenêtre cible ni modifier sa forme finale.
+            ValueAnimator animator = ValueAnimator.ofInt(
+                    params.width, side, dp(103), side);
+            animator.setDuration(390L);
+            animator.setInterpolator(new DecelerateInterpolator(1.0f));
             openingAnimator = animator;
             animator.addUpdateListener(frame -> {
                 if (openingAnimator != animator || bubble == null || wm == null) return;
@@ -666,7 +669,7 @@ public final class JarvisBubbleService extends Service {
             canvas.drawRoundRect(inside, rounded * .76f, rounded * .76f, p);
 
             if (openingSpin || animating) {
-                // L'ouverture effectue une rotation lumineuse complète (560 ms).
+                // L'ouverture effectue deux rotations rapides (510 ms).
                 // Les notifications SVG conservent l'animation antérieure.
                 orbit.reset();
                 orbit.addRoundRect(rect, rounded, rounded, Path.Direction.CW);
@@ -675,14 +678,31 @@ public final class JarvisBubbleService extends Service {
                         ? (OPENING_SPIN_MS - (openingSpinUntil - now))
                                 / (float) OPENING_SPIN_MS
                         : (now % 1900L) / 1900f;
-                float distance = progress * orbitMeasure.getLength();
+                float distance = (openingSpin ? (progress * 2f) % 1f : progress)
+                        * orbitMeasure.getLength();
                 if (orbitMeasure.getPosTan(distance, orbitPoint, null)) {
                     p.setStyle(Paint.Style.FILL);
-                    p.setColor(Color.argb(95, Color.red(color),
-                            Color.green(color), Color.blue(color)));
-                    canvas.drawCircle(orbitPoint[0], orbitPoint[1], dp(7), p);
+                    p.setColor(Color.argb(openingSpin ? 145 : 95,
+                            Color.red(color), Color.green(color), Color.blue(color)));
+                    canvas.drawCircle(orbitPoint[0], orbitPoint[1],
+                            dp(openingSpin ? 10 : 7), p);
                     p.setColor(Color.WHITE);
-                    canvas.drawCircle(orbitPoint[0], orbitPoint[1], dp(2.6f), p);
+                    canvas.drawCircle(orbitPoint[0], orbitPoint[1],
+                            dp(openingSpin ? 3.2f : 2.6f), p);
+                }
+            }
+
+            if (openingSpin) {
+                // Flash discret sur le cadre uniquement : l'apparence
+                // permanente, le texte et la palette restent inchangés.
+                float age = 1f - (openingSpinUntil - now) / (float) OPENING_SPIN_MS;
+                float flash = Math.max(0f, 1f - Math.abs(age - 0.62f) / 0.26f);
+                if (flash > 0f) {
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setStrokeWidth(dp(3));
+                    p.setColor(Color.argb((int) (105 * flash),
+                            Color.red(color), Color.green(color), Color.blue(color)));
+                    canvas.drawRoundRect(rect, rounded, rounded, p);
                 }
             }
 
