@@ -1,6 +1,11 @@
 package ca.jarvis.bridge;
 
+import android.app.ActivityOptions;
 import android.content.Context;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.os.Build;
+import android.view.WindowManager;
 import android.content.Intent;
 import android.net.Uri;
 import java.util.List;
@@ -31,7 +36,47 @@ final class JarvisConversationLink {
         }
     }
 
+    /**
+     * Demande un lancement dans une fenêtre plus petite. Android/Samsung peut
+     * ignorer setLaunchBounds hors du mode multi-fenêtre : ce n'est pas une
+     * permission de forcer une application tierce en fenêtre flottante.
+     * Aucun accès au texte ni à l'interface interne de ChatGPT.
+     */
+    static boolean openPopup(Context context) {
+        android.os.Bundle launchOptions = null;
+        if (Build.VERSION.SDK_INT >= 26) {
+            try {
+                WindowManager manager = (WindowManager)
+                        context.getSystemService(Context.WINDOW_SERVICE);
+                Point screen = new Point();
+                if (manager != null) manager.getDefaultDisplay().getRealSize(screen);
+                if (screen.x > 0 && screen.y > 0) {
+                    int w = Math.round(screen.x * 0.82f);
+                    int h = Math.round(screen.y * 0.64f);
+                    int left = Math.max(0, (screen.x - w) / 2);
+                    int top = Math.max(0, (screen.y - h) / 4);
+                    launchOptions = ActivityOptions.makeBasic()
+                            .setLaunchBounds(new Rect(left, top, left + w, top + h))
+                            .toBundle();
+                }
+            } catch (RuntimeException ignored) {
+                // Repli vers le lancement normal.
+            }
+        }
+        return openWithOptions(context, launchOptions);
+    }
+
     static boolean open(Context context) {
+        return openWithOptions(context, null);
+    }
+
+    private static void start(Context context, Intent intent,
+                              android.os.Bundle options) {
+        if (options != null) context.startActivity(intent, options);
+        else context.startActivity(intent);
+    }
+
+    private static boolean openWithOptions(Context context, android.os.Bundle options) {
         String stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getString(KEY_URL, "");
         String link = normalize(stored);
@@ -42,7 +87,7 @@ final class JarvisConversationLink {
             app.setPackage("com.openai.chatgpt");
             app.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
-                context.startActivity(app);
+                start(context, app, options);
                 return true;
             } catch (Exception ignored) { }
 
@@ -50,7 +95,7 @@ final class JarvisConversationLink {
             browser.addCategory(Intent.CATEGORY_BROWSABLE);
             browser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
-                context.startActivity(browser);
+                start(context, browser, options);
                 return true;
             } catch (Exception ignored) { }
         }
@@ -62,7 +107,7 @@ final class JarvisConversationLink {
         }
         fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
-            context.startActivity(fallback);
+            start(context, fallback, options);
             return true;
         } catch (Exception ignored) {
             return false;
