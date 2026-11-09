@@ -68,6 +68,7 @@ public final class JarvisBubbleService extends Service {
     private View menuView;
     private Runnable collapseRunnable;
     private boolean animationsEnabled = true;
+    private boolean soundsEnabled = true;
     private static final int STATE_READY = 0;
     private static final int STATE_GMAIL = 1;
     private static final int STATE_WORKING = 2;
@@ -143,6 +144,7 @@ public final class JarvisBubbleService extends Service {
         wm.getDefaultDisplay().getRealSize(display);
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         animationsEnabled = prefs.getBoolean("animations", true);
+        soundsEnabled = prefs.getBoolean("sounds_enabled", true);
         params.x = prefs.getInt("x", Math.max(0, display.x - dp(80)));
         params.y = prefs.getInt("y", Math.max(dp(100), display.y / 3));
         clampPosition();
@@ -222,10 +224,22 @@ public final class JarvisBubbleService extends Service {
 
     private void showActivity(int state, String title, String detail) {
         if (bubble == null || wm == null) return;
+        boolean changed = visualState != state || !visualTitle.equals(title)
+                || !visualDetail.equals(detail);
         visualState = state;
         visualTitle = title;
         visualDetail = detail;
         visualUntil = SystemClock.uptimeMillis() + IDLE_COLLAPSE_MS;
+        if (changed && soundsEnabled) {
+            int note = -1;
+            if (state == STATE_GMAIL) note = JarvisXylophone.DO5;
+            else if (state == STATE_WORKING && "GMAIL".equals(title))
+                note = JarvisXylophone.RE5;
+            else if (state == STATE_WORKING && "RÉCEPTION".equals(title))
+                note = JarvisXylophone.MI5;
+            else if (state == STATE_SUCCESS) note = JarvisXylophone.SOL5;
+            if (note >= 0) JarvisXylophone.play(this, note);
+        }
         setExpanded(true);
     }
 
@@ -367,6 +381,11 @@ public final class JarvisBubbleService extends Service {
                     .putBoolean("animations", animationsEnabled).apply();
             bubble.invalidate();
         });
+        addMenuButton(menu, soundsEnabled ? "Xylophone : activé" : "Xylophone : désactivé", () -> {
+            soundsEnabled = !soundsEnabled;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("sounds_enabled", soundsEnabled).apply();
+        });
         addMenuButton(menu, "Fermer la bulle", this::stopSelf);
         addMenuButton(menu, "Annuler", () -> { });
 
@@ -384,7 +403,7 @@ public final class JarvisBubbleService extends Service {
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(285)));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(345)));
 
         menuView = menu;
         try {
