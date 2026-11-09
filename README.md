@@ -1,3 +1,10 @@
+## 1.2.18 — Ouverture plus énergique
+
+- Animation d'ouverture plus dynamique : expansion rapide de **54 à 110 dp**, petit rebond interne **110 → 103 → 110 dp** en 390 ms (sans agrandir la fenêtre au-delà de son format final).
+- **Deux tours lumineux rapides** autour de la bulle en 510 ms, avec un éclaircissement bref du contour en fin d'ouverture.
+- L'effet respecte « Animations : désactivées ». La bulle fermée et son apparence finale sont inchangées.
+- Aucune modification de la réception des SVG, des sons, de la gestion des sessions xTool, ni du filtrage des notifications Gmail établi en 1.2.17.
+
 ## 1.2.17 — Ouverture animée et notifications ciblées
 
 - Agrandissement fluide de 54 à 110 dp en **280 ms**, avec décélération douce, au toucher ou lors d'un événement SVG.
