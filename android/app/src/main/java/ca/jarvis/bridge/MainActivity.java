@@ -530,7 +530,7 @@ public class MainActivity extends ComponentActivity {
         // Le serveur filtre déjà les sujets Jarvis envoyés depuis ce compte.
         String query = API + "/messages?labelIds="
                 + URLEncoder.encode(labelId, "UTF-8")
-                + "&q=" + URLEncoder.encode("subject:\\"JARVIS-SVG-AUTO\\" in:sent", "UTF-8")
+                + "&q=" + URLEncoder.encode("subject:JARVIS-SVG-AUTO in:sent", "UTF-8")
                 + "&maxResults=50";
         JSONArray messages = getJson(query, token).optJSONArray("messages");
         if (messages == null || messages.length() == 0) {
