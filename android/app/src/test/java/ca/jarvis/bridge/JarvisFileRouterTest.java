@@ -51,6 +51,24 @@ public class JarvisFileRouterTest {
                 JarvisFileRouter.classify("part.svg", "image/svg+xml", data));
     }
 
+    @Test public void marksCadAsPermanentRejectionNotNetworkFailure() {
+        byte[] step = "ISO-10303-21; HEADER;".getBytes(StandardCharsets.UTF_8);
+        JarvisFileRouter.RejectedFileException refused = assertThrows(
+                JarvisFileRouter.RejectedFileException.class,
+                () -> JarvisFileRouter.requireSvgForXtool(
+                        "test.svg", "image/svg+xml", step, 5000000));
+        assertEquals(JarvisFileRouter.Kind.CAD_3D, refused.kind);
+    }
+
+    @Test public void marksMalformedSvgAsPermanentRejection() {
+        JarvisFileRouter.RejectedFileException refused = assertThrows(
+                JarvisFileRouter.RejectedFileException.class,
+                () -> JarvisFileRouter.requireSvgForXtool(
+                        "test.svg", "image/svg+xml",
+                        "<svg><script/></svg>".getBytes(StandardCharsets.UTF_8), 5000000));
+        assertEquals(JarvisFileRouter.Kind.SVG_2D, refused.kind);
+    }
+
     @Test public void recognizesDxfButDoesNotForwardIt() {
         assertEquals(JarvisFileRouter.Kind.DXF_2D,
                 JarvisFileRouter.classify("face.dxf", "application/octet-stream", new byte[]{1}));
