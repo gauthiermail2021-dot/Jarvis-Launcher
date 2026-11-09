@@ -1,11 +1,11 @@
 # Jarvis Bridge — Connexion Google Gmail et signature permanentes
 
-**Statut : code préparé, pas de compilation.** Le problème Gmail n'est pas encore corrigé de façon confirmée sur le Samsung. La 0.7 ayant été désinstallée, elle n'est plus un secours utilisable sur ce téléphone, mais sa reconstitution source se trouve dans `android/baseline-v0.7/`.
+**Statut :** la version 1.2.8 a été testée avec succès sur le Samsung, bulle seule visible. La 1.2.9 de stabilisation reste à valider. L'ancienne base v0.7 est conservée sous `android/baseline-v0.7/`.
 
 ## Identité Android stable
 
 - ApplicationId officiel : `ca.jarvis.bridge`, sans suffixes `previewNNN`.
-- Version préparée : `1.1.0` (versionCode 17).
+- Version préparée : `1.2.9` (versionCode 28).
 - Seule la variante `release` destinée au téléphone porte le certificat permanent.
 - Les build `debug` restent réservés au développement sous `ca.jarvis.bridge.dev` et ne sont pas utilisés pour tester OAuth.
 - Le certificat doit être réutilisé **sans changement** pour toutes les prochaines mises à jour officielles.
@@ -42,7 +42,7 @@ Dans **Settings → Secrets and variables → Actions** du dépôt `gauthiermail
 - `JARVIS_KEY_ALIAS` : `jarvisbridge`.
 - `JARVIS_KEY_PASSWORD` : le mot de passe de la clé dans `CONFIGURATION_PRIVEE.txt`.
 
-Le workflow refuse de compiler la version stable si un secret est absent. `workflow_dispatch` est le **seul** déclencheur du workflow. Après compilation, le fichier `.jks` temporaire est effacé avant le dépôt d'artefacts.
+Le workflow refuse de compiler si un secret est absent. Il se déclenche manuellement ou lors du changement de `android/app/build.gradle` sur la branche dédiée 1.2.9. Après compilation et vérification de signature, le `.jks` temporaire est effacé avant le dépôt d'artefacts. Aucune publication GitHub Releases n'est tentée.
 
 **Sauvegarde :** conserver l'archive privée hors du dépôt GitHub, dans un emplacement fiable. Si la clé privée est perdue, on ne peut pas signer les mises à jour de la même application avec un nouveau certificat.
 
@@ -53,9 +53,9 @@ Le workflow refuse de compiler la version stable si un secret est absent. `workf
 - Conservation de l'état de diagnostic à l'écran; aucun jeton Gmail n'est enregistré sur disque.
 - Conserve l'ouverture Gmail « Toucher pour ouvrir » et l'exclusion de toutes les versions Jarvis Bridge comme gestionnaires SVG externes.
 - Bulle inchangée : petite heure, grande sans heure, appui long de 1 s, réduction après 5 s.
-- L'ouverture 100 % sans toucher n'est **pas** réalisée.
+- L'ouverture sans toucher a été validée pour 1.2.8 sur un Samsung Android 13 avec la bulle visible. Elle reste dépendante des autorisations et notifications Gmail/Android.
 
-**Ce que cela ne garantit pas encore :** la connexion Gmail peut toujours échouer si l'écran de consentement, la liste de testeurs, les permissions Gmail ou la configuration du client Google sont incorrects. Il faudra valider sur le téléphone avec un nouveau SVG après la compilation autorisée.
+**Ce que cela ne garantit pas :** la connexion Gmail peut échouer après révocation du consentement OAuth ou en absence de notification Android. La 1.2.9 doit être validée sur le téléphone avec un nouveau SVG après sa compilation.
 
 ## Vérifications techniques avant chaque future compilation
 
