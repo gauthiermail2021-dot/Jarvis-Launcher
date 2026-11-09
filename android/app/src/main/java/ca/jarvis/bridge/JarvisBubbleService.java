@@ -75,6 +75,7 @@ public final class JarvisBubbleService extends Service {
     private static final int STATE_WORKING = 2;
     private static final int STATE_SUCCESS = 3;
     private static final int STATE_ERROR = 4;
+    private static final int STATE_XTOOL = 5;
     private int visualState = STATE_READY;
     private String visualTitle = "JARVIS";
     private String visualDetail = "PRÊT";
@@ -154,6 +155,13 @@ public final class JarvisBubbleService extends Service {
         wm.addView(bubble, params);
         activeService = this;
         xylophone = new JarvisXylophone(this);
+        // Si Android relance la bulle pendant le travail, restaurer l'état.
+        if (XtoolSessionManager.isActive(this)) {
+            visualState = STATE_XTOOL;
+            visualTitle = "xTool";
+            visualDetail = "EN COURS";
+            bubble.invalidate();
+        }
     }
 
     private void clampPosition() {
@@ -171,6 +179,7 @@ public final class JarvisBubbleService extends Service {
      * Renvoie false pour conserver la notification manuelle en repli.
      */
     static boolean tryAutoOpenFromNotification(Context context) {
+        if (XtoolSessionManager.isActive(context)) return true;
         JarvisBubbleService current = activeService;
         if (current == null || current.bubble == null || !current.bubble.isAttachedToWindow()
                 || !Settings.canDrawOverlays(context)) return false;
@@ -211,7 +220,7 @@ public final class JarvisBubbleService extends Service {
         if (current != null) current.gestureHandler.post(() -> {
             if (xToolTarget) {
                 // Le lancement est demandé, sans prétendre que le dessin est déjà chargé.
-                current.showActivity(STATE_SUCCESS, "OUVERTURE", "xTool");
+                current.showActivity(STATE_XTOOL, "xTool", "EN COURS");
             } else {
                 current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ");
             }
@@ -236,6 +245,9 @@ public final class JarvisBubbleService extends Service {
 
     private void showActivity(int state, String title, String detail) {
         if (bubble == null || wm == null) return;
+        // Pendant la session protégée, les notifications ou résultats anciens
+        // ne doivent pas remplacer le message permanent « xTool en cours ».
+        if (XtoolSessionManager.isActive(this) && state != STATE_XTOOL) return;
         boolean changed = visualState != state || !visualTitle.equals(title)
                 || !visualDetail.equals(detail);
         visualState = state;
@@ -380,6 +392,17 @@ public final class JarvisBubbleService extends Service {
         title.setPadding(dp(7), dp(4), dp(7), dp(8));
         menu.addView(title);
 
+        if (XtoolSessionManager.isActive(this)) {
+            addMenuButton(menu, "Terminer la session xTool", () -> {
+                if (XtoolSessionManager.finish(this)) {
+                    showActivity(STATE_SUCCESS, "JARVIS", "PRÊT");
+                    Toast.makeText(this,
+                            "Session terminée. Jarvis attend le prochain SVG.",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
             // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
@@ -422,7 +445,7 @@ public final class JarvisBubbleService extends Service {
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(395)));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(455)));
 
         menuView = menu;
         try {
@@ -468,8 +491,10 @@ public final class JarvisBubbleService extends Service {
         if (next) scheduleCollapse();
         else {
             cancelCollapse();
-            visualState = STATE_READY;
-            visualUntil = 0L;
+            if (!XtoolSessionManager.isActive(this)) {
+                visualState = STATE_READY;
+                visualUntil = 0L;
+            }
         }
     }
 
@@ -531,6 +556,7 @@ public final class JarvisBubbleService extends Service {
                 case STATE_WORKING: return Color.rgb(55, 220, 255);
                 case STATE_SUCCESS: return Color.rgb(80, 235, 150);
                 case STATE_ERROR: return Color.rgb(255, 100, 110);
+                case STATE_XTOOL: return Color.rgb(255, 193, 80);
                 default: return Color.rgb(55, 208, 245);
             }
         }
@@ -540,10 +566,15 @@ public final class JarvisBubbleService extends Service {
             float w = getWidth(), h = getHeight();
             if (w < 1 || h < 1) return;
             long now = SystemClock.uptimeMillis();
+            boolean xtoolActive = XtoolSessionManager.isActive(JarvisBubbleService.this);
             boolean eventVisible = expanded && visualState != STATE_READY
                     && now < visualUntil;
-            boolean animating = eventVisible && animationsEnabled && isAttachedToWindow();
-            int color = getAccent(eventVisible ? visualState : STATE_READY);
+            // Le message xTool reste visible jusqu'à la fin de session.
+            // Aucune animation permanente coûteuse durant le travail.
+            boolean animating = eventVisible && !xtoolActive
+                    && animationsEnabled && isAttachedToWindow();
+            int color = getAccent(xtoolActive
+                    ? STATE_XTOOL : eventVisible ? visualState : STATE_READY);
             float inset = dp(expanded ? 7 : 5);
             float rounded = Math.min(w, h) * .23f;
             rect.set(inset, inset, w - inset, h - inset);
@@ -580,15 +611,22 @@ public final class JarvisBubbleService extends Service {
             }
 
             if (expanded) {
-                // Afficher uniquement l'activité Jarvis au centre, jamais l'heure.
-                String title = eventVisible ? visualTitle : "JARVIS";
-                String detail = eventVisible ? visualDetail : "PRÊT";
+                String title = xtoolActive ? "xTool"
+                        : eventVisible ? visualTitle : "JARVIS";
+                String detail = xtoolActive ? "EN COURS"
+                        : eventVisible ? visualDetail : "PRÊT";
                 drawCentered(canvas, title, w / 2f, h * .44f, 13,
-                        eventVisible ? color : Color.WHITE, true);
+                        xtoolActive || eventVisible ? color : Color.WHITE, true);
                 drawCentered(canvas, detail, w / 2f, h * .66f, 12,
                         Color.rgb(191, 234, 245), true);
+            } else if (xtoolActive) {
+                // Même repliée à 54 dp, la bulle annonce la session active.
+                drawCentered(canvas, "xTool", w / 2f, h * .46f, 9,
+                        color, true);
+                drawCentered(canvas, "EN COURS", w / 2f, h * .66f, 8,
+                        Color.rgb(226, 250, 255), true);
             } else {
-                // Au repos, seulement l'heure; aucune batterie et aucun logo.
+                // En dehors de xTool, la petite bulle conserve l'heure.
                 String clock = clockFormat.format(new Date());
                 drawCentered(canvas, clock, w / 2f, h * .56f, 13,
                         Color.rgb(226, 250, 255), true);
