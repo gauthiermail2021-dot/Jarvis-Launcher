@@ -218,6 +218,16 @@ public final class JarvisBubbleService extends Service {
         });
     }
 
+    /** Refus volontaire d'un fichier : distinct d'une erreur opérationnelle. */
+    static void onFileRejected(JarvisFileRouter.Kind kind) {
+        JarvisBubbleService current = activeService;
+        if (current == null) return;
+        String title = kind == JarvisFileRouter.Kind.CAD_3D ? "CAD"
+                : kind == JarvisFileRouter.Kind.DXF_2D ? "DXF" : "FICHIER";
+        current.gestureHandler.post(() ->
+                current.showActivity(STATE_ERROR, title, "REFUSÉ"));
+    }
+
     static void onOperationFailed() {
         JarvisBubbleService current = activeService;
         if (current != null) current.gestureHandler.post(() ->
