@@ -1,3 +1,11 @@
+## 1.2.19 — Trois sons discrets et distincts
+
+- **Miniature :** petit tic électronique original de 60 ms au toucher.
+- **Ouverture :** whoosh montant discret de 250 ms, joué 85 ms après l'ouverture ; distinct du tic.
+- **Menu :** bip de confirmation distinct de 90 ms après sélection d'un bouton, sans bruit pendant le déplacement.
+- Les trois nouveaux échantillons WAV sont synthétisés pendant la compilation, sans échantillon externe.
+- Tous les nouveaux sons respectent le réglage existant **« Son »**. L'animation, la réception des SVG, xTool et les corrections Gmail restent inchangés.
+
 ## 1.2.18 — Ouverture plus énergique
 
 - Animation d'ouverture plus dynamique : expansion rapide de **54 à 110 dp**, petit rebond interne **110 → 103 → 110 dp** en 390 ms (sans agrandir la fenêtre au-delà de son format final).
