@@ -1,3 +1,9 @@
+## 1.2.14 — Menu de la bulle simplifié
+
+- Renommage de « Xylophone : activé/désactivé » en **« Son : activé/désactivé »**.
+- Suppression complète du bouton **« Tester les 4 notes »**.
+- Les sons de notification, les réglages audio existants et le mode session xTool sont inchangés.
+
 ## 1.2.13 — Correction : xTool lancé via l'association Android
 
 - **Défaut confirmé en 1.2.12 :** sur certains téléphones Samsung, xTool reçoit bien le SVG par l'action Android standard, mais le résolveur ne porte pas le nom « xTool ». La session ne s'activait pas, et la bulle n'affichait pas « xTool EN COURS ».
@@ -24,7 +30,7 @@
 - Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
 - Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
 
-# Jarvis Bridge Android 1.2.13 — Contrôle des formats
+# Jarvis Bridge Android 1.2.14 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
 
