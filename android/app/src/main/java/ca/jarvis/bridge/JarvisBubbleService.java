@@ -69,6 +69,7 @@ public final class JarvisBubbleService extends Service {
     private Runnable collapseRunnable;
     private boolean animationsEnabled = true;
     private boolean soundsEnabled = true;
+    private JarvisXylophone xylophone;
     private static final int STATE_READY = 0;
     private static final int STATE_GMAIL = 1;
     private static final int STATE_WORKING = 2;
@@ -152,6 +153,7 @@ public final class JarvisBubbleService extends Service {
         bubble.setOnTouchListener((v, event) -> handleTouch(event));
         wm.addView(bubble, params);
         activeService = this;
+        xylophone = new JarvisXylophone(this);
     }
 
     private void clampPosition() {
@@ -238,7 +240,7 @@ public final class JarvisBubbleService extends Service {
             else if (state == STATE_WORKING && "RÉCEPTION".equals(title))
                 note = JarvisXylophone.MI5;
             else if (state == STATE_SUCCESS) note = JarvisXylophone.SOL5;
-            if (note >= 0) JarvisXylophone.play(this, note);
+            if (note >= 0 && xylophone != null) xylophone.play(note);
         }
         setExpanded(true);
     }
@@ -386,6 +388,13 @@ public final class JarvisBubbleService extends Service {
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("sounds_enabled", soundsEnabled).apply();
         });
+        addMenuButton(menu, "Tester les 4 notes", () -> {
+            if (!soundsEnabled) {
+                Toast.makeText(this, "Active le xylophone avant le test.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (xylophone != null) xylophone.playSequence();
+        });
         addMenuButton(menu, "Fermer la bulle", this::stopSelf);
         addMenuButton(menu, "Annuler", () -> { });
 
@@ -403,7 +412,7 @@ public final class JarvisBubbleService extends Service {
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(345)));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(395)));
 
         menuView = menu;
         try {
@@ -463,6 +472,10 @@ public final class JarvisBubbleService extends Service {
 
     @Override public void onDestroy() {
         if (activeService == this) activeService = null;
+        if (xylophone != null) {
+            xylophone.release();
+            xylophone = null;
+        }
         cancelCollapse();
         cancelPendingLongPress();
         fingerDown = false;
