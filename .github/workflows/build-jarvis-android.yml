@@ -75,9 +75,9 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.8.apk
           if gh release view jarvis-1.2.8-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.2.7-preview Jarvis-Bridge-1.2.7.apk --clobber
+            gh release upload jarvis-1.2.8-preview Jarvis-Bridge-1.2.8.apk --clobber
           else
-            gh release create jarvis-1.2.7-preview Jarvis-Bridge-1.2.7.apk \
+            gh release create jarvis-1.2.8-preview Jarvis-Bridge-1.2.8.apk \
               --target "$GITHUB_SHA" \
               --title "Jarvis Bridge 1.2.8 - correctif notification Gmail" \
               --notes "Correctif: verification directe du libelle Gmail sans exiger le texte Jarvis SVG dans la notification. APK signe avec la cle permanente; a verifier sur Android." \
