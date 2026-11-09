@@ -1,3 +1,13 @@
+## 1.2.16 — Fenêtre noire derrière la bulle
+
+- **Correctif ciblé Android :** les activités temporaires utilisées pour vérifier Gmail ou démarrer uniquement la bulle n'affichent plus de vue couvrant l'écran.
+- Leur fond est explicitement transparent et aucun assombrissement de la fenêtre n'est demandé.
+- Le lancement compact ferme son activité après avoir démarré le service flottant, au lieu de conserver une fenêtre vide dans la pile Android via `moveTaskToBack(true)`.
+- Les vérifications Gmail réutilisant le lancement compact se terminent elles aussi, après le traitement.
+- Les nouvelles notifications ne relancent pas une vérification Gmail quand une session xTool est déjà active.
+- **Aucun changement de la bulle elle-même**, des couleurs, de la taille, des animations, des messages, des sons, de l'importation SVG ni du verrouillage de session.
+- À vérifier sur Samsung : après ouverture d'un SVG, la bulle reste visible et il n'y a plus de fond noir plein écran.
+
 ## 1.2.15 — Son unique au refus d'un fichier
 
 - **Un seul son électronique bref et grave** (220 Hz, durée 250 ms, saturation douce), généré localement pendant la compilation, sans téléchargement.
@@ -38,7 +48,7 @@
 - Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
 - Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
 
-# Jarvis Bridge Android 1.2.15 — Contrôle des formats
+# Jarvis Bridge Android 1.2.16 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
 
