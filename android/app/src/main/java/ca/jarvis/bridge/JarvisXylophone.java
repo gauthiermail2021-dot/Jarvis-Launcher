@@ -2,85 +2,89 @@ package ca.jarvis.bridge;
 
 import android.content.Context;
 import android.media.AudioAttributes;
-import android.media.AudioFormat;
 import android.media.AudioManager;
-import android.media.AudioTrack;
-import android.os.Build;
+import android.media.SoundPool;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 
 /**
- * Notes brèves de xylophone synthétisées localement, sans dépendance réseau.
- * Do5 (523.25 Hz), Ré5 (587.33 Hz), Mi5 (659.25 Hz), Sol5 (783.99 Hz).
- *
- * Une seule note par changement d'état réel; la déduplication est assurée
- * par JarvisBubbleService.showActivity(). Aucun son au démarrage/au repos.
+ * Lit des échantillons WAV préchargés plutôt que de créer un AudioTrack à
+ * chaque événement. Initialiser et libérer avec le cycle de vie de la bulle.
  */
 final class JarvisXylophone {
-    static final int DO5 = 0;
-    static final int RE5 = 1;
-    static final int MI5 = 2;
-    static final int SOL5 = 3;
-    private static final double[] FREQUENCIES = {523.25, 587.33, 659.25, 783.99};
-    private static final int SAMPLE_RATE = 24000;
-    private static final double DURATION_SECONDS = 0.43;
-    private static final double TWO_PI = 2.0 * Math.PI;
+    static final int DO5 = 0, RE5 = 1, MI5 = 2, SOL5 = 3;
+    private static final String TAG = "JarvisXylophone";
+    private static final int[] WAV_RESOURCES = {
+            R.raw.jarvis_do5, R.raw.jarvis_re5,
+            R.raw.jarvis_mi5, R.raw.jarvis_sol5
+    };
 
-    private JarvisXylophone() {}
+    private final Context context;
+    private final SoundPool pool;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final int[] soundIds = new int[4];
+    private final boolean[] ready = new boolean[4];
+    private final boolean[] queued = new boolean[4];
+    private boolean released;
 
-    static void play(Context context, int note) {
-        if (note < 0 || note >= FREQUENCIES.length) return;
+    JarvisXylophone(Context context) {
+        this.context = context.getApplicationContext();
+        pool = new SoundPool.Builder()
+                .setMaxStreams(2)
+                .setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build())
+                .build();
+        pool.setOnLoadCompleteListener((soundPool, sampleId, status) ->
+                handler.post(() -> {
+                    if (released) return;
+                    for (int i = 0; i < soundIds.length; i++) {
+                        if (soundIds[i] != sampleId) continue;
+                        ready[i] = status == 0;
+                        if (status != 0) Log.w(TAG, "WAV load failed: " + i);
+                        if (ready[i] && queued[i]) {
+                            queued[i] = false;
+                            play(i);
+                        }
+                        break;
+                    }
+                }));
+        for (int i = 0; i < soundIds.length; i++) {
+            soundIds[i] = pool.load(this.context, WAV_RESOURCES[i], 1);
+        }
+    }
+
+    void play(int note) {
+        if (released || note < 0 || note >= soundIds.length || !audioAllowed()) return;
+        if (!ready[note]) {
+            queued[note] = true;
+            return;
+        }
+        int streamId = pool.play(soundIds[note], 0.70f, 0.70f, 1, 0, 1f);
+        if (streamId == 0) Log.w(TAG, "SoundPool playback rejected: " + note);
+    }
+
+    void playSequence() {
+        if (released) return;
+        // Déclenché uniquement par une interaction volontaire du menu.
+        for (int i = 0; i < 4; i++) {
+            final int note = i;
+            handler.postDelayed(() -> play(note), i * 650L);
+        }
+    }
+
+    private boolean audioAllowed() {
         AudioManager manager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        if (manager == null || manager.getRingerMode() == AudioManager.RINGER_MODE_SILENT
-                || manager.getStreamVolume(AudioManager.STREAM_MUSIC) <= 0) return;
-        final double frequency = FREQUENCIES[note];
-        // Ne jamais bloquer le thread d'affichage de la bulle.
-        new Thread(() -> {
-            AudioTrack track = null;
-            try {
-                final int count = (int) (SAMPLE_RATE * DURATION_SECONDS);
-                short[] samples = new short[count];
-                for (int i = 0; i < count; i++) {
-                    double t = (double) i / SAMPLE_RATE;
-                    // Attaque de maillet de 5 ms, décroissance naturelle.
-                    double attack = Math.min(1.0, t / 0.005);
-                    double fade = Math.min(1.0, (DURATION_SECONDS - t) / 0.065);
-                    double envelope = attack * Math.exp(-10.5 * t) * Math.max(0.0, fade);
-                    // Partiels inharmoniques : couleur métallique et boisée.
-                    double struckBar =
-                            0.83 * Math.sin(TWO_PI * frequency * t)
-                            + 0.30 * Math.exp(-15.0 * t) * Math.sin(TWO_PI * frequency * 2.74 * t)
-                            + 0.12 * Math.exp(-24.0 * t) * Math.sin(TWO_PI * frequency * 5.12 * t);
-                    samples[i] = (short) (Short.MAX_VALUE * 0.23 * envelope * struckBar);
-                }
-                int minBytes = AudioTrack.getMinBufferSize(SAMPLE_RATE,
-                        AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-                if (minBytes <= 0) return;
-                track = new AudioTrack.Builder()
-                        .setAudioAttributes(new AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build())
-                        .setAudioFormat(new AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                .setSampleRate(SAMPLE_RATE)
-                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                .build())
-                        .setBufferSizeInBytes(Math.max(minBytes, samples.length * 2))
-                        .setTransferMode(AudioTrack.MODE_STATIC)
-                        .build();
-                if (track.getState() != AudioTrack.STATE_INITIALIZED) return;
-                if (track.write(samples, 0, samples.length, AudioTrack.WRITE_BLOCKING)
-                        != samples.length) return;
-                track.play();
-                // MODE_STATIC doit rester vivant jusqu'à la fin de la lecture.
-                Thread.sleep((long) (DURATION_SECONDS * 1000) + 35L);
-            } catch (Exception ignored) {
-                // Le son reste purement facultatif : jamais bloquer l'ouverture SVG.
-            } finally {
-                if (track != null) {
-                    try { track.stop(); } catch (IllegalStateException ignored) {}
-                    track.release();
-                }
-            }
-        }, "Jarvis-Xylophone-" + note).start();
+        return manager != null && manager.getStreamVolume(AudioManager.STREAM_MUSIC) > 0
+                && manager.getRingerMode() != AudioManager.RINGER_MODE_SILENT;
+    }
+
+    void release() {
+        if (released) return;
+        released = true;
+        handler.removeCallbacksAndMessages(null);
+        pool.release();
     }
 }
