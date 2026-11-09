@@ -1,3 +1,10 @@
+## 1.2.21 — Halo contenu et rotation ralentie
+
+- Une seule révolution de la lumière pendant **850 ms** à l'ouverture (au lieu de deux en 510 ms).
+- Halo **24 dp de diamètre** avec centre blanc identique; trajectoire recentrée pour que le cercle complet reste à l'écran, même pendant l'agrandissement.
+- **Trois petits points discrets de traînée** derrière la lumière uniquement pendant l'ouverture.
+- Les animations des SVG, les sons, les contrôles, le filtre des notifications et la session xTool restent inchangés.
+
 ## 1.2.19 — Trois sons discrets et distincts
 
 - **Miniature :** petit tic électronique original de 60 ms au toucher.
