@@ -1,3 +1,13 @@
+## 1.2.12 — Mode session xTool protégée
+
+- **Un seul SVG ouvre la session :** après l'envoi réussi vers xTool, Jarvis mémorise une session active sur le téléphone. Cette session reste active même si Android redémarre l'activité ou la bulle.
+- **Affichage de la bulle :** petite ou agrandie, elle indique **xTool / EN COURS**. Ce statut signifie que Jarvis protège la session du dessin, et non que la machine laser travaille réellement.
+- **Notifications pendant la session :** le filtre Gmail n'analyse aucun nouveau fichier. Aucune nouvelle ouverture xTool ne peut interrompre le dessin actif, même en cas de notification répétée.
+- **Gestes :** glisser la bulle ne termine rien; un appui simple agrandit la bulle; un appui long ouvre le menu.
+- **Terminer :** dans le menu, toucher **Terminer la session xTool**. Cela réarme Jarvis pour les futurs courriels sans fermer xTool. Les courriels reçus pendant la session restent ignorés après le réarmement (curseur temporel Gmail avancé à la fin de la session).
+- **Limite :** la fermeture réelle de xTool n'est pas détectée automatiquement; Android ne garantit pas la différence entre fermeture et arrière-plan. Le menu manuel reste la confirmation fiable.
+- **Appels externes :** l'envoi d'un SVG depuis une autre application ou un lien HTTPS est également bloqué pendant la session.
+
 ## 1.2.11 — Traitement unique par message Gmail
 - Gmail peut générer plusieurs notifications pour un seul courriel. Les notifications déclenchent une vérification discrète; **elles n'affichent plus la bulle tant qu'un nouveau fichier n'a pas été confirmé**.
 - Les fichiers CAD/3D, DXF, inconnus et SVG invalides sont **refusés une seule fois**, puis leur identifiant Gmail et leur horodatage sont enregistrés comme déjà traités. Une notification suivante ne réaffiche pas le refus.
@@ -6,7 +16,7 @@
 - Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
 - Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
 
-# Jarvis Bridge Android 1.2.11 — Contrôle des formats
+# Jarvis Bridge Android 1.2.12 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
 
