@@ -15,6 +15,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -28,6 +30,9 @@ final class SafeSvgValidator {
     private static final String SVG_NS = "http://www.w3.org/2000/svg";
     private static final int MAX_ELEMENTS = 25000;
     private static final int MAX_DEPTH = 64;
+    private static final double MAX_PHYSICAL_MM = 2000;
+    private static final Pattern SIZE = Pattern.compile(
+            "^([+]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?)(mm|cm|in|px|pt)?$");
 
     private static final Set<String> SHAPES = new HashSet<>(Arrays.asList(
             "svg", "g", "path", "rect", "circle", "ellipse",
@@ -74,7 +79,14 @@ final class SafeSvgValidator {
         if (root == null || !"svg".equals(localName(root))) {
             throw new Exception("Racine <svg> obligatoire");
         }
-
+        NodeList documentNodes = document.getChildNodes();
+        for (int i = 0; i < documentNodes.getLength(); i++) {
+            if (documentNodes.item(i).getNodeType() == Node.PROCESSING_INSTRUCTION_NODE
+                    || documentNodes.item(i).getNodeType() == Node.DOCUMENT_TYPE_NODE) {
+                throw new Exception("Directive XML externe interdite");
+            }
+        }
+        checkDimensions(root);
         ArrayDeque<NodeDepth> stack = new ArrayDeque<>();
         stack.push(new NodeDepth(root, 1));
         int elements = 0;
@@ -110,9 +122,14 @@ final class SafeSvgValidator {
                             || "schemalocation".equals(attrName)) {
                         throw new Exception("Attribut SVG non autorisé : " + attr.getNodeName());
                     }
+                    if (attr.getNodeValue().length() > 500000) {
+                        throw new Exception("Attribut SVG trop long");
+                    }
                     String value = attr.getNodeValue().toLowerCase(Locale.ROOT)
                             .replaceAll("\\s+", "");
-                    if (value.contains("url(") || value.contains("javascript:")
+                    // Les références locales aux dégradés et découpes sont permises.
+                    String noLocalRefs = value.replaceAll("url\\(#[a-z0-9_.:-]{1,80}\\)", "");
+                    if (noLocalRefs.contains("url(") || value.contains("javascript:")
                             || value.contains("data:") || value.contains("https:")
                             || value.contains("http:") || value.contains("file:")
                             || value.contains("content:") || value.contains("@import")
@@ -130,6 +147,53 @@ final class SafeSvgValidator {
             for (int i = children.getLength() - 1; i >= 0; i--) {
                 stack.push(new NodeDepth(children.item(i), current.depth + 1));
             }
+        }
+    }
+
+    private static void checkDimensions(Element root) throws Exception {
+        String width = root.getAttribute("width").trim();
+        String height = root.getAttribute("height").trim();
+        String box = root.getAttribute("viewBox").trim();
+        if (width.isEmpty() != height.isEmpty()) {
+            throw new Exception("Largeur et hauteur SVG doivent être définies ensemble");
+        }
+        if (!width.isEmpty()) {
+            physicalDimension(width);
+            physicalDimension(height);
+        }
+        if (!box.isEmpty()) {
+            String[] values = box.replace(',', ' ').trim().split("\\s+");
+            if (values.length != 4) throw new Exception("viewBox SVG invalide");
+            double[] coords = new double[4];
+            for (int i = 0; i < 4; i++) {
+                try { coords[i] = Double.parseDouble(values[i]); }
+                catch (NumberFormatException e) { throw new Exception("viewBox SVG invalide"); }
+                if (!Double.isFinite(coords[i]) || Math.abs(coords[i]) > 1_000_000_000d) {
+                    throw new Exception("viewBox SVG hors limites");
+                }
+            }
+            if (coords[2] <= 0 || coords[3] <= 0) {
+                throw new Exception("Dimensions viewBox SVG invalides");
+            }
+        }
+        if (width.isEmpty() && box.isEmpty()) {
+            throw new Exception("Dimensions SVG explicites requises");
+        }
+    }
+
+    private static void physicalDimension(String input) throws Exception {
+        Matcher m = SIZE.matcher(input.toLowerCase(Locale.ROOT));
+        if (!m.matches()) throw new Exception("Dimension SVG non prise en charge : " + input);
+        double size;
+        try { size = Double.parseDouble(m.group(1)); }
+        catch (NumberFormatException e) { throw new Exception("Dimension SVG invalide"); }
+        String unit = m.group(2);
+        if ("cm".equals(unit)) size *= 10;
+        else if ("in".equals(unit)) size *= 25.4;
+        else if ("pt".equals(unit)) size *= 25.4 / 72;
+        else if (unit == null || "px".equals(unit)) size *= 25.4 / 96;
+        if (!Double.isFinite(size) || size < 0.1 || size > MAX_PHYSICAL_MM) {
+            throw new Exception("Dimension SVG hors limites (0,1 à 2000 mm)");
         }
     }
 
