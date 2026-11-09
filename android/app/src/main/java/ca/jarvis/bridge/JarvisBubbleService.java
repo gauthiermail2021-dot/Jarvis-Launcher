@@ -700,7 +700,7 @@ public final class JarvisBubbleService extends Service {
                     p.setColor(Color.argb(openingSpin ? 145 : 95,
                             Color.red(color), Color.green(color), Color.blue(color)));
                     canvas.drawCircle(orbitPoint[0], orbitPoint[1],
-                            dp(openingSpin ? 10 : 7), p);
+                            dp(openingSpin ? 21 : 7), p);
                     p.setColor(Color.WHITE);
                     canvas.drawCircle(orbitPoint[0], orbitPoint[1],
                             dp(openingSpin ? 3.2f : 2.6f), p);
