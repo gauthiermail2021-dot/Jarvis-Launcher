@@ -416,17 +416,10 @@ public final class JarvisBubbleService extends Service {
                     .putBoolean("animations", animationsEnabled).apply();
             bubble.invalidate();
         });
-        addMenuButton(menu, soundsEnabled ? "Xylophone : activé" : "Xylophone : désactivé", () -> {
+        addMenuButton(menu, soundsEnabled ? "Son : activé" : "Son : désactivé", () -> {
             soundsEnabled = !soundsEnabled;
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("sounds_enabled", soundsEnabled).apply();
-        });
-        addMenuButton(menu, "Tester les 4 notes", () -> {
-            if (!soundsEnabled) {
-                Toast.makeText(this, "Active le xylophone avant le test.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (xylophone != null) xylophone.playSequence();
         });
         addMenuButton(menu, "Fermer la bulle", this::stopSelf);
         addMenuButton(menu, "Annuler", () -> { });
