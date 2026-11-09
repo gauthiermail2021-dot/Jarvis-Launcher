@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.12 - signed APK
+name: Build and test Jarvis Bridge 1.2.13 - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au projet 1.2.12.
+  # Compilation d'essai limitée au projet 1.2.13.
   push:
-    branches: [feature/jarvis-xtool-session-1.2.12]
+    branches: [fix/jarvis-xtool-session-fallback-1.2.13]
     paths:
       - 'android/app/build.gradle'
 
@@ -69,6 +69,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.12-signed
+          name: Jarvis-Bridge-1.2.13-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
