@@ -815,6 +815,14 @@ public class MainActivity extends ComponentActivity {
                 showMessage("Utilise un lien HTTPS direct vers un SVG");
                 return;
             }
+            JarvisFileRouter.Kind known = JarvisFileRouter.classify(
+                    parsed.getPath(), null, null);
+            if (known == JarvisFileRouter.Kind.CAD_3D
+                    || known == JarvisFileRouter.Kind.DXF_2D) {
+                setStatus("Fichier CAD/DXF détecté : aucun transfert automatique vers xTool.");
+                showMessage("Pour la P2S, exporter le dessin 2D en SVG.");
+                return;
+            }
         } catch (Exception e) { showMessage("Adresse HTTPS invalide"); return; }
         JarvisBubbleService.onSvgWorkStarted();
         showMessage("Téléchargement en cours...");
@@ -1045,6 +1053,10 @@ public class MainActivity extends ComponentActivity {
     }
     private void showError(String prefix, Exception error) {
         JarvisBubbleService.onOperationFailed();
-        runOnUiThread(() -> showMessage(prefix + " : " + error.getMessage()));
+        String diagnostic = prefix + " : " + error.getMessage();
+        runOnUiThread(() -> {
+            setStatus(diagnostic);
+            showMessage(diagnostic);
+        });
     }
 }
