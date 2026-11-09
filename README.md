@@ -1,6 +1,14 @@
-# Jarvis Bridge Android 1.2.9 — Stabilisation
+# Jarvis Bridge Android 1.2.10 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
+
+## Routage de fichiers ajouté en 1.2.10
+- **SVG 2D valide** : chemin Gmail / fichier Android / HTTPS vers xTool P2S, inchangé.
+- **STL, STEP, STP, SLDPRT, OBJ, 3MF, IGES et autres fichiers CAD 3D** : refus explicite, aucun lancement de xTool; exporter une projection 2D en SVG depuis SolidWorks pour une découpe laser.
+- **DXF 2D** : refus du transfert automatique actuel (qui est réservé au SVG). Import DXF manuel dans xTool ou conversion préalable en SVG.
+- **Fichier inconnu ou SVG invalide** : refus. Les contenus trompeurs (par exemple STEP nommé .svg) sont bloqués.
+- La fenêtre des réglages affiche la **vraie version Android** et le démarrage de la bulle n'efface plus le dernier état de diagnostic.
+- **Limite :** ce contrôle ne peut pas modifier la gestion interne des fichiers ni le choix de machine dans xTool. Jarvis sait demander l'ouverture mais ne peut pas confirmer que le dessin a bien été importé. Le routage automatique de CAD 3D vers SolidWorks ou Raise3D n'est pas encore développé.
 
 ## Flux de travail
 1. Un dessin SVG est envoyé depuis le compte Gmail connecté avec un sujet commençant par `JARVIS-SVG-AUTO`.
