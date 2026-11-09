@@ -24,6 +24,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Verify and stage original Jarvis xylophone WAVs
+        run: python3 tools/prepare_jarvis_wav.py
       - name: Restore permanent signing key (GitHub Secrets only)
         env:
           JARVIS_KEYSTORE_BASE64: ${{ secrets.JARVIS_KEYSTORE_BASE64 }}
@@ -59,20 +61,20 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.4-signed
+          name: Jarvis-Bridge-1.2.5-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Publish signed APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.4.apk
-          if gh release view jarvis-1.2.4-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.2.4-preview Jarvis-Bridge-1.2.4.apk --clobber
+          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.5.apk
+          if gh release view jarvis-1.2.5-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.5-preview Jarvis-Bridge-1.2.5.apk --clobber
           else
-            gh release create jarvis-1.2.4-preview Jarvis-Bridge-1.2.4.apk \
+            gh release create jarvis-1.2.5-preview Jarvis-Bridge-1.2.5.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.2.4 - OAuth et signature permanents" \
+              --title "Jarvis Bridge 1.2.5 - OAuth et signature permanents" \
               --notes "Version signee de maniere permanente, identifiant ca.jarvis.bridge; autorisation Google modernisee. Valider sur Android avant utilisation reguliere." \
               --prerelease
           fi
