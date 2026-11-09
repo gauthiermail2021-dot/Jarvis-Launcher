@@ -711,7 +711,9 @@ public class MainActivity extends ComponentActivity {
             if (openSvg(saved)) {
                 rememberHandledGmail(prefs, processed, chosenIdentity, chosenTime);
                 prefs.edit().putString(LAST_SVG_SHA256, svgHash).apply();
-                setStatus("SVG le plus récent envoyé à xTool : " + chosenFilename);
+                setStatus(XtoolSessionManager.isActive(this)
+                        ? "xTool en cours : " + chosenFilename
+                        : "SVG le plus récent envoyé à Android : " + chosenFilename);
             }
             // La fermeture automatique est centralisée dans completeGmailCheck().
         });
@@ -1039,10 +1041,7 @@ public class MainActivity extends ComponentActivity {
         try {
             if (xToolIntent != null) {
                 startActivity(xToolIntent);
-                XtoolSessionManager.begin(this);
-                GMAIL_RECHECK_REQUESTED.set(false);
-                JarvisBubbleService.onSvgOpenRequested(true);
-                setStatus("xTool en cours : session protégée. Appui long sur la bulle pour terminer.");
+                onSvgHandoffSucceeded("ouverture directe xTool");
                 return true;
             }
 
@@ -1075,21 +1074,12 @@ public class MainActivity extends ComponentActivity {
                 setStatus("SVG sauvegardé ; aucune application externe détectée.");
                 return false;
             }
+            // Android peut remettre le fichier à xTool même si
+            // resolveActivity() renvoie un intermédiaire Android (résolveur,
+            // relais, association par défaut). Ce chemin ouvre déjà xTool sur
+            // le Samsung; il doit donc activer la MÊME session protégée.
             startActivity(standard);
-            boolean isXtoolFallback = defaultHandler != null
-                    && defaultHandler.activityInfo != null
-                    && (String.valueOf(defaultHandler.activityInfo.packageName)
-                            .toLowerCase(Locale.ROOT).contains("xtool")
-                        || String.valueOf(defaultHandler.loadLabel(pm))
-                            .toLowerCase(Locale.ROOT).contains("xtool"));
-            if (isXtoolFallback) {
-                XtoolSessionManager.begin(this);
-                GMAIL_RECHECK_REQUESTED.set(false);
-            }
-            JarvisBubbleService.onSvgOpenRequested(isXtoolFallback);
-            setStatus(isXtoolFallback
-                    ? "xTool en cours : session protégée. Appui long sur la bulle pour terminer."
-                    : "SVG envoyé à Android pour ouverture (association par défaut).");
+            onSvgHandoffSucceeded("association Android");
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();
@@ -1097,6 +1087,19 @@ public class MainActivity extends ComponentActivity {
             showMessage("Ouverture du SVG impossible : " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Les deux chemins d'ouverture d'un SVG démarrent la même session.
+     * Android ne fournit pas la preuve que le dessin est chargé dans xTool;
+     * nous sécurisons la session dès que la demande d'ouverture a réussi.
+     */
+    private void onSvgHandoffSucceeded(String route) {
+        XtoolSessionManager.begin(this);
+        GMAIL_RECHECK_REQUESTED.set(false);
+        JarvisBubbleService.onSvgOpenRequested(true);
+        setStatus("xTool en cours : session protégée (" + route
+                + "). Appui long sur la bulle pour terminer.");
     }
 
     private boolean blockWhileXtoolActive() {
