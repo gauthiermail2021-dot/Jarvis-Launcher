@@ -17,6 +17,8 @@ import android.provider.Settings;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.ContentValues;
+import android.database.Cursor;
+import android.provider.OpenableColumns;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.net.Uri;
@@ -125,7 +127,11 @@ public class MainActivity extends ComponentActivity {
         layout.setPadding(30, 45, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Jarvis Bridge 1.1 — connexion Gmail");
+        String appVersion = "inconnue";
+        try {
+            appVersion = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException ignored) { }
+        title.setText("Jarvis Bridge " + appVersion + " — connexion Gmail");
         title.setTextSize(25);
         layout.addView(title);
 
@@ -376,13 +382,14 @@ public class MainActivity extends ComponentActivity {
             return;
         }
         startBubbleService();
+        setStatus("Bulle active : agrandissement puis réduction après 5 s d’inactivité.");
     }
 
     private void startBubbleService() {
         Intent intent = new Intent(this, JarvisBubbleService.class);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent);
         else startService(intent);
-        setStatus("Bulle active : agrandissement puis réduction après 5 s d’inactivité.");
+        // Ne pas écraser le dernier diagnostic Gmail en rouvrant les réglages.
     }
 
     public static boolean handleGmailNoticeIfVisible() {
@@ -643,7 +650,8 @@ public class MainActivity extends ComponentActivity {
         }
         if (encoded.isEmpty()) throw new Exception("Pièce SVG vide");
         byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
-        validateSvg(bytes);
+        JarvisFileRouter.requireSvgForXtool(newestFilename,
+                newestPart.optString("mimeType", ""), bytes, MAX_SVG_BYTES);
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
         StringBuilder hashBuilder = new StringBuilder(digest.length * 2);
         for (byte value : digest) {
@@ -781,11 +789,14 @@ public class MainActivity extends ComponentActivity {
 
     private void importSharedSvg(Uri uri) {
         JarvisBubbleService.onSvgWorkStarted();
-        showMessage("Réception du SVG...");
+        showMessage("Vérification du fichier...");
         new Thread(() -> {
             try {
+                String filename = displayNameForUri(uri);
+                String mimeType = getContentResolver().getType(uri);
                 byte[] bytes = readBytes(uri);
-                validateSvg(bytes);
+                JarvisFileRouter.requireSvgForXtool(
+                        filename, mimeType, bytes, MAX_SVG_BYTES);
                 Uri saved = saveSvg(bytes);
                 runOnUiThread(() -> {
                     saveLastSvg(saved);
@@ -820,7 +831,9 @@ public class MainActivity extends ComponentActivity {
                     throw new Exception("Redirection non sécurisée");
                 byte[] bytes;
                 try (InputStream in = connection.getInputStream()) { bytes = readStream(in); }
-                validateSvg(bytes);
+                JarvisFileRouter.requireSvgForXtool(
+                        connection.getURL().getPath(), connection.getContentType(),
+                        bytes, MAX_SVG_BYTES);
                 Uri saved = saveSvg(bytes);
                 runOnUiThread(() -> {
                     saveLastSvg(saved);
@@ -830,6 +843,22 @@ public class MainActivity extends ComponentActivity {
             } catch (Exception e) { showError("Téléchargement impossible", e); }
             finally { if (connection != null) connection.disconnect(); }
         }).start();
+    }
+
+    private String displayNameForUri(Uri uri) {
+        String filename = uri.getLastPathSegment();
+        if ("content".equalsIgnoreCase(uri.getScheme())) {
+            try (Cursor cursor = getContentResolver().query(uri,
+                    new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst() && !cursor.isNull(0)) {
+                    filename = cursor.getString(0);
+                }
+            } catch (RuntimeException ignored) {
+                // Certains fournisseurs Android refusent la requête : analyser
+                // alors le contenu du fichier et son type MIME.
+            }
+        }
+        return filename == null ? "" : filename;
     }
 
     private byte[] readBytes(Uri uri) throws Exception {
@@ -852,11 +881,7 @@ public class MainActivity extends ComponentActivity {
         }
     }
 
-    private void validateSvg(byte[] bytes) throws Exception {
-        SafeSvgValidator.validate(bytes, MAX_SVG_BYTES);
-    }
-
-    private Uri saveSvg(byte[] bytes) throws Exception {
+     private Uri saveSvg(byte[] bytes) throws Exception {
         if (Build.VERSION.SDK_INT < 29) throw new Exception("Android 10 ou plus récent requis");
         ContentValues values = new ContentValues();
         values.put(MediaStore.Downloads.DISPLAY_NAME,
