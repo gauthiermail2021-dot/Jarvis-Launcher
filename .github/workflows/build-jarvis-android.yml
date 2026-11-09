@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   # Compilation d'essai limitée au projet 1.2.20.
   push:
-    branches: [feature/jarvis-interaction-sounds-1.2.20]
+    branches: [feature/jarvis-opening-point-42dp-1.2.20]
     paths:
       - 'android/app/build.gradle'
 
