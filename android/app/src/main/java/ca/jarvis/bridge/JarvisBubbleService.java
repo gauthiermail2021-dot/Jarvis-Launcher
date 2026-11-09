@@ -395,6 +395,18 @@ public final class JarvisBubbleService extends Service {
             }
             if (xylophone != null) xylophone.playSequence();
         });
+        boolean openPopup = getSharedPreferences("jarvis_bridge", MODE_PRIVATE)
+                .getBoolean(MainActivity.AUTO_CHATGPT_POPUP, true);
+        addMenuButton(menu,
+                openPopup ? "ChatGPT auto : activé" : "ChatGPT auto : désactivé", () -> {
+            getSharedPreferences("jarvis_bridge", MODE_PRIVATE).edit()
+                    .putBoolean(MainActivity.AUTO_CHATGPT_POPUP, !openPopup).apply();
+        });
+        addMenuButton(menu, "Ouvrir ChatGPT (petite fenêtre demandée)", () -> {
+            if (!JarvisConversationLink.openPopup(this)) {
+                Toast.makeText(this, "Impossible d'ouvrir ChatGPT.", Toast.LENGTH_SHORT).show();
+            }
+        });
         addMenuButton(menu, "Fermer la bulle", this::stopSelf);
         addMenuButton(menu, "Annuler", () -> { });
 
@@ -412,7 +424,7 @@ public final class JarvisBubbleService extends Service {
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(395)));
+        options.y = Math.max(0, Math.min(params.y, display.y - dp(510)));
 
         menuView = menu;
         try {
