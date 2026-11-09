@@ -23,23 +23,23 @@ public class SafeSvgValidatorTest {
     }
 
     @Test public void rejectsScript() {
-        rejected("<svg><script>alert(1)</script></svg>");
+        rejected("<svg width='50mm' height='50mm'><script>alert(1)</script></svg>");
     }
 
     @Test public void rejectsForeignObject() {
-        rejected("<svg><foreignObject><body>HTML</body></foreignObject></svg>");
+        rejected("<svg width='50mm' height='50mm'><foreignObject><body>HTML</body></foreignObject></svg>");
     }
 
     @Test public void rejectsExternalImage() {
-        rejected("<svg><image href='https://example.com/pic.png'/></svg>");
+        rejected("<svg width='50mm' height='50mm'><image href='https://example.com/pic.png'/></svg>");
     }
 
     @Test public void rejectsEventHandlers() {
-        rejected("<svg onload='alert(1)'><path d='M0 0'/></svg>");
+        rejected("<svg width='50mm' height='50mm' onload='alert(1)'><path d='M0 0'/></svg>");
     }
 
     @Test public void rejectsCssResource() {
-        rejected("<svg><path style='fill:url(https://example.com/a.svg)' d='M0 0'/></svg>");
+        rejected("<svg width='50mm' height='50mm'><path style='fill:url(https://example.com/a.svg)' d='M0 0'/></svg>");
     }
 
     @Test public void rejectsDoctypeAndEntity() {
@@ -47,11 +47,27 @@ public class SafeSvgValidatorTest {
     }
 
     @Test public void rejectsMalformedSvg() {
-        rejected("<svg><path></svg>");
+        rejected("<svg width='50mm' height='50mm'><path></svg>");
     }
 
     @Test public void rejectsUnknownNamespace() {
-        rejected("<svg xmlns='http://www.w3.org/2000/svg'><evil:tag xmlns:evil='http://example.com'/></svg>");
+        rejected("<svg width='50mm' height='50mm' xmlns='http://www.w3.org/2000/svg'><evil:tag xmlns:evil='http://example.com'/></svg>");
+    }
+
+    @Test public void acceptsLocalSvgGradients() throws Exception {
+        valid("<svg width='50mm' height='50mm'><defs><linearGradient id='g'><stop offset='0%' stop-color='#000'/></linearGradient></defs><rect width='50' height='50' fill='url(#g)'/></svg>");
+    }
+
+    @Test public void rejectsUnboundedDimensions() {
+        rejected("<svg width='5000mm' height='50mm'><circle r='5'/></svg>");
+    }
+
+    @Test public void rejectsUndefinedDimensions() {
+        rejected("<svg><circle r='5'/></svg>");
+    }
+
+    @Test public void rejectsExternalXmlStylesheet() {
+        rejected("<?xml-stylesheet href='https://example.com/a.css'?><svg width='50mm' height='50mm'/>");
     }
 
     @Test public void rejectsOversizedSvg() {
