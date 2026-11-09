@@ -15,11 +15,13 @@ import android.util.Log;
 final class JarvisXylophone {
     static final int DO5 = 0, RE5 = 1, MI5 = 2, SOL5 = 3;
     private static final int REFUSAL = 4;
+    private static final int MINI_TAP = 5, OPEN = 6, MENU_SELECT = 7;
     private static final String TAG = "JarvisXylophone";
     private static final int[] WAV_RESOURCES = {
             R.raw.jarvis_do5, R.raw.jarvis_re5,
             R.raw.jarvis_mi5, R.raw.jarvis_sol5,
-            R.raw.jarvis_refusal
+            R.raw.jarvis_refusal,
+            R.raw.jarvis_tap, R.raw.jarvis_open, R.raw.jarvis_menu
     };
 
     private final Context context;
@@ -59,14 +61,22 @@ final class JarvisXylophone {
     }
 
     void play(int note) {
+        playAtVolume(note, 0.70f);
+    }
+
+    private void playAtVolume(int note, float volume) {
         if (released || note < 0 || note >= soundIds.length || !audioAllowed()) return;
         if (!ready[note]) {
             queued[note] = true;
             return;
         }
-        int streamId = pool.play(soundIds[note], 0.70f, 0.70f, 1, 0, 1f);
+        int streamId = pool.play(soundIds[note], volume, volume, 1, 0, 1f);
         if (streamId == 0) Log.w(TAG, "SoundPool playback rejected: " + note);
     }
+
+    void playMiniTap() { playAtVolume(MINI_TAP, 0.27f); }
+    void playOpen() { playAtVolume(OPEN, 0.31f); }
+    void playMenuSelect() { playAtVolume(MENU_SELECT, 0.29f); }
 
     /** One shot: one fixed, low 220 Hz tone, 250 ms; never a note sequence. */
     void playRefusal() {
