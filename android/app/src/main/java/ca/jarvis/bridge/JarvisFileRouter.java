@@ -14,6 +14,16 @@ import java.util.Set;
 final class JarvisFileRouter {
     enum Kind { SVG_2D, DXF_2D, CAD_3D, UNKNOWN }
 
+    /** Refus permanent du contenu : ne jamais le retraiter après une notification. */
+    static final class RejectedFileException extends Exception {
+        final Kind kind;
+
+        RejectedFileException(Kind kind, String message) {
+            super(message);
+            this.kind = kind;
+        }
+    }
+
     private static final Set<String> CAD_EXTENSIONS = new HashSet<>(Arrays.asList(
             "stl", "step", "stp", "sldprt", "sldasm", "slddrw",
             "obj", "3mf", "iges", "igs", "f3d", "f3z",
@@ -51,18 +61,23 @@ final class JarvisFileRouter {
             String filename, String mimeType, byte[] bytes, int maxBytes) throws Exception {
         Kind kind = classify(filename, mimeType, bytes);
         if (kind == Kind.CAD_3D) {
-            throw new Exception("CAD 3D détecté : transfert vers xTool P2S bloqué. "
+            throw new RejectedFileException(kind, "CAD 3D détecté : transfert vers xTool P2S bloqué. "
                     + "Pour la découpe laser, exporter une vue 2D SVG depuis SolidWorks.");
         }
         if (kind == Kind.DXF_2D) {
-            throw new Exception("Fichier DXF 2D détecté. "
+            throw new RejectedFileException(kind, "Fichier DXF 2D détecté. "
                     + "L'importation automatique Jarvis utilise actuellement SVG; "
                     + "convertir en SVG ou importer le DXF manuellement dans xTool.");
         }
         if (kind != Kind.SVG_2D) {
-            throw new Exception("Format non reconnu : aucun transfert automatique vers xTool.");
+            throw new RejectedFileException(kind, "Format non reconnu : aucun transfert automatique vers xTool.");
         }
-        SafeSvgValidator.validate(bytes, maxBytes);
+        try {
+            SafeSvgValidator.validate(bytes, maxBytes);
+        } catch (Exception invalidSvg) {
+            throw new RejectedFileException(Kind.SVG_2D,
+                    "SVG invalide ou non sécurisé : " + invalidSvg.getMessage());
+        }
     }
 
     private static String extension(String filename) {
