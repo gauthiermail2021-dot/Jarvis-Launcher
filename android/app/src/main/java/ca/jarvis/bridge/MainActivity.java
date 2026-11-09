@@ -395,6 +395,8 @@ public class MainActivity extends ComponentActivity {
     public static boolean handleGmailNoticeIfVisible() {
         MainActivity active = foregroundActivity;
         if (active == null) return false;
+        // Même si une fenêtre Jarvis est ouverte, une session xTool prime.
+        if (XtoolSessionManager.isActive(active)) return true;
         active.runOnUiThread(() -> active.requestGmailAndOpen());
         return true;
     }
@@ -411,6 +413,14 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void requestGmailAndOpen() {
+        if (XtoolSessionManager.isActive(this)) {
+            // Pas d'accès à Gmail, pas de statut et pas de nouvelle fenêtre :
+            // l'utilisateur travaille déjà avec son dessin dans xTool.
+            GMAIL_RECHECK_REQUESTED.set(false);
+            if (!silentAutoCheck) setStatus("xTool en cours : terminer la session depuis la bulle.");
+            else finish();
+            return;
+        }
         if (isBusy || !GMAIL_CHECK_IN_PROGRESS.compareAndSet(false, true)) {
             GMAIL_RECHECK_REQUESTED.set(true);
             return;
@@ -522,6 +532,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void fetchNewestGmailSvg(String token) throws Exception {
+        if (XtoolSessionManager.isActive(this)) return;
         JSONObject labels = getJson(API + "/labels", token);
         JSONArray all = labels.optJSONArray("labels");
         String labelId = null;
@@ -651,6 +662,8 @@ public class MainActivity extends ComponentActivity {
         }
         if (encoded.isEmpty()) throw new Exception("Pièce SVG vide");
         byte[] bytes = Base64.decode(encoded, Base64.URL_SAFE | Base64.NO_WRAP);
+        // Une autre ouverture peut avoir lancé xTool pendant ce téléchargement.
+        if (XtoolSessionManager.isActive(this)) return;
         try {
             JarvisFileRouter.requireSvgForXtool(newestFilename,
                     newestPart.optString("mimeType", ""), bytes, MAX_SVG_BYTES);
@@ -689,9 +702,11 @@ public class MainActivity extends ComponentActivity {
             return;
         }
 
+        if (XtoolSessionManager.isActive(this)) return;
         JarvisBubbleService.onSvgWorkStarted();
         Uri saved = saveSvg(bytes);
         runOnUiThread(() -> {
+            if (XtoolSessionManager.isActive(this)) return;
             saveLastSvg(saved);
             if (openSvg(saved)) {
                 rememberHandledGmail(prefs, processed, chosenIdentity, chosenTime);
@@ -810,6 +825,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void importSharedSvg(Uri uri) {
+        if (blockWhileXtoolActive()) return;
         JarvisBubbleService.onSvgWorkStarted();
         showMessage("Vérification du fichier...");
         new Thread(() -> {
@@ -830,6 +846,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void downloadSvg(String address) {
+        if (blockWhileXtoolActive()) return;
         Uri parsed;
         try {
             parsed = Uri.parse(address);
@@ -960,6 +977,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void openLastSvg() {
+        if (blockWhileXtoolActive()) return;
         String saved = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(LAST_SVG, null);
         if (saved == null) { showMessage("Choisis d'abord un SVG"); return; }
@@ -976,6 +994,7 @@ public class MainActivity extends ComponentActivity {
      * cela creerait une boucle de reouverture des fichiers.
      */
     private boolean openSvg(Uri uri) {
+        if (blockWhileXtoolActive()) return false;
         PackageManager pm = getPackageManager();
         String[] mimeTypes = {
                 "image/svg+xml", "application/octet-stream",
@@ -1018,8 +1037,10 @@ public class MainActivity extends ComponentActivity {
         try {
             if (xToolIntent != null) {
                 startActivity(xToolIntent);
+                XtoolSessionManager.begin(this);
+                GMAIL_RECHECK_REQUESTED.set(false);
                 JarvisBubbleService.onSvgOpenRequested(true);
-                setStatus("SVG transmis directement à xTool.");
+                setStatus("xTool en cours : session protégée. Appui long sur la bulle pour terminer.");
                 return true;
             }
 
@@ -1053,8 +1074,20 @@ public class MainActivity extends ComponentActivity {
                 return false;
             }
             startActivity(standard);
-            JarvisBubbleService.onSvgOpenRequested(false);
-            setStatus("SVG envoyé à Android pour ouverture (association par défaut).");
+            boolean isXtoolFallback = defaultHandler != null
+                    && defaultHandler.activityInfo != null
+                    && (defaultHandler.activityInfo.packageName.toLowerCase(Locale.ROOT)
+                            .contains("xtool")
+                        || String.valueOf(defaultHandler.loadLabel(pm))
+                            .toLowerCase(Locale.ROOT).contains("xtool"));
+            if (isXtoolFallback) {
+                XtoolSessionManager.begin(this);
+                GMAIL_RECHECK_REQUESTED.set(false);
+            }
+            JarvisBubbleService.onSvgOpenRequested(isXtoolFallback);
+            setStatus(isXtoolFallback
+                    ? "xTool en cours : session protégée. Appui long sur la bulle pour terminer."
+                    : "SVG envoyé à Android pour ouverture (association par défaut).");
             return true;
         } catch (Exception e) {
             JarvisBubbleService.onOperationFailed();
@@ -1062,6 +1095,12 @@ public class MainActivity extends ComponentActivity {
             showMessage("Ouverture du SVG impossible : " + e.getMessage());
             return false;
         }
+    }
+
+    private boolean blockWhileXtoolActive() {
+        if (!XtoolSessionManager.isActive(this)) return false;
+        setStatus("xTool en cours : utiliser le menu de la bulle pour terminer la session.");
+        return true;
     }
 
     private void setStatus(String value) {
