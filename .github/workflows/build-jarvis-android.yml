@@ -3,6 +3,9 @@ name: Build Jarvis Bridge - signed stable APK
 on:
   # Le build ne se lance QUE sur demande explicite.
   workflow_dispatch:
+  push:
+    branches:
+      - feature/jarvis-xylophone-status-1.2.4
 
 permissions:
   contents: write
