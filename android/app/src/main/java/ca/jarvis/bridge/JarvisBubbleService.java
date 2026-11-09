@@ -264,6 +264,13 @@ public final class JarvisBubbleService extends Service {
             else if (state == STATE_SUCCESS) note = JarvisXylophone.SOL5;
             if (note >= 0 && xylophone != null) xylophone.play(note);
         }
+        // Un refus de fichier : exactement une tonalité courte par événement.
+        // Aucune modification de l'apparence, des couleurs ni des messages.
+        // Le registre Gmail évite déjà de retraiter deux fois le même fichier.
+        if (state == STATE_ERROR && "REFUSÉ".equals(detail)
+                && soundsEnabled && xylophone != null) {
+            xylophone.playRefusal();
+        }
         setExpanded(true);
     }
 
