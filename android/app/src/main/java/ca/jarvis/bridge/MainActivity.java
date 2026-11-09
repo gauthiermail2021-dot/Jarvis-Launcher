@@ -69,6 +69,7 @@ public class MainActivity extends ComponentActivity {
     static final String AUTO_OPEN_ENABLED = "auto_open_enabled";
     static final String AUTO_BUBBLE_ON_LAUNCH = "auto_bubble_on_launch";
     static final String COMPACT_LAUNCH = "compact_launch";
+    static final String AUTO_CHATGPT_POPUP = "auto_chatgpt_popup";
     private static final String LAST_SVG = "last_svg";
     private static final String LAST_GMAIL_ID = "last_gmail_id";
     private static final String LAST_GMAIL_TIMESTAMP = "last_gmail_timestamp";
@@ -259,6 +260,25 @@ public class MainActivity extends ComponentActivity {
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
+        Button popupMode = new Button(this);
+        boolean popupEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean(AUTO_CHATGPT_POPUP, true);
+        popupMode.setText(popupEnabled
+                ? "ChatGPT au lancement Jarvis : fenêtre réduite demandée (ACTIVÉ)"
+                : "ChatGPT au lancement Jarvis : désactivé");
+        layout.addView(popupMode);
+        popupMode.setOnClickListener(v -> {
+            SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+            boolean enabled = !prefs.getBoolean(AUTO_CHATGPT_POPUP, true);
+            prefs.edit().putBoolean(AUTO_CHATGPT_POPUP, enabled).apply();
+            popupMode.setText(enabled
+                    ? "ChatGPT au lancement Jarvis : fenêtre réduite demandée (ACTIVÉ)"
+                    : "ChatGPT au lancement Jarvis : désactivé");
+            setStatus(enabled
+                    ? "Jarvis demandera une petite fenêtre ChatGPT; Samsung peut ignorer la taille."
+                    : "Ouverture ChatGPT au lancement Jarvis désactivée.");
+        });
+
         Button compactMode = new Button(this);
         boolean compact = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean(COMPACT_LAUNCH, true);
@@ -343,7 +363,15 @@ public class MainActivity extends ComponentActivity {
             // L'application continue via son service flottant ; l'écran
             // courant de l'utilisateur redevient visible immédiatement.
             new android.os.Handler(android.os.Looper.getMainLooper())
-                    .post(() -> moveTaskToBack(true));
+                    .post(() -> {
+                        moveTaskToBack(true);
+                        if (getSharedPreferences(PREFS, MODE_PRIVATE)
+                                .getBoolean(AUTO_CHATGPT_POPUP, true)) {
+                            // Uniquement quand l'utilisateur ouvre l'icône Jarvis :
+                            // jamais pendant une notification Gmail ou l'import SVG.
+                            JarvisConversationLink.openPopup(this);
+                        }
+                    });
         }
     }
 
