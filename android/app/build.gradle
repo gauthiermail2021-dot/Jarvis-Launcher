@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 39
-        versionName '1.2.20'
-        // Jarvis 1.2.20: opening orbit halo 42 dp; all other behavior unchanged.
+        versionCode 40
+        versionName '1.2.21'
+        // Jarvis 1.2.21: 24dp safe opening halo, single 850ms revolution and tail.
     }
 
     signingConfigs {
