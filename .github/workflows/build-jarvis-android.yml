@@ -3,6 +3,9 @@ name: Build Jarvis Bridge - signed stable APK
 on:
   # Le build ne se lance QUE sur demande explicite.
   workflow_dispatch:
+  push:
+    branches:
+      - feature/jarvis-rollback-stable-1.2.7
 
 permissions:
   contents: write
