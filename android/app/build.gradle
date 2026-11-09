@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 37
-        versionName '1.2.18'
-        // Punchy opening; preserve targeted Gmail notification filtering.
+        versionCode 38
+        versionName '1.2.19'
+        // Three soft UI interaction sounds; preserve existing animation and Gmail filtering.
     }
 
     signingConfigs {
