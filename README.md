@@ -1,4 +1,12 @@
-# Jarvis Bridge Android 1.2.10 — Contrôle des formats
+## 1.2.11 — Traitement unique par message Gmail
+- Gmail peut générer plusieurs notifications pour un seul courriel. Les notifications déclenchent une vérification discrète; **elles n'affichent plus la bulle tant qu'un nouveau fichier n'a pas été confirmé**.
+- Les fichiers CAD/3D, DXF, inconnus et SVG invalides sont **refusés une seule fois**, puis leur identifiant Gmail et leur horodatage sont enregistrés comme déjà traités. Une notification suivante ne réaffiche pas le refus.
+- Les refus de format sont distingués des véritables erreurs transitoires (réseau, authentification) afin de ne pas empêcher la reprise d'une connexion interrompue.
+- La bulle affiche **CAD / REFUSÉ**, **DXF / REFUSÉ** ou **FICHIER / REFUSÉ** selon le cas.
+- Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
+- Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
+
+# Jarvis Bridge Android 1.2.11 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
 
