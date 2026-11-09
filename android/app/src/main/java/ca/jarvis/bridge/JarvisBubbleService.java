@@ -50,7 +50,7 @@ public final class JarvisBubbleService extends Service {
     private static final int LARGE_DP = 110;
     private static final long LONG_PRESS_MS = 1000L;
     private static final long IDLE_COLLAPSE_MS = 5000L;
-    private static final long OPENING_SPIN_MS = 510L;
+    private static final long OPENING_SPIN_MS = 850L;
     private static volatile JarvisBubbleService activeService;
 
     static boolean isBubbleActive() {
@@ -684,23 +684,50 @@ public final class JarvisBubbleService extends Service {
             canvas.drawRoundRect(inside, rounded * .76f, rounded * .76f, p);
 
             if (openingSpin || animating) {
-                // L'ouverture effectue deux rotations rapides (510 ms).
-                // Les notifications SVG conservent l'animation antérieure.
                 orbit.reset();
-                orbit.addRoundRect(rect, rounded, rounded, Path.Direction.CW);
+                if (openingSpin) {
+                    // Déplacer uniquement la trajectoire d'ouverture vers
+                    // l'intérieur : un halo de rayon 12 dp reste entièrement
+                    // visible, même aux coins et durant le grossissement.
+                    float safeInset = dp(15);
+                    RectF safeOrbit = new RectF(
+                            safeInset, safeInset, w - safeInset, h - safeInset);
+                    float safeRadius = Math.max(0f, rounded - dp(8));
+                    orbit.addRoundRect(safeOrbit, safeRadius, safeRadius,
+                            Path.Direction.CW);
+                } else {
+                    // Animation de réception SVG inchangée.
+                    orbit.addRoundRect(rect, rounded, rounded, Path.Direction.CW);
+                }
                 orbitMeasure.setPath(orbit, false);
                 float progress = openingSpin
                         ? (OPENING_SPIN_MS - (openingSpinUntil - now))
                                 / (float) OPENING_SPIN_MS
                         : (now % 1900L) / 1900f;
-                float distance = (openingSpin ? (progress * 2f) % 1f : progress)
-                        * orbitMeasure.getLength();
-                if (orbitMeasure.getPosTan(distance, orbitPoint, null)) {
+                float length = orbitMeasure.getLength();
+                float distance = progress * length; // une rotation, sans répétition
+                if (openingSpin && length > 0f) {
+                    // Trois touches de lumière derrière le point, dessinées
+                    // avant le halo et uniquement pendant son ouverture.
+                    for (int tail = 3; tail >= 1; tail--) {
+                        float previous = (distance - dp(tail * 6f) + length) % length;
+                        if (orbitMeasure.getPosTan(previous, orbitPoint, null)) {
+                            p.setStyle(Paint.Style.FILL);
+                            p.setColor(Color.argb(36 + (4 - tail) * 19,
+                                    Color.red(color), Color.green(color),
+                                    Color.blue(color)));
+                            canvas.drawCircle(orbitPoint[0], orbitPoint[1],
+                                    dp(2.5f + (4 - tail) * 1.0f), p);
+                        }
+                    }
+                }
+                if (orbitMeasure.getPosTan(Math.min(distance, length),
+                        orbitPoint, null)) {
                     p.setStyle(Paint.Style.FILL);
                     p.setColor(Color.argb(openingSpin ? 145 : 95,
                             Color.red(color), Color.green(color), Color.blue(color)));
                     canvas.drawCircle(orbitPoint[0], orbitPoint[1],
-                            dp(openingSpin ? 21 : 7), p);
+                            dp(openingSpin ? 12 : 7), p);
                     p.setColor(Color.WHITE);
                     canvas.drawCircle(orbitPoint[0], orbitPoint[1],
                             dp(openingSpin ? 3.2f : 2.6f), p);
