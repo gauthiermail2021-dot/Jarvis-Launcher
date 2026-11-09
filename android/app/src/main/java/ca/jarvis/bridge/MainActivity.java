@@ -526,9 +526,12 @@ public class MainActivity extends ComponentActivity {
         }
         if (labelId == null) throw new Exception("Libellé Jarvis SVG introuvable");
 
+        // Gmail renvoie les messages du plus récent au plus ancien.
+        // Le serveur filtre déjà les sujets Jarvis envoyés depuis ce compte.
         String query = API + "/messages?labelIds="
                 + URLEncoder.encode(labelId, "UTF-8")
-                + "&maxResults=100";
+                + "&q=" + URLEncoder.encode("subject:\\"JARVIS-SVG-AUTO\\" in:sent", "UTF-8")
+                + "&maxResults=50";
         JSONArray messages = getJson(query, token).optJSONArray("messages");
         if (messages == null || messages.length() == 0) {
             runOnUiThread(() -> {
@@ -580,6 +583,10 @@ public class MainActivity extends ComponentActivity {
             String id = messages.getJSONObject(i).getString("id");
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
+            long timestamp;
+            try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
+            catch (NumberFormatException ignored) { continue; }
+            if (timestamp <= lastProcessedTime) break;
             JSONObject payload = message.optJSONObject("payload");
             JSONArray labelIds = message.optJSONArray("labelIds");
             boolean selfSent = false;
@@ -601,9 +608,6 @@ public class MainActivity extends ComponentActivity {
             if (!JarvisMailGate.allow(subject, selfSent)) continue;
             JSONObject part = findSvgPart(payload);
             if (part == null) continue;
-            long timestamp;
-            try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
-            catch (NumberFormatException ignored) { continue; }
             String filename = part.optString("filename", "piece.svg");
             String identity = id + ":" + filename;
             if (timestamp <= newestTime || processed.contains(identity)
@@ -614,6 +618,8 @@ public class MainActivity extends ComponentActivity {
             newestId = id;
             newestFilename = filename;
             newestIdentity = identity;
+            // Ne rouvrir que le dessin le plus récent en cas d'envois groupés.
+            break;
         }
 
         if (newestMessage == null) {
