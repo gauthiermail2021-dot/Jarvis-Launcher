@@ -76,6 +76,9 @@ public class MainActivity extends ComponentActivity {
     // Garde-fou partagé par toutes les activités Jarvis ; les notifications
     // successives ne doivent pas lancer plusieurs chargements simultanés.
     private static final AtomicBoolean GMAIL_CHECK_IN_PROGRESS = new AtomicBoolean(false);
+    // Toute notification arrivant pendant la lecture Gmail déclenche une
+    // nouvelle vérification à la fin, au lieu d'être silencieusement perdue.
+    private static final AtomicBoolean GMAIL_RECHECK_REQUESTED = new AtomicBoolean(false);
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
     private static final String GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
     private static final String LABEL_NAME = "Jarvis SVG";
@@ -389,8 +392,22 @@ public class MainActivity extends ComponentActivity {
         return true;
     }
 
+    private void completeGmailCheck() {
+        isBusy = false;
+        GMAIL_CHECK_IN_PROGRESS.set(false);
+        if (GMAIL_RECHECK_REQUESTED.getAndSet(false)) {
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(this::requestGmailAndOpen, 800L);
+        } else if (silentAutoCheck) {
+            finish();
+        }
+    }
+
     private void requestGmailAndOpen() {
-        if (isBusy || !GMAIL_CHECK_IN_PROGRESS.compareAndSet(false, true)) return;
+        if (isBusy || !GMAIL_CHECK_IN_PROGRESS.compareAndSet(false, true)) {
+            GMAIL_RECHECK_REQUESTED.set(true);
+            return;
+        }
         isBusy = true;
         JarvisBubbleService.onGmailWorkStarted();
         setStatus("Connexion Google...");
@@ -415,8 +432,7 @@ public class MainActivity extends ComponentActivity {
                     } catch (Exception e) {
                         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                                 .putBoolean(AUTH_PENDING, false).apply();
-                        isBusy = false;
-                        GMAIL_CHECK_IN_PROGRESS.set(false);
+                        completeGmailCheck();
                         JarvisBubbleService.onOperationFailed();
                         setStatus("Autorisation impossible : " + e.getMessage());
                     }
@@ -425,8 +441,7 @@ public class MainActivity extends ComponentActivity {
                 }
             })
             .addOnFailureListener(e -> {
-                isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+                completeGmailCheck();
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : " + e.getMessage());
             });
@@ -450,29 +465,25 @@ public class MainActivity extends ComponentActivity {
                     return;
                 }
                 // Résultat contradictoire : jamais supposer la réussite.
-                isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+                completeGmailCheck();
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat non confirmé (" + resultCode
                         + "), aucun accès Gmail lancé.");
                 return;
             } catch (ApiException error) {
-                isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+                completeGmailCheck();
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google OAuth : code " + error.getStatusCode()
                         + " — vérifier le client OAuth Android et le certificat SHA-1.");
                 return;
             } catch (Exception error) {
-                isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+                completeGmailCheck();
                 JarvisBubbleService.onOperationFailed();
                 setStatus("Google : résultat illisible — " + error.getClass().getSimpleName());
                 return;
             }
         }
-        isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+        completeGmailCheck();
         JarvisBubbleService.onOperationFailed();
         setStatus("Google : aucune donnée de retour (résultat " + resultCode
                 + "). Vérifier package Android, SHA-1 et consentement OAuth.");
@@ -481,8 +492,7 @@ public class MainActivity extends ComponentActivity {
     private void acceptAuthorizationResult(AuthorizationResult result) {
         String token = result.getAccessToken();
         if (token == null || token.isEmpty()) {
-            isBusy = false;
-                GMAIL_CHECK_IN_PROGRESS.set(false);
+            completeGmailCheck();
             JarvisBubbleService.onOperationFailed();
             setStatus("Aucun jeton Gmail. Autorisation nécessaire.");
             return;
@@ -495,13 +505,10 @@ public class MainActivity extends ComponentActivity {
                 JarvisBubbleService.onOperationFailed();
                 runOnUiThread(() -> {
                     setStatus("Gmail : " + e.getMessage());
-                    if (silentAutoCheck) finish();
+                    // La fermeture automatique est centralisée dans completeGmailCheck().
                 });
             } finally {
-                runOnUiThread(() -> {
-                    isBusy = false;
-                    GMAIL_CHECK_IN_PROGRESS.set(false);
-                });
+                runOnUiThread(this::completeGmailCheck);
             }
         }).start();
     }
@@ -521,12 +528,12 @@ public class MainActivity extends ComponentActivity {
 
         String query = API + "/messages?labelIds="
                 + URLEncoder.encode(labelId, "UTF-8")
-                + "&labelIds=UNREAD&maxResults=50";
+                + "&maxResults=100";
         JSONArray messages = getJson(query, token).optJSONArray("messages");
         if (messages == null || messages.length() == 0) {
             runOnUiThread(() -> {
-                setStatus("Aucun courriel non lu sous Jarvis SVG");
-                if (silentAutoCheck) finish();
+                setStatus("Aucun courriel sous Jarvis SVG");
+                // La fermeture automatique est centralisée dans completeGmailCheck().
             });
             return;
         }
@@ -573,7 +580,26 @@ public class MainActivity extends ComponentActivity {
             String id = messages.getJSONObject(i).getString("id");
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
-            JSONObject part = findSvgPart(message.optJSONObject("payload"));
+            JSONObject payload = message.optJSONObject("payload");
+            JSONArray labelIds = message.optJSONArray("labelIds");
+            boolean selfSent = false;
+            if (labelIds != null) for (int k = 0; k < labelIds.length(); k++) {
+                if ("SENT".equals(labelIds.optString(k))) selfSent = true;
+            }
+
+            String subject = null;
+            JSONArray headers = payload == null ? null : payload.optJSONArray("headers");
+            if (headers != null) for (int k = 0; k < headers.length(); k++) {
+                JSONObject header = headers.optJSONObject(k);
+                if (header != null && "subject".equalsIgnoreCase(header.optString("name"))) {
+                    subject = header.optString("value");
+                    break;
+                }
+            }
+            // Le libellé Gmail seul n'est pas une preuve de provenance.
+            // Ce flux est réservé aux fichiers envoyés par le compte lui-même.
+            if (!JarvisMailGate.allow(subject, selfSent)) continue;
+            JSONObject part = findSvgPart(payload);
             if (part == null) continue;
             long timestamp;
             try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
@@ -593,7 +619,7 @@ public class MainActivity extends ComponentActivity {
         if (newestMessage == null) {
             runOnUiThread(() -> {
                 setStatus("Aucun nouveau dessin SVG à ouvrir");
-                if (silentAutoCheck) finish();
+                // La fermeture automatique est centralisée dans completeGmailCheck().
             });
             return;
         }
@@ -634,7 +660,7 @@ public class MainActivity extends ComponentActivity {
                     .apply();
             runOnUiThread(() -> {
                 setStatus("SVG identique déjà traité : ouverture évitée");
-                if (silentAutoCheck) finish();
+                // La fermeture automatique est centralisée dans completeGmailCheck().
             });
             return;
         }
@@ -657,7 +683,7 @@ public class MainActivity extends ComponentActivity {
                         .apply();
                 setStatus("SVG le plus récent envoyé à xTool : " + chosenFilename);
             }
-            if (silentAutoCheck) finish();
+            // La fermeture automatique est centralisée dans completeGmailCheck().
         });
     }
 
@@ -821,14 +847,7 @@ public class MainActivity extends ComponentActivity {
     }
 
     private void validateSvg(byte[] bytes) throws Exception {
-        String content = new String(bytes, StandardCharsets.UTF_8);
-        String normalized = content.toLowerCase(Locale.ROOT);
-        if (!normalized.contains("<svg")
-                || normalized.contains("<!doctype")
-                || normalized.contains("<!entity")
-                || normalized.contains("<script")
-                || normalized.contains("javascript:"))
-            throw new Exception("SVG absent ou contenu non autorisé");
+        SafeSvgValidator.validate(bytes, MAX_SVG_BYTES);
     }
 
     private Uri saveSvg(byte[] bytes) throws Exception {
