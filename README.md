@@ -1,3 +1,11 @@
+## 1.2.15 — Son unique au refus d'un fichier
+
+- **Un seul son électronique bref et grave** (220 Hz, durée 250 ms, saturation douce), généré localement pendant la compilation, sans téléchargement.
+- Déclenché uniquement à la réception d'un fichier refusé (« REFUSÉ »), une fois par événement; le registre Gmail de la 1.2.11 empêche les répétitions liées au même message.
+- L'option « Son : désactivé » supprime aussi le son de refus.
+- **Aucun changement visuel** : la bulle, son menu, ses couleurs, sa taille, ses animations et ses messages sont inchangés.
+- Les quatre sons habituels du xylophone ne changent pas. Aucun bouton de test supplémentaire.
+
 ## 1.2.14 — Menu de la bulle simplifié
 
 - Renommage de « Xylophone : activé/désactivé » en **« Son : activé/désactivé »**.
@@ -30,7 +38,7 @@
 - Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
 - Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
 
-# Jarvis Bridge Android 1.2.14 — Contrôle des formats
+# Jarvis Bridge Android 1.2.15 — Contrôle des formats
 
 Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
 
