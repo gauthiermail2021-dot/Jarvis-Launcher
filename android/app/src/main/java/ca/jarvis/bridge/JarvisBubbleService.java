@@ -50,6 +50,7 @@ public final class JarvisBubbleService extends Service {
     private static final int LARGE_DP = 110;
     private static final long LONG_PRESS_MS = 1000L;
     private static final long IDLE_COLLAPSE_MS = 5000L;
+    private static final long OPENING_SPIN_MS = 560L;
     private static volatile JarvisBubbleService activeService;
 
     static boolean isBubbleActive() {
@@ -72,6 +73,7 @@ public final class JarvisBubbleService extends Service {
     private View menuView;
     private Runnable collapseRunnable;
     private ValueAnimator openingAnimator;
+    private long openingSpinUntil = 0L;
     private boolean animationsEnabled = true;
     private boolean soundsEnabled = true;
     private JarvisXylophone xylophone;
@@ -97,8 +99,9 @@ public final class JarvisBubbleService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        createNotification();
+        // Ne pas republier la notification de premier plan à chaque appel du service.
         if (bubble == null) {
+            createNotification();
             try { showBubble(); }
             catch (Exception error) {
                 Toast.makeText(this, "Jarvis : " + error.getMessage(), Toast.LENGTH_LONG).show();
@@ -508,6 +511,11 @@ public final class JarvisBubbleService extends Service {
         expanded = next;
         int side = dp(next ? LARGE_DP : SMALL_DP);
 
+        // Rotation lumineuse brève sur le cadre existant, indépendante des
+        // animations de réception, y compris pendant une session xTool.
+        openingSpinUntil = opening && animationsEnabled
+                ? SystemClock.uptimeMillis() + OPENING_SPIN_MS : 0L;
+
         if (opening && animationsEnabled && params.width < side) {
             ValueAnimator animator = ValueAnimator.ofInt(params.width, side);
             animator.setDuration(280L);
@@ -564,6 +572,7 @@ public final class JarvisBubbleService extends Service {
             openingAnimator.cancel();
             openingAnimator = null;
         }
+        openingSpinUntil = 0L;
         if (xylophone != null) {
             xylophone.release();
             xylophone = null;
@@ -631,6 +640,8 @@ public final class JarvisBubbleService extends Service {
                     && now < visualUntil;
             // Le message xTool reste visible jusqu'à la fin de session.
             // Aucune animation permanente coûteuse durant le travail.
+            boolean openingSpin = animationsEnabled && expanded
+                    && now < openingSpinUntil && isAttachedToWindow();
             boolean animating = eventVisible && !xtoolActive
                     && animationsEnabled && isAttachedToWindow();
             int color = getAccent(xtoolActive
@@ -654,12 +665,17 @@ public final class JarvisBubbleService extends Service {
             p.setColor(Color.argb(155, 118, 225, 244));
             canvas.drawRoundRect(inside, rounded * .76f, rounded * .76f, p);
 
-            if (animating) {
-                // Une lumière parcourt le contour uniquement durant une activité réelle.
+            if (openingSpin || animating) {
+                // L'ouverture effectue une rotation lumineuse complète (560 ms).
+                // Les notifications SVG conservent l'animation antérieure.
                 orbit.reset();
                 orbit.addRoundRect(rect, rounded, rounded, Path.Direction.CW);
                 orbitMeasure.setPath(orbit, false);
-                float distance = (now % 1900L) / 1900f * orbitMeasure.getLength();
+                float progress = openingSpin
+                        ? (OPENING_SPIN_MS - (openingSpinUntil - now))
+                                / (float) OPENING_SPIN_MS
+                        : (now % 1900L) / 1900f;
+                float distance = progress * orbitMeasure.getLength();
                 if (orbitMeasure.getPosTan(distance, orbitPoint, null)) {
                     p.setStyle(Paint.Style.FILL);
                     p.setColor(Color.argb(95, Color.red(color),
@@ -692,7 +708,9 @@ public final class JarvisBubbleService extends Service {
                         Color.rgb(226, 250, 255), true);
             }
 
-            if (animating) {
+            if (openingSpin) {
+                postInvalidateDelayed(16L);
+            } else if (animating) {
                 postInvalidateDelayed(85L);
             } else {
                 // Au repos, ne rafraîchir qu'au changement de minute.
