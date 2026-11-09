@@ -1,10 +1,12 @@
-## 1.2.17 — Animation d'ouverture de la bulle
+## 1.2.17 — Ouverture animée et notifications ciblées
 
-- Agrandissement progressif de 54 à 110 dp en **280 ms**, avec décélération douce, au toucher ou lors d'un événement SVG.
-- Si d'autres événements arrivent pendant l'ouverture, l'animation continue sans être relancée.
-- Le réglage existant **« Animations : désactivées »** garde l'agrandissement instantané.
-- Aucune modification de l'apparence à l'arrêt : couleurs, cadres, dimensions finales, textes, sons et sessions xTool inchangés.
-- Les alertes Gmail restent celles de la 1.2.16 : leur éventuel excès sera traité par un correctif distinct.
+- Agrandissement fluide de 54 à 110 dp en **280 ms**, avec décélération douce, au toucher ou lors d'un événement SVG.
+- Un **point lumineux effectue une rotation complète du cadre (560 ms)** à chaque ouverture, indépendamment de l'animation déjà utilisée à la réception des SVG.
+- Si d'autres événements arrivent pendant l'ouverture, l'animation continue sans être relancée. L'option **« Animations : désactivées »** supprime les deux effets d'ouverture.
+- Les notifications groupées de Gmail ne sont plus prises pour des messages nouveaux.
+- **Plus d'alerte Jarvis manuelle pour chaque courriel Gmail ordinaire** : le repli manuel ne s'affiche que si la notification évoque clairement Jarvis ou un SVG. Les vérifications automatiques via le libellé Gmail continuent, sans filtre risquant de perdre un SVG.
+- La notification Android permanente « Bulle flottante active » reste nécessaire au service en arrière-plan, mais n'est plus republiée à chaque redémarrage de l'activité.
+- Bulle au repos inchangée : couleurs, cadre, dimensions finales, textes, sons et sessions xTool conservés.
 
 ## 1.2.16 — Fenêtre noire derrière la bulle
 
