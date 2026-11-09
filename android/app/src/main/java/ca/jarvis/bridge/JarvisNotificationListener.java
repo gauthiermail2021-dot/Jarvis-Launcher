@@ -37,7 +37,8 @@ public class JarvisNotificationListener extends NotificationListenerService {
         if (pending != null) return; // Les alertes du même lot sont regroupées.
         pending = () -> {
             pending = null;
-            JarvisBubbleService.onGmailNotificationReceived();
+            // Notification brute ≠ nouveau courriel admissible. Ne réveiller
+            // la bulle qu'après analyse d'une pièce jointe par MainActivity.
             if (MainActivity.handleGmailNoticeIfVisible()) return;
             boolean enabled = getSharedPreferences("jarvis_bridge", MODE_PRIVATE)
                     .getBoolean(MainActivity.AUTO_OPEN_ENABLED, false);
