@@ -13,7 +13,7 @@ android {
         targetSdk 28
         versionCode 39
         versionName '1.2.20'
-        // Three soft UI interaction sounds; preserve existing animation and Gmail filtering.
+        // Jarvis 1.2.20: opening orbit halo 42 dp; all other behavior unchanged.
     }
 
     signingConfigs {
