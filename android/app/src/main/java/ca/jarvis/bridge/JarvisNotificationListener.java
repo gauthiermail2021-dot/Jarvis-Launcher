@@ -17,16 +17,12 @@ import android.service.notification.StatusBarNotification;
 public class JarvisNotificationListener extends NotificationListenerService {
     static final int NOTIFICATION_ID = 707;
     private static final String CHANNEL_ID = "jarvis_svg_alerts";
-    // Gmail peut publier une notification par boîte de réception et par
-    // libellé pour le même message. Un premier événement ouvre un court
-    // regroupement, puis une période de protection ignore les répétitions.
-    // Le contrôle des identifiants Gmail et des SHA-256 dans MainActivity
-    // reste la protection définitive contre une double ouverture de SVG.
-    private static final long GROUP_WINDOW_MS = 2000L;
-    private static final long DUPLICATE_GUARD_MS = 8000L;
+    // Les alertes Gmail rapprochées sont regroupées, jamais jetées :
+    // une alerte reçue pendant une recherche sera rejouée après celle-ci
+    // par le verrou et le drapeau de reprise dans MainActivity.
+    private static final long GROUP_WINDOW_MS = 1800L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable pending;
-    private long lastDispatchElapsed = -DUPLICATE_GUARD_MS;
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
@@ -38,16 +34,9 @@ public class JarvisNotificationListener extends NotificationListenerService {
     }
 
     private void onGmailNotification() {
-        long now = android.os.SystemClock.elapsedRealtime();
-        if (now - lastDispatchElapsed < DUPLICATE_GUARD_MS) {
-            // Une deuxième alerte Gmail (compte + libellé) ne doit pas
-            // lancer une deuxième Activity ni faire clignoter la bulle.
-            return;
-        }
-        if (pending != null) return; // Premier signal programme déjà le lot.
+        if (pending != null) return; // Les alertes du même lot sont regroupées.
         pending = () -> {
             pending = null;
-            lastDispatchElapsed = android.os.SystemClock.elapsedRealtime();
             JarvisBubbleService.onGmailNotificationReceived();
             if (MainActivity.handleGmailNoticeIfVisible()) return;
             boolean enabled = getSharedPreferences("jarvis_bridge", MODE_PRIVATE)
