@@ -11,8 +11,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Bundle;
-import java.util.Locale;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 
@@ -28,55 +26,40 @@ public class JarvisNotificationListener extends NotificationListenerService {
     private static final long DUPLICATE_GUARD_MS = 8000L;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable pending;
-    private boolean pendingMentionsJarvisSvg = false;
     private long lastDispatchElapsed = -DUPLICATE_GUARD_MS;
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn == null || !"com.google.android.gm".equals(sbn.getPackageName()))
             return;
-        final boolean labeled = mentionsJarvisSvg(sbn);
         // Le NotificationListenerService n'est pas tenu d'appeler ce callback
         // sur le thread UI : toute la gestion du délai reste sur un Handler.
-        handler.post(() -> onGmailNotification(labeled));
+        handler.post(this::onGmailNotification);
     }
 
-    private void onGmailNotification(boolean mentionsLabel) {
+    private void onGmailNotification() {
         long now = android.os.SystemClock.elapsedRealtime();
         if (now - lastDispatchElapsed < DUPLICATE_GUARD_MS) {
             // Une deuxième alerte Gmail (compte + libellé) ne doit pas
             // lancer une deuxième Activity ni faire clignoter la bulle.
             return;
         }
-        pendingMentionsJarvisSvg |= mentionsLabel;
         if (pending != null) return; // Premier signal programme déjà le lot.
         pending = () -> {
             pending = null;
-            boolean labeled = pendingMentionsJarvisSvg;
-            pendingMentionsJarvisSvg = false;
             lastDispatchElapsed = android.os.SystemClock.elapsedRealtime();
             JarvisBubbleService.onGmailNotificationReceived();
             if (MainActivity.handleGmailNoticeIfVisible()) return;
             boolean enabled = getSharedPreferences("jarvis_bridge", MODE_PRIVATE)
                     .getBoolean(MainActivity.AUTO_OPEN_ENABLED, false);
-            if (enabled && labeled
-                    && JarvisBubbleService.tryAutoOpenFromNotification(this)) return;
+            // Les etiquettes Gmail ne figurent pas toujours dans le texte de la
+            // notification. Seule la recherche Gmail via le libelle Jarvis SVG
+            // decide si un nouveau SVG autorise doit etre ouvert.
+            if (enabled && JarvisBubbleService.tryAutoOpenFromNotification(this)) return;
             // Conserver le repli manuel si Android bloque le démarrage.
             showJarvisAlert();
         };
         handler.postDelayed(pending, GROUP_WINDOW_MS);
-    }
-
-    private static boolean mentionsJarvisSvg(StatusBarNotification notice) {
-        Notification notification = notice.getNotification();
-        Bundle extras = notification == null ? null : notification.extras;
-        if (extras == null) return false;
-        CharSequence title = extras.getCharSequence(Notification.EXTRA_TITLE);
-        CharSequence text = extras.getCharSequence(Notification.EXTRA_TEXT);
-        CharSequence bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT);
-        String combined = (String.valueOf(title) + " " + String.valueOf(text)
-                + " " + String.valueOf(bigText)).toLowerCase(Locale.ROOT);
-        return combined.contains("jarvis svg");
     }
 
     static void ensureChannel(Context context) {
@@ -117,7 +100,6 @@ public class JarvisNotificationListener extends NotificationListenerService {
     public void onDestroy() {
         if (pending != null) handler.removeCallbacks(pending);
         pending = null;
-        pendingMentionsJarvisSvg = false;
         super.onDestroy();
     }
 }
