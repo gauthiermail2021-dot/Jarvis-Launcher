@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.18 - signed APK
+name: Build and test Jarvis Bridge 1.2.19 - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au projet 1.2.18.
+  # Compilation d'essai limitée au projet 1.2.19.
   push:
-    branches: [feature/jarvis-punchy-open-1.2.18]
+    branches: [feature/jarvis-interaction-sounds-1.2.19]
     paths:
       - 'android/app/build.gradle'
 
@@ -32,6 +32,8 @@ jobs:
         run: python3 tools/prepare_jarvis_wav.py
       - name: Generate one-shot 250 ms refusal sound WAV
         run: python3 tools/prepare_jarvis_refusal_wav.py
+      - name: Generate three original quiet UI interaction WAVs
+        run: python3 tools/prepare_jarvis_interactions_wav.py
       - name: Restore permanent signing key (GitHub Secrets only)
         env:
           JARVIS_KEYSTORE_BASE64: ${{ secrets.JARVIS_KEYSTORE_BASE64 }}
@@ -71,6 +73,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.18-signed
+          name: Jarvis-Bridge-1.2.19-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
