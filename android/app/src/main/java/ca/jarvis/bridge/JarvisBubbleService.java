@@ -363,8 +363,12 @@ public final class JarvisBubbleService extends Service {
                             .putInt("x", params.x).putInt("y", params.y).apply();
                     scheduleCollapse();
                 } else if (!expanded) {
+                    if (soundsEnabled && xylophone != null) xylophone.playMiniTap();
+                    // Les deux sons sont distincts : tic immédiat, whoosh
+                    // après un très court délai synchronisé à l'ouverture.
                     setExpanded(true);
                 } else {
+                    if (soundsEnabled && xylophone != null) xylophone.playMiniTap();
                     openChatGPT();
                     setExpanded(false);
                 }
@@ -473,6 +477,8 @@ public final class JarvisBubbleService extends Service {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT));
         button.setOnClickListener(v -> {
+            // Le son confirme le choix avant l'exécution (même « Son : désactivé »).
+            if (soundsEnabled && xylophone != null) xylophone.playMenuSelect();
             dismissMenu();
             action.run();
         });
@@ -515,6 +521,15 @@ public final class JarvisBubbleService extends Service {
         // animations de réception, y compris pendant une session xTool.
         openingSpinUntil = opening && animationsEnabled
                 ? SystemClock.uptimeMillis() + OPENING_SPIN_MS : 0L;
+
+        if (opening && soundsEnabled && xylophone != null) {
+            // Une ouverture automatique joue uniquement le whoosh ;
+            // une pression sur la miniature joue d'abord son tic propre.
+            gestureHandler.postDelayed(() -> {
+                if (expanded && soundsEnabled && xylophone != null)
+                    xylophone.playOpen();
+            }, 85L);
+        }
 
         if (opening && animationsEnabled && params.width < side) {
             // 54 -> 110 -> 103 -> 110 dp : un rebond net sans jamais
