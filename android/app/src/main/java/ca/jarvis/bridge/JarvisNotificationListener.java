@@ -28,15 +28,20 @@ public class JarvisNotificationListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn == null || !"com.google.android.gm".equals(sbn.getPackageName()))
             return;
+        if (XtoolSessionManager.isActive(this)) return;
         // Le NotificationListenerService n'est pas tenu d'appeler ce callback
         // sur le thread UI : toute la gestion du délai reste sur un Handler.
         handler.post(this::onGmailNotification);
     }
 
     private void onGmailNotification() {
+        if (XtoolSessionManager.isActive(this)) return;
         if (pending != null) return; // Les alertes du même lot sont regroupées.
         pending = () -> {
             pending = null;
+            // Ne pas lancer Jarvis si l'utilisateur est en session xTool,
+            // même si la notification était déjà en attente.
+            if (XtoolSessionManager.isActive(this)) return;
             // Notification brute ≠ nouveau courriel admissible. Ne réveiller
             // la bulle qu'après analyse d'une pièce jointe par MainActivity.
             if (MainActivity.handleGmailNoticeIfVisible()) return;
