@@ -59,20 +59,20 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.3-signed
+          name: Jarvis-Bridge-1.2.4-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Publish signed APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.3.apk
-          if gh release view jarvis-1.2.3-preview >/dev/null 2>&1; then
-            gh release upload jarvis-1.2.3-preview Jarvis-Bridge-1.2.3.apk --clobber
+          cp android/app/build/outputs/apk/release/app-release.apk Jarvis-Bridge-1.2.4.apk
+          if gh release view jarvis-1.2.4-preview >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.4-preview Jarvis-Bridge-1.2.4.apk --clobber
           else
-            gh release create jarvis-1.2.3-preview Jarvis-Bridge-1.2.3.apk \
+            gh release create jarvis-1.2.4-preview Jarvis-Bridge-1.2.4.apk \
               --target "$GITHUB_SHA" \
-              --title "Jarvis Bridge 1.2.3 - OAuth et signature permanents" \
+              --title "Jarvis Bridge 1.2.4 - OAuth et signature permanents" \
               --notes "Version signee de maniere permanente, identifiant ca.jarvis.bridge; autorisation Google modernisee. Valider sur Android avant utilisation reguliere." \
               --prerelease
           fi
