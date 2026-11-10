@@ -1,3 +1,45 @@
+# JARVIS — DÉPÔT OFFICIEL (Android + lanceur)
+
+> **SOURCE UNIQUE DE VÉRITÉ : ce dépôt, branche `main`.**
+> Le dépôt **Jarvis-Bridge-Android** est un prototype historique **0.7**, et ne doit jamais servir à construire une nouvelle version Jarvis.
+> Aucune nouvelle application n'est compilée depuis l'ancien dépôt.
+
+## État de référence au 10 novembre 2026
+
+| Élément | Référence | Statut |
+| --- | --- | --- |
+| Code Android actuel | `android/` sur `main` | **1.2.31** (versionCode **50**), base pour la suite |
+| Snapshot exact du build vérifié | `snapshot/jarvis-1.2.31-build-verified` | Commit `6c7a3fd3767e134cefb2d2598895d963edc78810` |
+| Dernier APK 1.2.31 compilé et signé | [GitHub Actions #42800834402](https://github.com/gauthiermail2021-dot/Jarvis-Launcher/actions/runs/42800834402) | Compilation et tests JVM **réussis** ; artefact **temporaire** |
+| OCR EasySet « Passer » | ML Kit | Diagnostic incomplet sur téléphone ; **ne pas présumer qu'il reconnaît « 1 »** |
+| Version antérieure éprouvée dans les essais | `feature/jarvis-rollback-stable-1.2.7` | Préservée ; les versions plus récentes ne sont pas présumées stables |
+| Ancien état du site `main` | `archive/pre-canonical-main-2026-11-10` | Préservé, aucun historique supprimé |
+| Projet historique 0.7 | [Jarvis-Bridge-Android](https://github.com/gauthiermail2021-dot/Jarvis-Bridge-Android) | **ARCHIVE / NON COMPILABLE EN PRODUCTION** |
+
+## Règles non négociables
+
+1. **Toujours inspecter les deux dépôts et les branches récentes** avant de modifier un projet Jarvis ; seule cette branche `main` fait foi pour le code Android actuel.
+2. Toute nouveauté se fait dans une branche `feature/` ou `experiment/` **issue de `main`** ; la branche de travail ne devient pas automatiquement une version officielle.
+3. Ne jamais repartir de 0.7 ni d'un vieux ZIP/APK pour reconstruire une version plus récente.
+4. Conserver l'identité Android `ca.jarvis.bridge`, la signature de release permanente et les réglages OAuth Gmail ; ne jamais mettre de secret, clé ou mot de passe dans GitHub.
+5. Produire un **APK signé** seulement après compilation, tests automatiques, contrôle de signature et vérification des fonctions existantes ; ne pas appeler « stable » une compilation réussie seule.
+6. Avant mise à jour : vérifier l'ouverture Gmail → SVG → xTool, la bulle, les sons, l'accès Android, les sessions de capture, l'interprétation EasySet et l'absence de toute commande laser.
+7. Chaque version distribuée doit avoir un commit, un `versionCode` croissant, un APK en sauvegarde durable, un état de test et une procédure de retour arrière.
+8. Les essais Tesseract démarrés à tort dans le dépôt historique restent en quarantaine. Les nouveaux essais doivent partir de la vraie 1.2.31 ici.
+
+## Répertoires
+
+- `android/app/src/main/java/ca/jarvis/bridge/` : code de l'application réelle.
+- `android/app/src/test/` : tests JVM.
+- `android/app/build.gradle` : version, identifiant Android et dépendances.
+- `.github/workflows/build-jarvis-android.yml` : compilation/signature Android, **sur branches autorisées seulement**.
+- `index.html` : page du lanceur existant (GitHub Pages) ; distincte du logiciel Android.
+- `docs/SOURCE_OF_TRUTH.md` : protocole de travail et points à protéger.
+
+---
+
+## Historique fonctionnel de la 1.2.31 (conservé tel quel)
+
 # Jarvis Bridge 1.2.31 — Diagnostic ciblé OCR « Passer »
 
 Branche expérimentale distincte de 1.2.30. La branche stable 1.2.21 est inchangée, ainsi que les fonctions Gmail → SVG → xTool.
