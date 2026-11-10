@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.30 EasySet small passes-digit OCR - signed APK
+name: Build and test Jarvis Bridge 1.2.31 EasySet Passer OCR diagnosis - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au prototype EasySet 1.2.30 petite valeur Passer.
+  # Compilation d'essai limitée au prototype EasySet 1.2.31 diagnostic Passer temporaire.
   push:
-    branches: [experiment/easyset-passes-1.2.30]
+    branches: [experiment/easyset-diagnostic-1.2.31]
     paths:
       - 'android/app/build.gradle'
 
@@ -73,6 +73,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.30-easyset-passes-signed
+          name: Jarvis-Bridge-1.2.31-easyset-diagnostic-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
