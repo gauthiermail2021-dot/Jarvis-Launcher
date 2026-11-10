@@ -14,7 +14,7 @@ android {
         versionCode 43
         versionName '1.2.24'
         // Jarvis 1.2.24: one-touch consent-based EasySet OCR with bubble results.
-        // Signed experimental build: on-device OCR only.
+        // Build trigger: test the one-touch EasySet capture on Android.
     }
 
     signingConfigs {
