@@ -208,7 +208,11 @@ public final class EasySetCaptureService extends Service {
                 .setContentIntent(intent)
                 .setAutoCancel(true)
                 .build();
-        manager.notify(RESULT_NOTIFICATION_ID, note);
+        try {
+            manager.notify(RESULT_NOTIFICATION_ID, note);
+        } catch (SecurityException ignored) {
+            // Résultat disponible via la bulle même si les notifications sont interdites.
+        }
     }
 
     @Override public void onDestroy() {
