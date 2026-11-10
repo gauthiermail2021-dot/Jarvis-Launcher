@@ -33,6 +33,18 @@
                 <data android:scheme="jarvisbridge" android:host="open" />
             </intent-filter>
         </activity>
+        <!-- Second launcher icon: one tap sends the next numbered SVG test
+             through the account explicitly authorized with Google OAuth. -->
+        <activity
+            android:name=".JarvisTestShortcutActivity"
+            android:label="TEST SVG JARVIS"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <service android:name=".JarvisBubbleService" android:exported="false" />
         <activity android:name=".EasySetVisionActivity" android:exported="false" />
         <!-- Transparent, isolated task for a one-time system capture permission.
