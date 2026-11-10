@@ -47,6 +47,10 @@
             android:name=".EasySetCaptureService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+        <service
+            android:name=".EasySetSessionService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <!-- Facultatif : l'utilisateur doit activer ce service dans Accessibilité. -->
         <service
             android:name=".ChatGptBubbleAccessibilityService"
