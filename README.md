@@ -1,3 +1,13 @@
+## Expérience 1.2.22 — Diagnostic EasySet en lecture seule
+
+- Branche séparée de Jarvis 1.2.21 : aucun changement à sa version stable.
+- Service d'accessibilité **facultatif** « Jarvis — diagnostic EasySet (lecture seule) », à activer dans Android.
+- Dans les réglages complets Jarvis, choisir « Test EasySet : activer l'observation 120 s », ouvrir ensuite xTool Creative Space et le volet EasySet, puis retourner lire le résultat.
+- Analyse uniquement les libellés EasySet, Puissance, Vitesse et Passer dans une application dont le nom de package contient xtool ou makeblock. Aucun texte libre ou valeur n'est enregistré.
+- Aucun clic, geste, modification de paramètre, commande laser ou démarrage de découpe.
+- Désactivation manuelle possible ; le test expire automatiquement en 120 secondes.
+- **Limite :** le nom exact du package XCS peut différer, et l'application peut ne pas exposer les champs à Android Accessibilité. Dans ces cas le test peut rester sans résultat.
+
 ## 1.2.21 — Halo contenu et rotation ralentie
 
 - Une seule révolution de la lumière pendant **850 ms** à l'ouverture (au lieu de deux en 510 ms).
