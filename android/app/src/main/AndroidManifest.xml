@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <queries>
         <package android:name="com.openai.chatgpt" />
     </queries>
@@ -33,6 +34,11 @@
             </intent-filter>
         </activity>
         <service android:name=".JarvisBubbleService" android:exported="false" />
+        <activity android:name=".EasySetVisionActivity" android:exported="false" />
+        <service
+            android:name=".EasySetCaptureService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
         <!-- Facultatif : l'utilisateur doit activer ce service dans Accessibilité. -->
         <service
             android:name=".ChatGptBubbleAccessibilityService"
