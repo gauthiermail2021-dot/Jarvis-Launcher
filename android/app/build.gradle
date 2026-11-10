@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 42
-        versionName '1.2.23'
-        // Jarvis 1.2.23: consent-based visual EasySet diagnostic; no machine control.
+        versionCode 43
+        versionName '1.2.24'
+        // Jarvis 1.2.24: one-touch consent-based EasySet OCR with bubble results.
         // Signed experimental build: on-device OCR only.
     }
 
