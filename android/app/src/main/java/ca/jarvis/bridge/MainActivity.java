@@ -276,7 +276,7 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.27 : au lancement de la bulle "
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.28 : au lancement de la bulle "
                 + "Jarvis, autorise une seule session de capture Android. Après l'ouverture "
                 + "d'un SVG dans xTool, une analyse de lecture seule est tentée automatiquement. "
                 + "Une nouvelle analyse lit aussi les valeurs numériques depuis la bulle "
