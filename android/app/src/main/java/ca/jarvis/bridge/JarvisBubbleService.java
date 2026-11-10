@@ -517,10 +517,21 @@ public final class JarvisBubbleService extends Service {
         }
 
         addMenuButton(menu, "Analyser EasySet maintenant", () -> {
-            Intent diagnostic = new Intent(this, EasySetVisionActivity.class);
-            diagnostic.putExtra(EasySetVisionActivity.AUTO_CAPTURE, true);
-            diagnostic.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(diagnostic);
+            // Only the Android system capture prompt is visible; the previous
+            // xTool window stays behind a fully transparent temporary Activity.
+            // A separate ephemeral task avoids surfacing MainActivity.
+            Intent consent = new Intent(this, EasySetConsentActivity.class);
+            consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                    | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                    | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+            try {
+                startActivity(consent);
+            } catch (RuntimeException denied) {
+                Toast.makeText(this,
+                        "Android n'a pas pu ouvrir l'autorisation de capture.",
+                        Toast.LENGTH_LONG).show();
+            }
         });
 
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
