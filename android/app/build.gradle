@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 40
-        versionName '1.2.21'
-        // Jarvis 1.2.21: 24dp safe opening halo, single 850ms revolution and tail.
+        versionCode 42
+        versionName '1.2.23'
+        // Jarvis 1.2.23: consent-based visual EasySet diagnostic; no machine control.
     }
 
     signingConfigs {
@@ -65,5 +65,6 @@ configurations.configureEach {
 dependencies {
     implementation 'com.google.android.gms:play-services-auth:21.5.0'
     implementation 'androidx.activity:activity:1.9.3'
+    implementation 'com.google.mlkit:text-recognition:16.0.1'
     testImplementation 'junit:junit:4.13.2'
 }
