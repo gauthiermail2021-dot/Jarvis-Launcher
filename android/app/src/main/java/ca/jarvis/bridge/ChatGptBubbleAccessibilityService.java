@@ -58,10 +58,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         if (!Settings.canDrawOverlays(this) || !JarvisBubbleService.isBubbleActive()
                 || !EasySetSessionService.isActive()) return;
 
-        // The existing Gmail -> SVG handoff already schedules one auto scan.
-        // A second foreground event must NOT create duplicate screen captures.
-        if (XtoolSessionManager.isActive(this)) return;
-
+        // The capture service de-duplicates an existing SVG-triggered scan
+        // and accepts xTool projects that were already open.
         long now = SystemClock.elapsedRealtime();
         if (now - lastXtoolScanRequestMillis < XTOOL_WINDOW_COOLDOWN_MS) return;
         lastXtoolScanRequestMillis = now;
