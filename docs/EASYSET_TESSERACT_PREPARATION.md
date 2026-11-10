@@ -1,6 +1,6 @@
 # Jarvis Bridge 1.2.32 — candidat signé, à tester sur Samsung
 
-> **ÉTAT : APK de TEST produit, pas encore validé en conditions réelles.**
+> **ÉTAT : APK de TEST installé et lecture EasySet confirmée sur Samsung pour un cas réel ; validation générale et non-régression encore nécessaires.**
 > Dépôt officiel : **Jarvis-Launcher**. La branche `main` demeure sur 1.2.31 ; la version candidate 1.2.32 est isolée dans `experiment/easyset-tesseract-1.2.32-preparation`.
 
 ## Traçabilité de la version test
@@ -27,9 +27,25 @@
 - [x] Test JVM de géométrie du cadrage ciblé, du contrôle de zone entière sur un petit recadrage, et tests hérités de Jarvis.
 - [x] Compilation Android de développement, puis compilation **Release** signée, avec modèle OCR inclus.
 - [x] Vérification de la signature et du même certificat de release que la 1.2.31.
-- [ ] Installation et essai de l'APK 1.2.32 sur Samsung (lecture réelle de `Passer`).
+- [x] Installation et essai de l'APK 1.2.32 sur Samsung : lecture réelle de `Passer : 1`, confiance Tesseract affichée de **95 %**, concordance Puissance `69 %` et Vitesse `152 mm/s`.
 - [ ] Essais supplémentaires sur différentes valeurs, résolutions et thèmes, et vérification fonctionnelle Gmail → SVG → xTool et bulle.
 - [ ] Après validation, publier une release officielle durable (l'artefact Actions expire).
+
+## Validation réelle sur Samsung — 10 novembre 2026
+
+Une capture fournie après installation de Jarvis **1.2.32** démontre :
+
+| Réglage visible dans xTool EasySet | Résultat affiché par Jarvis |
+| --- | --- |
+| Puissance **69 %** | **69 %** |
+| Vitesse **152 mm/s** | **152 mm/s** |
+| Passer **1** | **Passages : 1**, avec « OCR chiffre seul — Passer : 1 (Tesseract, confiance 95 %, indicatif) » |
+
+- Les trois étapes ML Kit déclarent toujours qu'aucun petit caractère n'a été détecté à droite du libellé « Passer ». C'est **le secours Tesseract** qui a reconnu le nombre.
+- Le panneau affiche « Association : acceptée » ; ce libellé est **ambigu** parce qu'il ne précise pas que l'acceptation provient de Tesseract et non d'une étape ML Kit. Amélioration de présentation envisageable, sans incidence sur la valeur réellement lue.
+- **Validation prouvée pour cet écran et ce chiffre uniquement**. Le score Tesseract de 95 % est une confiance OCR, **pas** une garantie de fiabilité de 95 % sur tous les écrans.
+- Les réglages xTool n'ont pas été modifiés pendant l'analyse, d'après le message affiché ; aucun démarrage de laser n'est nécessaire.
+- La capture de test reste dans la conversation utilisateur et n'est **pas versée au dépôt GitHub public**. Seuls les résultats techniques ci-dessus sont documentés.
 
 ## Test sur téléphone
 
