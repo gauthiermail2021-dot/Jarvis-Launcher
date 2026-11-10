@@ -8,6 +8,9 @@ import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -26,6 +29,7 @@ import java.util.List;
 
 /** Explicit permission-gated UI for a single screenshot, with manual photo fallback. */
 public final class EasySetVisionActivity extends Activity {
+    static final String AUTO_CAPTURE = "ca.jarvis.bridge.AUTO_EASYSET_CAPTURE";
     private static final int REQUEST_SCREEN = 3801;
     private static final int REQUEST_IMAGE = 3802;
     private TextView result;
@@ -42,7 +46,7 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.23 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.24 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
         add(body, "Jarvis peut rechercher les libellés EasySet dans une capture, "
@@ -53,20 +57,10 @@ public final class EasySetVisionActivity extends Activity {
         Button capture = new Button(this);
         capture.setText("1 • ANALYSER EASYSET À L'ÉCRAN");
         body.addView(capture);
-        capture.setOnClickListener(v -> {
-            result.setText("Autorise une capture unique, puis Jarvis reviendra "
-                    + "à l'application précédente et analysera l'écran.");
-            MediaProjectionManager mgr = (MediaProjectionManager)
-                    getSystemService(Context.MEDIA_PROJECTION_SERVICE);
-            if (mgr == null) {
-                result.setText("La capture d'écran n'est pas disponible sur cet appareil.");
-                return;
-            }
-            startActivityForResult(mgr.createScreenCaptureIntent(), REQUEST_SCREEN);
-        });
-        add(body, "Conseil : ouvre d'abord xTool sur EasySet, puis utilise le menu "
-                + "de la bulle Jarvis pour lancer ce diagnostic. "
-                + "Android demandera ton autorisation à chaque capture.",
+        capture.setOnClickListener(v -> requestCapture());
+        add(body, "Depuis xTool, ouvre EasySet, puis dans la bulle Jarvis "
+                + "choisis « Analyser EasySet maintenant ». "
+                + "Un seul consentement Android : résultat directement sur xTool.",
                 13, 0xffb8c9d4);
 
         Button importButton = new Button(this);
@@ -91,6 +85,28 @@ public final class EasySetVisionActivity extends Activity {
                 + "Le lancement de fabrication reste entièrement manuel.",
                 14, 0xfff5cb9b);
         setContentView(scroll);
+        // Started from the bubble: skip this intermediate screen entirely.
+        if (state == null && getIntent() != null
+                && getIntent().getBooleanExtra(AUTO_CAPTURE, false)) {
+            new Handler(Looper.getMainLooper()).post(this::requestCapture);
+        }
+    }
+
+    private void requestCapture() {
+        if (result != null) result.setText("Autorise la capture unique Android : "
+                + "Jarvis retournera ensuite dans xTool et affichera le résultat.");
+        MediaProjectionManager mgr = (MediaProjectionManager)
+                getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        if (mgr == null) {
+            if (result != null) result.setText("Capture d'écran non disponible.");
+            return;
+        }
+        try {
+            startActivityForResult(mgr.createScreenCaptureIntent(), REQUEST_SCREEN);
+        } catch (RuntimeException error) {
+            if (result != null) result.setText("Demande de capture impossible : "
+                    + error.getClass().getSimpleName());
+        }
     }
 
     private TextView add(LinearLayout parent, String text, int sizeSp, int color) {
@@ -128,7 +144,13 @@ public final class EasySetVisionActivity extends Activity {
             try {
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(service);
                 else startService(service);
-                moveTaskToBack(true);
+                // Hide Jarvis bubble before capture to avoid covering the UI.
+                JarvisBubbleService.prepareEasySetCapture();
+                boolean returned = moveTaskToBack(true);
+                if (!returned && result != null) {
+                    result.setText("Android n'a pas pu revenir à xTool. "
+                            + "La lecture peut échouer : utilise le menu de la bulle.");
+                }
             } catch (RuntimeException error) {
                 result.setText("Capture refusée par Android : " + error.getClass().getSimpleName());
             }
@@ -148,6 +170,8 @@ public final class EasySetVisionActivity extends Activity {
                             String summary = EasySetLabels.diagnose(lines);
                             EasySetVisionAnalyzer.save(this, summary);
                             result.setText(summary);
+                            Toast.makeText(this, "Analyse terminée : résultat affiché",
+                                    Toast.LENGTH_SHORT).show();
                         })
                         .addOnFailureListener(e -> result.setText(
                                 "Impossible de lire l'image : " + e.getClass().getSimpleName()))
