@@ -29,7 +29,8 @@ final class EasySetTextExtractor {
                 for (Text.Element element : line.getElements()) {
                     // Avoid exact duplicate text+position candidates when a line
                     // consists of only one element.
-                    if (element.getText().equals(line.getText())
+                    if (element.getText() != null
+                            && element.getText().equals(line.getText())
                             && sameBounds(line.getBoundingBox(), element.getBoundingBox())) {
                         continue;
                     }
