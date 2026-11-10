@@ -275,6 +275,46 @@ public class MainActivity extends ComponentActivity {
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
+        TextView easySetHelp = new TextView(this);
+        easySetHelp.setText("EXPÉRIMENTAL — EasySet, lecture seule. Le test détecte uniquement "
+                + "les libellés Puissance, Vitesse et Passer pendant 120 secondes. "
+                + "Aucun réglage xTool n'est modifié.");
+        layout.addView(easySetHelp);
+
+        Button easySetArm = new Button(this);
+        easySetArm.setText("Test EasySet : activer l'observation 120 s");
+        layout.addView(easySetArm);
+        easySetArm.setOnClickListener(v -> {
+            getSharedPreferences(EasySetDiagnosticService.PREFS, MODE_PRIVATE).edit()
+                    .putLong(EasySetDiagnosticService.KEY_ARM_UNTIL,
+                            android.os.SystemClock.elapsedRealtime() + 120000L)
+                    .putString(EasySetDiagnosticService.KEY_RESULT,
+                            "Test armé : ouvrir xTool et le volet EasySet. "
+                            + "Revenir ensuite dans les réglages Jarvis.").apply();
+            setStatus("Test EasySet armé pour 120 s. Activer le service d'accessibilité "
+                    + "« Jarvis — diagnostic EasySet », puis afficher le volet EasySet dans xTool.");
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+        });
+
+        Button easySetResult = new Button(this);
+        easySetResult.setText("Afficher le diagnostic EasySet");
+        layout.addView(easySetResult);
+        easySetResult.setOnClickListener(v -> {
+            String summary = getSharedPreferences(EasySetDiagnosticService.PREFS, MODE_PRIVATE)
+                    .getString(EasySetDiagnosticService.KEY_RESULT, "Aucun test effectué.");
+            setStatus(summary);
+        });
+
+        Button easySetStop = new Button(this);
+        easySetStop.setText("Arrêter le diagnostic EasySet");
+        layout.addView(easySetStop);
+        easySetStop.setOnClickListener(v -> {
+            getSharedPreferences(EasySetDiagnosticService.PREFS, MODE_PRIVATE).edit()
+                    .putLong(EasySetDiagnosticService.KEY_ARM_UNTIL, 0L).apply();
+            setStatus("Diagnostic EasySet arrêté. Tu peux aussi désactiver "
+                    + "son service dans les réglages d'accessibilité Android.");
+        });
+
         Button compactMode = new Button(this);
         boolean compact = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean(COMPACT_LAUNCH, true);
