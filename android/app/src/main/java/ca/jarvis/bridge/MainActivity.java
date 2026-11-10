@@ -276,10 +276,10 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.23 : reconnaissance visuelle "
-                + "des libellés EasySet, sans autorisation d'accessibilité. "
-                + "Capture ponctuelle avec ton accord, ou importation d'une image. "
-                + "Aucune commande xTool.");
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.24 : depuis xTool avec EasySet ouvert, "
+                + "maintenir la bulle 1 seconde et choisir « Analyser EasySet maintenant ». "
+                + "Après ton autorisation Android, le résultat apparaît au-dessus de xTool. "
+                + "Sans accès d'accessibilité ni commande laser.");
         layout.addView(easysetVisionHelp);
         Button easysetVision = new Button(this);
         easysetVision.setText("Analyser EasySet visuellement (sans accessibilité)");
