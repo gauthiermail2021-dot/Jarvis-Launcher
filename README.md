@@ -1,29 +1,34 @@
-# Jarvis Bridge 1.2.30 — Lecture du nombre de passages dans EasySet
+# Jarvis Bridge 1.2.31 — Diagnostic ciblé OCR « Passer »
 
-Version expérimentale distincte. La version stable 1.2.21 et les fonctions Gmail → SVG → xTool, bulle Jarvis, capture autorisée restent inchangées.
+Branche expérimentale distincte de 1.2.30. La branche stable 1.2.21 est inchangée, ainsi que les fonctions Gmail → SVG → xTool.
 
-## Problème reproduit
+## Constat
 
-Sur la capture xTool fournie, Jarvis 1.2.29 a correctement lu **Puissance 63 %** et **Vitesse 134 mm/s**, mais pas la valeur de **Passer : 1**. Le petit chiffre est à l'extrémité droite, collé à un chevron.
+La version 1.2.30 lit correctement les deux réglages **Puissance** et **Vitesse**, mais indique toujours **« Passages : non lus »** lorsque xTool montre **Passer : 1**. La reconnaissance Samsung Gallery lit le chiffre, mais cela ne prouve pas que Google ML Kit le reconnaisse.
 
-## Amélioration ciblée
+## Diagnostic affiché (sans supposition)
 
-- Conserve les deux analyses de la 1.2.29 : OCR complet par lignes et éléments, puis relecture agrandie de la colonne droite.
-- Si le nombre de passages est **toujours non lu**, extrait en mémoire une **bande étroite autour du libellé « Passer »** et du champ numérique situé à droite.
-- Cette bande est agrandie (jusqu'à 3,5×), légèrement contrastée puis confiée une dernière fois à ML Kit avec le contexte « Passer » visible.
-- Les coordonnées OCR sont replacées dans le repère de l'écran original afin d'appliquer les mêmes garde-fous de zone, de type numérique entier positif et de non-confusion avec la vitesse.
-- **Aucune valeur par défaut**, aucune conversion automatique de « I » ou « l » en 1 : si le chiffre n'est pas reconnu, le résultat reste « non lus ».
-- Aucune capture supplémentaire ni nouveau dialogue Android. Les images et les chiffres reconnus restent temporaires et ne sont pas conservés sur disque.
+Une analyse manuelle depuis la bulle → **« Analyser EasySet maintenant »** produit le résultat habituel suivi de :
 
-## Essai
+- **Libellé :** si « Passer » est réellement reconnu.
+- **Écran :** courts caractères lus à droite du libellé pendant l'OCR de l'écran complet, et si le nombre est associé.
+- **Colonne droite :** résultats de l'OCR agrandi à droite, ou pourquoi cette analyse n'a pas été exécutée.
+- **Zone agrandie :** caractères reconnus dans le recadrage « Passer » contrasté, ou pourquoi ce recours n'a pas été effectué.
+- **Association :** résultat accepté ou rejeté, avec une cause classée : aucun chiffre, lettre/flèche reconnue plutôt qu'un entier, ou chiffre visible non validé à cause du format ou de l'association géométrique.
 
-1. Installer Jarvis **1.2.30** sur le Samsung, avec l'APK signé.
-2. Dans xTool, afficher le volet EasySet avec les **trois valeurs visibles**.
-3. Appui long sur la bulle → « Analyser EasySet maintenant ».
-4. Vérifier que les valeurs correspondent *effectivement* à ce qui est affiché dans xTool. Si la valeur « Passer » reste non lue, envoyer une capture du résultat.
+Seuls de courts tokens composés de chiffres, signes de navigation et lettres pouvant être confondues avec « 1 » sont affichés. **Aucune copie du texte intégral de l'écran** n'est fournie par le diagnostic. Capture et textes restent en mémoire, le résultat détaillé n'est pas sauvegardé. Le panneau reste affiché au maximum 40 secondes pour laisser le temps de prendre une capture d'écran.
 
-## Vérifications et limites
+Cette version **ne change pas** la reconnaissance des nombres dans EasySet : elle vise à diagnostiquer pourquoi « Passer » échoue, pas à forcer 1.
 
-Des tests JVM vérifient que la bande recadre bien le champ Passer sur la géométrie vue dans la capture d'écran, sans déborder sur la vitesse, et qu'aucune flèche ou lettre n'est interprétée d'office comme un nombre. GitHub Actions exécute les tests, produit un APK signé par la clé existante et vérifie la signature.
+## Essai Android
 
-**Diagnostic uniquement :** aucun changement de puissance, de vitesse ou du nombre de passages, aucune commande de lancement de fabrication. La validation finale des paramètres reste humaine.
+1. Installer Jarvis 1.2.31 signé sur le Samsung.
+2. Dans xTool, afficher EasySet avec les trois valeurs visibles.
+3. Appui long sur la bulle Jarvis → « Analyser EasySet maintenant », dans la session de partage d'écran déjà autorisée.
+4. Faire une capture d'écran du résultat, incluant le nouveau **DIAGNOSTIC PASSER (temporaire)**, et transmettre cette capture pour identifier l'étape précise du blocage.
+
+## Limites
+
+- Ne modifie aucun paramètre xTool et ne commande pas la machine ou le laser.
+- Aucun nouveau consentement Android tant que la même session de capture reste active.
+- Les tests automatiques couvrent les caractères « 1 », « l », « › », la géométrie et le filtrage des contenus hors zone. La lecture réelle demeure à valider sur téléphone.
