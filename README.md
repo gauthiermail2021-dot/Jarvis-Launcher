@@ -1,3 +1,22 @@
+# Jarvis 1.2.23 — prototype visuel EasySet (Android sans PC)
+
+Cette branche est expérimentale et distincte de 1.2.21. La reconnaissance de texte est effectuée localement à l'aide du modèle ML Kit embarqué. L'application n'exige aucune autorisation d'accessibilité supplémentaire.
+
+## Test directement dans xTool
+1. Ouvrir le dessin dans xTool et afficher le volet EasySet.
+2. Maintenir la bulle Jarvis une seconde pour ouvrir son menu, choisir **Analyser EasySet (visuel)**.
+3. Choisir **Analyser EasySet à l'écran**, puis accepter la demande officielle Android de partage d'écran.
+4. Jarvis se met en arrière-plan et effectue **une seule capture** après une courte attente (~2 secondes). Il interrompt immédiatement la capture.
+5. Retourner à Jarvis : le résultat indique seulement la présence des libellés EasySet, Puissance, Vitesse, Passages.
+6. Si Android empêche la capture ou si le retour à xTool ne fonctionne pas, faire une capture d'écran manuelle et utiliser **Analyser une capture déjà prise**.
+
+## Respect de la vie privée et sécurité
+- Capture avec consentement ponctuel; aucun service d'accessibilité xTool.
+- Aucune image, texte OCR intégral, ou valeur numérique de paramètres stockés ou envoyés.
+- Une courte synthèse locale est conservée pour pouvoir la lire en revenant à Jarvis.
+- La reconnaissance visuelle ne permet pas de cliquer dans xTool. Cette version ne change jamais des réglages ni ne lance de machine.
+- Valider visuellement la pièce et les paramètres directement dans xTool. L'application ne confirme pas leur pertinence.
+
 ## 1.2.21 — Halo contenu et rotation ralentie
 
 - Une seule révolution de la lumière pendant **850 ms** à l'ouverture (au lieu de deux en 510 ms).
