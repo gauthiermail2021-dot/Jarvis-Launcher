@@ -8,13 +8,21 @@ import android.provider.Settings;
 import android.view.accessibility.AccessibilityEvent;
 
 /**
- * Option facultative : observe seulement le passage de ChatGPT au premier plan.
- * Ne demande pas l'accès au contenu des fenêtres et ne lit aucun message.
- * Ce service n'est actif qu'après autorisation explicite dans Android Accessibilité.
+ * Optional, explicitly enabled accessibility service.
+ * Observes foreground WINDOW TRANSITIONS only from ChatGPT and xTool XCS.
+ * Does not retrieve window content, listen to text, or perform gestures.
+ *
+ * For xTool XCS: requests ONE passive EasySet analysis when an already-open
+ * drawing comes to the foreground, provided Android screen projection was
+ * explicitly granted for this Jarvis session. Incoming SVG handoffs continue
+ * to use the existing SVG-triggered path; avoid duplicate analyses.
  */
 public final class ChatGptBubbleAccessibilityService extends AccessibilityService {
     private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
-    private long lastOpenRequestMillis = 0L;
+    private static final String XTOOL_XCS_PACKAGE = "com.makeblock.xcs";
+    private static final long XTOOL_WINDOW_COOLDOWN_MS = 15_000L;
+    private long lastOpenRequestMillis;
+    private long lastXtoolScanRequestMillis;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -22,9 +30,17 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         int type = event.getEventType();
         if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 && type != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return;
-        if (!CHATGPT_PACKAGE.contentEquals(event.getPackageName())) return;
-        if (!Settings.canDrawOverlays(this) || JarvisBubbleService.isBubbleActive()) return;
 
+        CharSequence pkg = event.getPackageName();
+        if (CHATGPT_PACKAGE.contentEquals(pkg)) {
+            openChatGptBubbleIfNeeded();
+        } else if (XTOOL_XCS_PACKAGE.contentEquals(pkg)) {
+            inspectExistingXtoolDrawing();
+        }
+    }
+
+    private void openChatGptBubbleIfNeeded() {
+        if (!Settings.canDrawOverlays(this) || JarvisBubbleService.isBubbleActive()) return;
         long now = SystemClock.elapsedRealtime();
         if (now - lastOpenRequestMillis < 2500L) return;
         lastOpenRequestMillis = now;
@@ -33,13 +49,30 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             if (Build.VERSION.SDK_INT >= 26) startForegroundService(bubble);
             else startService(bubble);
         } catch (RuntimeException ignored) {
-            // Certaines versions Android refusent encore les départs en arrière-plan.
-            // L'ouverture manuelle dans Jarvis reste toujours disponible.
+            // Keep the manual button available on Android versions that
+            // prohibit background service launches.
         }
+    }
+
+    private void inspectExistingXtoolDrawing() {
+        if (!Settings.canDrawOverlays(this) || !JarvisBubbleService.isBubbleActive()
+                || !EasySetSessionService.isActive()) return;
+
+        // The existing Gmail -> SVG handoff already schedules one auto scan.
+        // A second foreground event must NOT create duplicate screen captures.
+        if (XtoolSessionManager.isActive(this)) return;
+
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastXtoolScanRequestMillis < XTOOL_WINDOW_COOLDOWN_MS) return;
+        lastXtoolScanRequestMillis = now;
+
+        // No screenshot is taken here. The projection service waits briefly
+        // for xTool to settle, then analyzes one explicitly authorized frame.
+        EasySetSessionService.requestExistingXtoolScan(this);
     }
 
     @Override
     public void onInterrupt() {
-        // Aucun traitement permanent à interrompre.
+        // No continuous monitoring or screenshot process to interrupt.
     }
 }
