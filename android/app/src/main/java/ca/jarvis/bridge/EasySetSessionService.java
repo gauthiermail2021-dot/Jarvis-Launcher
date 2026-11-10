@@ -39,6 +39,7 @@ public final class EasySetSessionService extends Service {
     static final String ACTION_START = "ca.jarvis.bridge.EASYSET_SESSION_START";
     static final String ACTION_SCAN = "ca.jarvis.bridge.EASYSET_SESSION_SCAN";
     static final String ACTION_SVG_OPEN = "ca.jarvis.bridge.EASYSET_SESSION_SVG";
+    static final String ACTION_XTOOL_FOREGROUND = "ca.jarvis.bridge.EASYSET_XTOOL_FOREGROUND";
     static final String ACTION_STOP = "ca.jarvis.bridge.EASYSET_SESSION_STOP";
     static final String RESULT_CODE = "projection_code";
     static final String RESULT_INTENT = "projection_intent";
@@ -73,6 +74,18 @@ public final class EasySetSessionService extends Service {
         catch (RuntimeException ignored) { }
     }
 
+    /**
+     * Detect an already open xTool document: no SVG handoff is required.
+     * This cannot start a new projection or bypass Android consent.
+     */
+    static void requestExistingXtoolScan(Context context) {
+        if (!isActive()) return;
+        Intent intent = new Intent(context, EasySetSessionService.class);
+        intent.setAction(ACTION_XTOOL_FOREGROUND);
+        try { context.startService(intent); }
+        catch (RuntimeException ignored) { }
+    }
+
     static void requestStop(Context context) {
         Intent intent = new Intent(context, EasySetSessionService.class);
         intent.setAction(ACTION_STOP);
@@ -99,6 +112,19 @@ public final class EasySetSessionService extends Service {
         if (ACTION_SCAN.equals(action)) {
             cancelPendingAutoScan();
             beginScan(false);
+        } else if (ACTION_XTOOL_FOREGROUND.equals(action)) {
+            // Existing drawing or project in xTool: one passive capture on
+            // foreground transition, independent of Gmail/SVG state.
+            // Ignore an incoming SVG session; its own callback schedules OCR.
+            if (XtoolSessionManager.isActive(this)) return START_NOT_STICKY;
+            cancelPendingAutoScan();
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing && !XtoolSessionManager.isActive(this)) {
+                    beginScan(true);
+                }
+            };
+            handler.postDelayed(autoScanTrigger, 1500L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
             cancelPendingAutoScan();
             // xTool needs time to render the newly opened SVG.
