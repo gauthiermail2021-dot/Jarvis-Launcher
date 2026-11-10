@@ -86,8 +86,16 @@ public final class EasySetPassesTesseract {
         if (!roi.intersect(bounds) || roi.width() < 3 || roi.height() < 3) {
             return new Result(null, -1, "Zone Passer vide ou hors écran", null);
         }
-        // Une zone démesurée introduirait d'autres champs ; ne pas deviner le chiffre.
-        if (roi.width() > screenshot.getWidth() / 2 || roi.height() > screenshot.getHeight() / 4) {
+        // Called from Jarvis with a cloned *numeric-only* screenshot; its
+        // ROI legitimately covers 100 % of that small Bitmap. Reject a broad
+        // screen crop, but do not reject the verified small numeric field.
+        boolean isolatedSmallField = roi.left == 0 && roi.top == 0
+                && roi.width() == screenshot.getWidth()
+                && roi.height() == screenshot.getHeight()
+                && screenshot.getWidth() <= 180 && screenshot.getHeight() <= 128;
+        if (!isolatedSmallField
+                && (roi.width() > screenshot.getWidth() / 2
+                    || roi.height() > screenshot.getHeight() / 4)) {
             return new Result(null, -1, "Zone trop large : cadrer seulement le chiffre Passer", null);
         }
 
