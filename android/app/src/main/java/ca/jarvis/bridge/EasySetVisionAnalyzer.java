@@ -61,6 +61,7 @@ public final class EasySetVisionAnalyzer {
                     .addOnSuccessListener(vision -> {
                         List<EasySetValues.Line> base = EasySetTextExtractor.extract(vision);
                         String baseline = EasySetValues.diagnose(base);
+                        EasySetPassesDiagnostic debug = new EasySetPassesDiagnostic(base);
                         // The full-screen OCR often misses a tiny isolated '1'
                         // or sees the chevron beside '114' as part of a line.
                         // Only when a parameter is missing, run a second OCR
@@ -69,9 +70,13 @@ public final class EasySetVisionAnalyzer {
                         if (baseline.startsWith("EasySet ")
                                 && (baseline.contains("non lue")
                                         || baseline.contains("non lus"))) {
-                            readRightColumn(context, bitmap, base, baseline, callback);
+                            readRightColumn(context, bitmap, base, baseline, debug, callback);
                         } else {
-                            finish(context, baseline, callback);
+                            if (baseline.startsWith("EasySet ")) {
+                                debug.columnSkipped("aucune valeur manquante");
+                                debug.cropSkipped("valeur Passer déjà disponible");
+                            }
+                            finish(context, debug.append(baseline), callback);
                         }
                     })
                     .addOnFailureListener(error -> finish(context,
@@ -91,7 +96,9 @@ public final class EasySetVisionAnalyzer {
 
     private static void readRightColumn(Context context, Bitmap original,
                                         List<EasySetValues.Line> base,
-                                        String baseline, Callback callback) {
+                                        String baseline,
+                                        EasySetPassesDiagnostic debug,
+                                        Callback callback) {
         Bitmap enlarged = null;
         TextRecognizer recognizer = null;
         FocusedPasses focused = null;
@@ -108,8 +115,9 @@ public final class EasySetVisionAnalyzer {
             int width = original.getWidth() - left;
             int height = original.getHeight();
             if (width < 48 || height < 48) {
+                debug.columnSkipped("capture trop petite");
                 readPassesIfMissing(context, base, new ArrayList<>(),
-                        baseline, focused, callback);
+                        baseline, focused, debug, callback);
                 return;
             }
             Bitmap cropped = Bitmap.createBitmap(original, left, 0, width, height);
@@ -137,13 +145,16 @@ public final class EasySetVisionAnalyzer {
                                     offsetX + Math.round(line.right / resizeFactor),
                                     Math.round(line.bottom / resizeFactor)));
                         }
+                        debug.readColumn(rightCandidates);
                         String interim = EasySetValues.diagnose(base, rightCandidates);
                         readPassesIfMissing(context, base, rightCandidates, interim,
-                                passesCrop, callback);
+                                passesCrop, debug, callback);
                     })
-                    .addOnFailureListener(error -> readPassesIfMissing(
-                            context, base, new ArrayList<>(), baseline,
-                            passesCrop, callback))
+                    .addOnFailureListener(error -> {
+                        debug.columnError();
+                        readPassesIfMissing(context, base, new ArrayList<>(), baseline,
+                                passesCrop, debug, callback);
+                    })
                     .addOnCompleteListener(task -> {
                         detail.close();
                         if (!enlargedImage.isRecycled()) enlargedImage.recycle();
@@ -151,8 +162,9 @@ public final class EasySetVisionAnalyzer {
         } catch (RuntimeException error) {
             if (recognizer != null) recognizer.close();
             if (enlarged != null && !enlarged.isRecycled()) enlarged.recycle();
+            debug.columnError();
             readPassesIfMissing(context, base, new ArrayList<>(),
-                    baseline, focused, callback);
+                    baseline, focused, debug, callback);
         }
     }
 
@@ -222,19 +234,24 @@ public final class EasySetVisionAnalyzer {
     private static void readPassesIfMissing(
             Context context, List<EasySetValues.Line> base,
             List<EasySetValues.Line> rightCandidates, String interim,
-            FocusedPasses focused, Callback callback) {
+            FocusedPasses focused,
+            EasySetPassesDiagnostic debug, Callback callback) {
         if (focused == null || !interim.startsWith("EasySet ")
                 || !interim.contains("Passages : non lus")) {
+            debug.cropSkipped(focused == null
+                    ? "zone Passer introuvable"
+                    : "Passer déjà lu ou EasySet absent");
             if (focused != null) focused.dispose();
-            finish(context, interim, callback);
+            finish(context, debug.append(interim), callback);
             return;
         }
         TextRecognizer recognizer;
         try {
             recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         } catch (RuntimeException problem) {
+            debug.cropError();
             focused.dispose();
-            finish(context, interim, callback);
+            finish(context, debug.append(interim), callback);
             return;
         }
         try {
@@ -253,17 +270,26 @@ public final class EasySetVisionAnalyzer {
                         // The original screen's headings remain the authority.
                         // No "assumed 1": if no actual numeric element is found,
                         // the displayed value stays "non lus".
-                        finish(context, EasySetValues.diagnose(base, supplement), callback);
+                        List<EasySetValues.Line> focusedCandidates =
+                                new ArrayList<>(supplement.subList(
+                                        rightCandidates.size(), supplement.size()));
+                        debug.readCrop(focusedCandidates);
+                        finish(context, debug.append(
+                                EasySetValues.diagnose(base, supplement)), callback);
                     })
-                    .addOnFailureListener(error -> finish(context, interim, callback))
+                    .addOnFailureListener(error -> {
+                        debug.cropError();
+                        finish(context, debug.append(interim), callback);
+                    })
                     .addOnCompleteListener(task -> {
                         recognizer.close();
                         focused.dispose();
                     });
         } catch (RuntimeException error) {
+            debug.cropError();
             recognizer.close();
             focused.dispose();
-            finish(context, interim, callback);
+            finish(context, debug.append(interim), callback);
         }
     }
 
