@@ -275,6 +275,18 @@ public class MainActivity extends ComponentActivity {
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
+        TextView easysetVisionHelp = new TextView(this);
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.23 : reconnaissance visuelle "
+                + "des libellés EasySet, sans autorisation d'accessibilité. "
+                + "Capture ponctuelle avec ton accord, ou importation d'une image. "
+                + "Aucune commande xTool.");
+        layout.addView(easysetVisionHelp);
+        Button easysetVision = new Button(this);
+        easysetVision.setText("Analyser EasySet visuellement (sans accessibilité)");
+        layout.addView(easysetVision);
+        easysetVision.setOnClickListener(v ->
+                startActivity(new Intent(this, EasySetVisionActivity.class)));
+
         Button compactMode = new Button(this);
         boolean compact = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean(COMPACT_LAUNCH, true);
