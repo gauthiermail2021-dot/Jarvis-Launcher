@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.24 One-touch EasySet - signed APK
+name: Build and test Jarvis Bridge 1.2.25 EasySet focus correction - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au prototype EasySet simplifié 1.2.24.
+  # Compilation d'essai limitée au prototype EasySet 1.2.25 avec fenêtre transparente.
   push:
-    branches: [experiment/easyset-one-touch-1.2.24]
+    branches: [experiment/easyset-focus-1.2.25]
     paths:
       - 'android/app/build.gradle'
 
@@ -73,6 +73,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.24-easyset-onetouch-signed
+          name: Jarvis-Bridge-1.2.25-easyset-focus-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
