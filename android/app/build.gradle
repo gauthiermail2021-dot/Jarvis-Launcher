@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 45
-        versionName '1.2.26'
-        // Jarvis 1.2.26: one consent per active session, read-only on-demand EasySet OCR.
+        versionCode 46
+        versionName '1.2.27'
+        // Jarvis 1.2.27: read-only EasySet numeric OCR with conservative label-to-value geometry.
         // Build verification trigger: read-only OCR with one consent per Jarvis session.
     }
 
