@@ -56,6 +56,7 @@ public final class EasySetSessionService extends Service {
     private boolean scanPending;
     private boolean analyzing;
     private boolean autoScan;
+    private boolean autoRecognizedEasySet;
     private long scanReadyAt;
     private int captureWidth;
     private int captureHeight;
@@ -113,19 +114,20 @@ public final class EasySetSessionService extends Service {
             cancelPendingAutoScan();
             beginScan(false);
         } else if (ACTION_XTOOL_FOREGROUND.equals(action)) {
-            // Existing drawing or project in xTool: one passive capture on
-            // foreground transition, independent of Gmail/SVG state.
-            // Ignore an incoming SVG session; its own callback schedules OCR.
-            if (XtoolSessionManager.isActive(this)) return START_NOT_STICKY;
-            cancelPendingAutoScan();
+            // One passive scan on an xTool UI transition. An existing drawing
+            // may coexist with an old XtoolSessionManager flag; do not reject.
+            // An incoming SVG already has its own pending OCR trigger.
+            if (autoRecognizedEasySet || autoScanTrigger != null
+                    || scanPending || analyzing) return START_NOT_STICKY;
             autoScanTrigger = () -> {
                 autoScanTrigger = null;
-                if (sessionActive && !closing && !XtoolSessionManager.isActive(this)) {
+                if (sessionActive && !closing && !autoRecognizedEasySet) {
                     beginScan(true);
                 }
             };
             handler.postDelayed(autoScanTrigger, 1500L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
+            autoRecognizedEasySet = false;
             cancelPendingAutoScan();
             // xTool needs time to render the newly opened SVG.
             // This is intentionally one read-only diagnostic, not a polling loop.
@@ -252,6 +254,13 @@ public final class EasySetSessionService extends Service {
         analyzing = false;
         autoScan = false;
         EasySetVisionAnalyzer.save(this, summary);
+        if (analyzed && summary != null
+                && (summary.startsWith("EasySet reconnu")
+                    || summary.startsWith("EasySet probable"))) {
+            // Stop re-scanning the same panel in this Jarvis session.
+            // An actual new SVG handoff re-arms the observer.
+            autoRecognizedEasySet = true;
+        }
         if (!closing && sessionActive) {
             // On the automatic path, a missing EasySet panel should not throw
             // a large error overlay over the freshly opened xTool drawing.
@@ -292,6 +301,7 @@ public final class EasySetSessionService extends Service {
         cancelScanTimeout();
         scanPending = false;
         analyzing = false;
+        autoRecognizedEasySet = false;
         detachReader();
         if (virtualDisplay != null) {
             virtualDisplay.release();
