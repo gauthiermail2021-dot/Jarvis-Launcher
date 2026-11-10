@@ -14,7 +14,7 @@ android {
         versionCode 47
         versionName '1.2.28'
         // Jarvis 1.2.28: read-only EasySet OCR using bounded slider-value zones.
-        // Build trigger: verify numeric OCR tests and signed read-only EasySet APK.
+        // Build verification: bounded xTool slider zones, read-only OCR tests and signed APK.
     }
 
     signingConfigs {
