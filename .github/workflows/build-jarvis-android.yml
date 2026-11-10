@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.27 EasySet numeric read-only OCR - signed APK
+name: Build and test Jarvis Bridge 1.2.28 EasySet bounded slider-value OCR - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au prototype EasySet 1.2.27 lecture numérique en lecture seule.
+  # Compilation d'essai limitée au prototype EasySet 1.2.28 lecture numérique par zones.
   push:
-    branches: [experiment/easyset-numeric-1.2.27]
+    branches: [experiment/easyset-zones-1.2.28]
     paths:
       - 'android/app/build.gradle'
 
@@ -73,6 +73,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.27-easyset-numeric-signed
+          name: Jarvis-Bridge-1.2.28-easyset-zones-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
