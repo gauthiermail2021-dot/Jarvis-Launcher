@@ -1,9 +1,9 @@
-name: Build and sign Jarvis 1.2.35 repeatable SVG test button candidate
+name: Build and sign Jarvis 1.2.35 repaired one-click SVG xTool handoff
 
 on:
   workflow_dispatch:
   push:
-    branches: [feature/repeatable-home-test-svg-1.2.35]
+    branches: [fix/test-svg-rearm-xtool-1.2.35]
     paths:
       - 'android/app/**'
       - 'android/settings.gradle'
