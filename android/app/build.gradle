@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 51
-        versionName '1.2.32'
-        // Jarvis 1.2.32: read-only numeric Tesseract fallback after ML Kit passes.
+        versionCode 52
+        versionName '1.2.33'
+        // Jarvis 1.2.33: automatically inspect already-open xTool screen on foreground.
         // Signed experimental release, must be verified on the Samsung.
     }
 
@@ -67,7 +67,7 @@ dependencies {
     implementation 'com.google.android.gms:play-services-auth:21.5.0'
     implementation 'androidx.activity:activity:1.9.3'
     implementation 'com.google.mlkit:text-recognition:16.0.1'
-    // Mode expérimental : OCR passif isolé, non branché sur EasySetVisionAnalyzer.
+    // OCR numérique hors ligne, branché sur EasySetVisionAnalyzer en secours après ML Kit.
     implementation 'cz.adaptech.tesseract4android:tesseract4android:4.9.0'
     testImplementation 'junit:junit:4.13.2'
 }
