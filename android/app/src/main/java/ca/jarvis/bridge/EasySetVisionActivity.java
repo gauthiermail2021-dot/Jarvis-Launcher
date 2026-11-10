@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.media.projection.MediaProjectionManager;
 import android.net.Uri;
 import android.os.Build;
@@ -46,12 +47,12 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.26 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.27 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
-        add(body, "Jarvis peut rechercher les libellés EasySet dans une capture, "
-                + "sans autorisation d'accessibilité. "
-                + "Les chiffres ne sont pas extraits : vérifie toujours les réglages dans xTool.",
+        add(body, "Lecture expérimentale des valeurs Puissance, Vitesse et Passages "
+                + "dans xTool. Les chiffres incertains restent « non lus ». "
+                + "Aucun paramètre n'est modifié. Vérifie toujours les valeurs dans xTool.",
                 15, 0xffe5eefa);
 
         Button capture = new Button(this);
@@ -179,11 +180,19 @@ public final class EasySetVisionActivity extends Activity {
                 var recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
                 recognizer.process(InputImage.fromFilePath(this, uri))
                         .addOnSuccessListener(vision -> {
-                            List<String> lines = new ArrayList<>();
-                            for (Text.TextBlock block : vision.getTextBlocks())
-                                for (Text.Line line : block.getLines())
-                                    lines.add(line.getText());
-                            String summary = EasySetLabels.diagnose(lines);
+                            List<EasySetValues.Line> lines = new ArrayList<>();
+                            for (Text.TextBlock block : vision.getTextBlocks()) {
+                                for (Text.Line line : block.getLines()) {
+                                    Rect rect = line.getBoundingBox();
+                                    if (rect != null) {
+                                        lines.add(new EasySetValues.Line(line.getText(),
+                                                rect.left, rect.top, rect.right, rect.bottom));
+                                    } else {
+                                        lines.add(new EasySetValues.Line(line.getText(), 0, 0, 0, 0));
+                                    }
+                                }
+                            }
+                            String summary = EasySetValues.diagnose(lines);
                             EasySetVisionAnalyzer.save(this, summary);
                             result.setText(summary);
                             Toast.makeText(this, "Analyse terminée : résultat affiché",
