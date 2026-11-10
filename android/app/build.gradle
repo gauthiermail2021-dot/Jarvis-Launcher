@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 47
-        versionName '1.2.28'
-        // Jarvis 1.2.28: read-only EasySet OCR using bounded slider-value zones.
+        versionCode 48
+        versionName '1.2.29'
+        // Jarvis 1.2.29: read-only ML Kit OCR elements and enlarged right-column fallback.
         // Build verification: bounded xTool slider zones, read-only OCR tests and signed APK.
     }
 
