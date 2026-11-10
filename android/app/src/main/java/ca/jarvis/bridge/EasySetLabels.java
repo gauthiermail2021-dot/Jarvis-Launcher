@@ -4,30 +4,46 @@ import java.text.Normalizer;
 import java.util.Collection;
 import java.util.Locale;
 
-/** Pure, testable classifier: ignores recognized values and unrelated screen text. */
+/**
+ * Cautious, offline classifier for single screenshots.
+ * Does not retain text, numeric parameters or the screen image.
+ */
 public final class EasySetLabels {
     private EasySetLabels() { }
 
     public static String diagnose(Collection<String> recognizedLines) {
+        if (recognizedLines == null || recognizedLines.isEmpty())
+            return "Écran illisible : aucun libellé reconnu. Réessaie dans xTool.";
         boolean heading = false, power = false, speed = false, passes = false;
-        if (recognizedLines == null) return "Aucune donnée lisible.";
+        boolean jarvisScreen = false;
         for (String line : recognizedLines) {
             String word = normalize(line);
+            if (word.isEmpty()) continue;
+            // Reject the Jarvis diagnostic UI. "EasySet" in our own heading
+            // is never sufficient evidence that xTool was captured.
+            if (word.contains("analyse visuelle")
+                    || word.contains("analyser easyset")
+                    || word.contains("afficher le dernier resultat")
+                    || word.contains("jarvis 1 2 24")
+                    || word.contains("jarvis 1 2 23")) jarvisScreen = true;
             if (word.contains("easyset")) heading = true;
             if (word.contains("puissance") || word.contains("power")) power = true;
             if (word.contains("vitesse") || word.contains("speed")) speed = true;
             if (word.contains("passer") || word.contains("passage")
                     || word.contains("passes") || word.contains("pass count")) passes = true;
         }
-        // Ignore random screens unless EasySet or multiple expected labels are found.
-        int n = (power ? 1 : 0) + (speed ? 1 : 0) + (passes ? 1 : 0);
-        if (!heading && n < 2)
-            return "Volet EasySet non reconnu. Affiche les paramètres xTool et réessaie.";
-        return "EasySet " + (heading ? "reconnu" : "probable") + ". "
-                + "Puissance : " + (power ? "repérée" : "non repérée")
-                + " ; Vitesse : " + (speed ? "repérée" : "non repérée")
-                + " ; Passages : " + (passes ? "repérés" : "non repérés")
-                + ". Aucun chiffre ni réglage n'est enregistré ou modifié.";
+        if (jarvisScreen)
+            return "Capture de Jarvis, pas de xTool. Rouvre EasySet dans xTool "
+                    + "et lance le diagnostic depuis la bulle.";
+        int count = (power ? 1 : 0) + (speed ? 1 : 0) + (passes ? 1 : 0);
+        if (count < 2)
+            return "Paramètres EasySet non reconnus. Ouvre vraiment le volet "
+                    + "Puissance / Vitesse / Passer dans xTool, puis réessaie.";
+        return "EasySet " + (heading ? "reconnu" : "probable")
+                + " — Puissance : " + (power ? "oui" : "non")
+                + " ; Vitesse : " + (speed ? "oui" : "non")
+                + " ; Passages : " + (passes ? "oui" : "non")
+                + ". Lecture seule : contrôle les valeurs dans xTool.";
     }
 
     static String normalize(String value) {
