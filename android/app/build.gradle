@@ -14,7 +14,7 @@ android {
         versionCode 49
         versionName '1.2.30'
         // Jarvis 1.2.30: read-only targeted Passer-row magnification after existing OCR stages.
-        // Build trigger: target tiny Passer digit with a localized read-only OCR fallback.
+        // Rebuild after validating focused Passer-heading matching in JVM tests.
     }
 
     signingConfigs {
