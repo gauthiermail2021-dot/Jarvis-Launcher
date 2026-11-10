@@ -19,10 +19,8 @@ import android.view.accessibility.AccessibilityEvent;
  */
 public final class ChatGptBubbleAccessibilityService extends AccessibilityService {
     private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
-    private static final String XTOOL_XCS_PACKAGE = "com.makeblock.xcs";
-    private static final long XTOOL_WINDOW_COOLDOWN_MS = 15_000L;
     private long lastOpenRequestMillis;
-    private long lastXtoolScanRequestMillis;
+    private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -34,7 +32,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         CharSequence pkg = event.getPackageName();
         if (CHATGPT_PACKAGE.contentEquals(pkg)) {
             openChatGptBubbleIfNeeded();
-        } else if (XTOOL_XCS_PACKAGE.contentEquals(pkg)) {
+        } else if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
             inspectExistingXtoolDrawing();
         }
     }
@@ -55,13 +53,14 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     }
 
     private void inspectExistingXtoolDrawing() {
-        if (!Settings.canDrawOverlays(this) || !JarvisBubbleService.isBubbleActive()
-                || !EasySetSessionService.isActive()) return;
-
         // The capture service de-duplicates an existing SVG-triggered scan
         // and accepts xTool projects that were already open.
         long now = SystemClock.elapsedRealtime();
-        if (now - lastXtoolScanRequestMillis < XTOOL_WINDOW_COOLDOWN_MS) return;
+        if (!EasySetForegroundScanPolicy.shouldRequest(
+                EasySetForegroundScanPolicy.XCS_PACKAGE,
+                EasySetSessionService.isActive(),
+                JarvisBubbleService.isBubbleActive() && Settings.canDrawOverlays(this),
+                now, lastXtoolScanRequestMillis)) return;
         lastXtoolScanRequestMillis = now;
 
         // No screenshot is taken here. The projection service waits briefly
