@@ -276,10 +276,11 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.24 : depuis xTool avec EasySet ouvert, "
-                + "maintenir la bulle 1 seconde et choisir « Analyser EasySet maintenant ». "
-                + "Après ton autorisation Android, le résultat apparaît au-dessus de xTool. "
-                + "Sans accès d'accessibilité ni commande laser.");
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.26 : au lancement de la bulle "
+                + "Jarvis, autorise une seule session de capture Android. Après l'ouverture "
+                + "d'un SVG dans xTool, une analyse de lecture seule est tentée automatiquement. "
+                + "Une nouvelle analyse est possible depuis la bulle sans autre autorisation. "
+                + "Le partage s'arrête lorsque la bulle est fermée ou sur commande.");
         layout.addView(easysetVisionHelp);
         Button easysetVision = new Button(this);
         easysetVision.setText("Analyser EasySet visuellement (sans accessibilité)");
@@ -1130,6 +1131,10 @@ public class MainActivity extends ComponentActivity {
         XtoolSessionManager.begin(this);
         GMAIL_RECHECK_REQUESTED.set(false);
         JarvisBubbleService.onSvgOpenRequested(true);
+        // One automatic read-only EasySet inspection after the SVG handoff.
+        // If the EasySet panel is not shown yet, the user may rescan from the
+        // Jarvis bubble without granting a second MediaProjection permission.
+        EasySetSessionService.requestScan(this, true);
         setStatus("xTool en cours : session protégée (" + route
                 + "). Appui long sur la bulle pour terminer.");
     }
