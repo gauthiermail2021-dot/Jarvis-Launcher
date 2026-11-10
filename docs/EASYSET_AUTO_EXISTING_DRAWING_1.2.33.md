@@ -47,3 +47,21 @@ Dans Jarvis 1.2.32, la lecture des trois valeurs fonctionne sur le Samsung (Puis
 - `main` du dépôt officiel est volontairement conservée sur Jarvis 1.2.31 ; la 1.2.33 est un **candidat de test** issu de la version signée 1.2.32.
 - Cette compilation ne prouve pas encore la réception des événements d'accessibilité par l'application xTool installée sur le Samsung. Validation nécessaire avec volet EasySet déjà visible et partage d'écran actif.
 
+
+## Retour de test Samsung — lecture puissance 1 %
+
+Capture transmise par l'utilisateur avec la mention « 1.2.33 » :
+
+| Champ xTool | Affichage xTool | Résultat Jarvis |
+| --- | --- | --- |
+| Puissance (%) | **1** | **non lue** |
+| Vitesse (mm/s) | **20** | **20 mm/s** |
+| Passer | **1** | **1** via Tesseract, **95 %** de confiance OCR affichée |
+
+Le panneau « Résultat EasySet » indique le libellé « Passer » repéré, trois étapes ML Kit sans petit caractère détecté à droite, puis « OCR chiffre seul — Passer : 1 (Tesseract, confiance 95 %, indicatif) ». Ce résultat **ne prouve pas** que le nouveau déclencheur automatique 1.2.33 a été utilisé : la capture pourrait aussi provenir d'un scan manuel. Cela reste à vérifier.
+
+**Défaut OCR confirmé** : `EasySetVisionAnalyzer` n'appelle actuellement Tesseract qu'en secours pour le champ **Passages**. Il n'y a pas de fallback équivalent pour la **Puissance**, si bien que le chiffre isolé `1` de Puissance peut rester « non lue » alors que `Passer : 1` est correctement interprété.
+
+**Correction proposée, non encore réalisée** : créer un recadrage numérique spécifique pour Puissance basé sur son libellé et la rangée du curseur, puis secours OCR Tesseract seulement si `Puissance : non lue`; ne pas inférer la valeur du curseur et ne modifier aucun réglage xTool. Tester 1 %, 69 %, 100 % et absence de valeur, et garder le champ « non lue » en cas d'ambiguïté. Éviter de casser la lecture du nombre de passages déjà validée.
+
+**Statut** : échec de lecture puissance confirmé ; statut du déclenchement automatique 1.2.33 non déterminé par l'image seule.
