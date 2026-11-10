@@ -32,10 +32,10 @@ public final class EasySetPassesTesseract {
     private EasySetPassesTesseract() { }
 
     private static final int SCALE = 6;
-    private static final int PAD = 36;
+    private static final int PAD = 72; // 12 original pixels at 6x zoom
     private static final int MAX_WIDTH = 1024;
     private static final int MAX_HEIGHT = 512;
-    private static final int MIN_CONFIDENCE = 45;
+    private static final int MIN_CONFIDENCE = 50;
 
     public static final class Result {
         /** Valeur indicative uniquement, null si absente / ambiguë. */
@@ -100,28 +100,41 @@ public final class EasySetPassesTesseract {
                 throw new IOException("Tesseract : modèle eng non initialisé");
             }
             api.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "0123456789");
-            api.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_CHAR);
-            int threshold = otsuThreshold(cropped);
-            // Examiner les deux polarités (thème clair et thème sombre).
-            for (boolean whiteText : new boolean[]{false, true}) {
-                Bitmap prepared = prepare(cropped, threshold, whiteText);
+            api.setPageSegMode(TessBaseAPI.PageSegMode.PSM_SINGLE_WORD);
+            // xTool may draw a 1 as a thin stroke with NO lower serif.
+            // Tesseract single-character PSM10 often discards that glyph.
+            // PSM8 (single word) on the *isolated ink* was verified locally
+            // on the supplied EasySet screenshot; Android remains unverified.
+            int background = (Color.red(cropped.getPixel(0, 0))
+                    + Color.green(cropped.getPixel(0, 0))
+                    + Color.blue(cropped.getPixel(0, 0))) / 3;
+            boolean whiteText = background < 128;
+            for (int threshold : new int[]{120, 165}) {
+                Rect inkBounds = findInkBounds(cropped, threshold, whiteText);
+                if (inkBounds == null) continue;
+                Bitmap ink = Bitmap.createBitmap(cropped, inkBounds.left, inkBounds.top,
+                        inkBounds.width(), inkBounds.height());
                 try {
-                    api.setImage(prepared);
-                    String raw = api.getUTF8Text();
-                    int confidence = api.meanConfidence();
-                    String normalized = raw == null ? "" : raw.trim().replaceAll("\\s+", "");
-                    Integer value = null;
-                    if (normalized.matches("[0-9]{1,2}")) {
-                        int number = Integer.parseInt(normalized);
-                        if (number >= 1 && number <= 99 && confidence >= MIN_CONFIDENCE) {
-                            value = number;
+                    Bitmap prepared = prepare(ink, threshold, whiteText);
+                    try {
+                        api.setImage(prepared);
+                        String raw = api.getUTF8Text();
+                        int confidence = api.meanConfidence();
+                        String normalized = raw == null ? "" : raw.trim().replaceAll("\\s+", "");
+                        Integer value = null;
+                        if (normalized.matches("[0-9]{1,2}")) {
+                            int number = Integer.parseInt(normalized);
+                            if (number >= 1 && number <= 99
+                                    && confidence >= MIN_CONFIDENCE) value = number;
                         }
+                        candidates.add(new Candidate(value, confidence, normalized, prepared));
+                        api.clear();
+                    } catch (RuntimeException e) {
+                        prepared.recycle();
+                        throw e;
                     }
-                    candidates.add(new Candidate(value, confidence, normalized, prepared));
-                    api.clear();
-                } catch (RuntimeException e) {
-                    prepared.recycle();
-                    throw e;
+                } finally {
+                    ink.recycle();
                 }
             }
         } finally {
@@ -155,6 +168,37 @@ public final class EasySetPassesTesseract {
                 String.format(Locale.CANADA_FRENCH,
                         "Passer : %d (Tesseract, confiance %d %%, indicatif)",
                         best.value, best.confidence), preview);
+    }
+
+    /**
+     * Exclude xTool's light-gray spinner arrow and white margins. A single
+     * narrow digit must be kept, not discarded as OCR noise.
+     */
+    private static Rect findInkBounds(Bitmap source, int threshold, boolean whiteText) {
+        int w = source.getWidth(), h = source.getHeight();
+        int[] pixels = new int[w * h];
+        source.getPixels(pixels, 0, w, 0, 0, w, h);
+        int left = w, top = h, right = -1, bottom = -1, count = 0;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = pixels[y * w + x];
+                int lum = (299 * Color.red(rgb) + 587 * Color.green(rgb)
+                        + 114 * Color.blue(rgb)) / 1000;
+                boolean ink = whiteText ? lum >= 255 - threshold : lum <= threshold;
+                if (!ink) continue;
+                count++;
+                if (x < left) left = x;
+                if (x > right) right = x;
+                if (y < top) top = y;
+                if (y > bottom) bottom = y;
+            }
+        }
+        if (count < 12 || right - left + 1 < 2 || bottom - top + 1 < 8)
+            return null;
+        // An entire dark or white rectangle means no isolated character.
+        if ((right - left + 1) >= w * 0.94f
+                && (bottom - top + 1) >= h * 0.94f) return null;
+        return new Rect(left, top, right + 1, bottom + 1);
     }
 
     private static Bitmap prepare(Bitmap source, int threshold, boolean lightCharacters) {
