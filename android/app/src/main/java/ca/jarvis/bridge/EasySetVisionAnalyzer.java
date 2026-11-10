@@ -94,15 +94,22 @@ public final class EasySetVisionAnalyzer {
                                         String baseline, Callback callback) {
         Bitmap enlarged = null;
         TextRecognizer recognizer = null;
+        FocusedPasses focused = null;
         try {
-            // The xTool controls put all editable numbers in the far right
-            // of the screen. Re-reading only this area at higher resolution
-            // improves small-font OCR without including chat or canvas data.
+            // Build a third-pass crop NOW, before the first recognizer's
+            // completion listener recycles the source screen bitmap.
+            // It is used only if the enlarged right-column OCR still fails.
+            if (baseline.contains("Passages : non lus")) {
+                focused = prepareFocusedPasses(original, base);
+            }
+
+            // Existing 1.2.29 workflow: read the right column at larger size.
             int left = Math.round(original.getWidth() * 0.56f);
             int width = original.getWidth() - left;
             int height = original.getHeight();
             if (width < 48 || height < 48) {
-                finish(context, baseline, callback);
+                readPassesIfMissing(context, base, new ArrayList<>(),
+                        baseline, focused, callback);
                 return;
             }
             Bitmap cropped = Bitmap.createBitmap(original, left, 0, width, height);
@@ -111,26 +118,32 @@ public final class EasySetVisionAnalyzer {
                     Math.max(1, Math.round(width * scale)),
                     Math.max(1, Math.round(height * scale)), true);
             if (enlarged != cropped) cropped.recycle();
+
             recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
             final TextRecognizer detail = recognizer;
             final Bitmap enlargedImage = enlarged;
+            final FocusedPasses passesCrop = focused;
             final float resizeFactor = scale;
             final int offsetX = left;
             detail.process(InputImage.fromBitmap(enlargedImage, 0))
                     .addOnSuccessListener(vision -> {
-                        List<EasySetValues.Line> mapped = new ArrayList<>();
+                        List<EasySetValues.Line> rightCandidates = new ArrayList<>();
                         for (EasySetValues.Line line : EasySetTextExtractor.extract(vision)) {
                             if (line.right <= line.left || line.bottom <= line.top)
                                 continue;
-                            mapped.add(new EasySetValues.Line(line.text,
+                            rightCandidates.add(new EasySetValues.Line(line.text,
                                     offsetX + Math.round(line.left / resizeFactor),
                                     Math.round(line.top / resizeFactor),
                                     offsetX + Math.round(line.right / resizeFactor),
                                     Math.round(line.bottom / resizeFactor)));
                         }
-                        finish(context, EasySetValues.diagnose(base, mapped), callback);
+                        String interim = EasySetValues.diagnose(base, rightCandidates);
+                        readPassesIfMissing(context, base, rightCandidates, interim,
+                                passesCrop, callback);
                     })
-                    .addOnFailureListener(error -> finish(context, baseline, callback))
+                    .addOnFailureListener(error -> readPassesIfMissing(
+                            context, base, new ArrayList<>(), baseline,
+                            passesCrop, callback))
                     .addOnCompleteListener(task -> {
                         detail.close();
                         if (!enlargedImage.isRecycled()) enlargedImage.recycle();
@@ -138,9 +151,119 @@ public final class EasySetVisionAnalyzer {
         } catch (RuntimeException error) {
             if (recognizer != null) recognizer.close();
             if (enlarged != null && !enlarged.isRecycled()) enlarged.recycle();
-            // Enhanced OCR is a best-effort fallback. The baseline is still
-            // useful and must not be replaced by a fabricated numeric value.
-            finish(context, baseline, callback);
+            readPassesIfMissing(context, base, new ArrayList<>(),
+                    baseline, focused, callback);
+        }
+    }
+
+    /**
+     * A targeted OCR pass for the single digit beside "Passer" only.
+     * It uses an enlarged, contrast-boosted Passer ROW, including its
+     * field label for textual context, and does not require new permission.
+     */
+    private static FocusedPasses prepareFocusedPasses(Bitmap source,
+                                                       List<EasySetValues.Line> base) {
+        EasySetPassesRegion region = EasySetPassesRegion.find(
+                base, source.getWidth(), source.getHeight());
+        if (region == null) return null;
+        Bitmap slice = null;
+        Bitmap resized = null;
+        try {
+            slice = Bitmap.createBitmap(source,
+                    region.left, region.top, region.width(), region.height());
+            float factor = Math.min(3.5f, 2900f / region.width());
+            factor = Math.max(1f, factor);
+            resized = Bitmap.createScaledBitmap(slice,
+                    Math.round(slice.getWidth() * factor),
+                    Math.round(slice.getHeight() * factor), true);
+            if (resized != slice) slice.recycle();
+            slice = null;
+
+            // Brightens light-gray UI elements while retaining black digit strokes.
+            android.graphics.ColorMatrix adjust = new android.graphics.ColorMatrix(
+                    new float[] {
+                            1.35f,0,0,0,-32f,
+                            0,1.35f,0,0,-32f,
+                            0,0,1.35f,0,-32f,
+                            0,0,0,1,0
+                    });
+            Bitmap enhanced = Bitmap.createBitmap(
+                    resized.getWidth(), resized.getHeight(), Bitmap.Config.ARGB_8888);
+            android.graphics.Paint paint = new android.graphics.Paint(
+                    android.graphics.Paint.ANTI_ALIAS_FLAG
+                            | android.graphics.Paint.FILTER_BITMAP_FLAG);
+            paint.setColorFilter(new android.graphics.ColorMatrixColorFilter(adjust));
+            new android.graphics.Canvas(enhanced).drawBitmap(resized, 0, 0, paint);
+            resized.recycle();
+            return new FocusedPasses(enhanced, region, factor);
+        } catch (RuntimeException ignored) {
+            if (slice != null && !slice.isRecycled()) slice.recycle();
+            if (resized != null && !resized.isRecycled()) resized.recycle();
+            return null;
+        }
+    }
+
+    private static final class FocusedPasses {
+        final Bitmap image;
+        final EasySetPassesRegion region;
+        final float scale;
+
+        FocusedPasses(Bitmap image, EasySetPassesRegion region, float scale) {
+            this.image = image;
+            this.region = region;
+            this.scale = scale;
+        }
+
+        void dispose() {
+            if (!image.isRecycled()) image.recycle();
+        }
+    }
+
+    private static void readPassesIfMissing(
+            Context context, List<EasySetValues.Line> base,
+            List<EasySetValues.Line> rightCandidates, String interim,
+            FocusedPasses focused, Callback callback) {
+        if (focused == null || !interim.startsWith("EasySet ")
+                || !interim.contains("Passages : non lus")) {
+            if (focused != null) focused.dispose();
+            finish(context, interim, callback);
+            return;
+        }
+        TextRecognizer recognizer;
+        try {
+            recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        } catch (RuntimeException problem) {
+            focused.dispose();
+            finish(context, interim, callback);
+            return;
+        }
+        try {
+            recognizer.process(InputImage.fromBitmap(focused.image, 0))
+                    .addOnSuccessListener(vision -> {
+                        List<EasySetValues.Line> supplement = new ArrayList<>(rightCandidates);
+                        for (EasySetValues.Line line : EasySetTextExtractor.extract(vision)) {
+                            if (line.right <= line.left || line.bottom <= line.top)
+                                continue;
+                            supplement.add(new EasySetValues.Line(line.text,
+                                    focused.region.left + Math.round(line.left / focused.scale),
+                                    focused.region.top + Math.round(line.top / focused.scale),
+                                    focused.region.left + Math.round(line.right / focused.scale),
+                                    focused.region.top + Math.round(line.bottom / focused.scale)));
+                        }
+                        // The original screen's headings remain the authority.
+                        // No "assumed 1": if no actual numeric element is found,
+                        // the displayed value stays "non lus".
+                        finish(context, EasySetValues.diagnose(base, supplement), callback);
+                    })
+                    .addOnFailureListener(error -> finish(context, interim, callback))
+                    .addOnCompleteListener(task -> {
+                        recognizer.close();
+                        focused.dispose();
+                    });
+        } catch (RuntimeException error) {
+            recognizer.close();
+            focused.dispose();
+            finish(context, interim, callback);
         }
     }
 
