@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
  */
 final class EasySetPassesRegion {
     private static final Pattern PASSES = Pattern.compile(
-            "(?iu)^\s*(?:passer|passage|passages|passes|pass count)\b");
+            "(?iu)^\\s*(?:passer|passage|passages|passes|pass count)\\b");
     final int left, top, right, bottom;
 
     private EasySetPassesRegion(int left, int top, int right, int bottom) {
