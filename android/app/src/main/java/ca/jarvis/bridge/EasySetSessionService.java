@@ -76,7 +76,9 @@ public final class EasySetSessionService extends Service {
     static void requestStop(Context context) {
         Intent intent = new Intent(context, EasySetSessionService.class);
         intent.setAction(ACTION_STOP);
-        try { context.startService(intent); }
+        // Stopping a service is allowed even when Android blocks background starts.
+        // The service's onDestroy() closes MediaProjection and clears its Surface.
+        try { context.stopService(intent); }
         catch (RuntimeException ignored) { }
     }
 
@@ -201,6 +203,9 @@ public final class EasySetSessionService extends Service {
             padded.copyPixelsFromBuffer(buffer);
             Bitmap bitmap = Bitmap.createBitmap(padded, 0, 0, width, height);
             if (bitmap != padded) padded.recycle();
+            // Release the acquired frame before closing the ImageReader.
+            image.close();
+            image = null;
             detachReader();
             EasySetVisionAnalyzer.analyze(this, bitmap, summary ->
                     finishScan(summary, true));
