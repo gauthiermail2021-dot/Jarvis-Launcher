@@ -46,7 +46,7 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.25 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.26 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
         add(body, "Jarvis peut rechercher les libellés EasySet dans une capture, "
@@ -57,10 +57,26 @@ public final class EasySetVisionActivity extends Activity {
         Button capture = new Button(this);
         capture.setText("1 • ANALYSER EASYSET À L'ÉCRAN");
         body.addView(capture);
-        capture.setOnClickListener(v -> requestCapture());
-        add(body, "Pour éviter cette grande fenêtre : affiche EasySet dans xTool "
-                + "et lance « Analyser EasySet maintenant » depuis le menu de "
-                + "la bulle Jarvis. Seule l'autorisation Android apparaîtra.",
+        capture.setOnClickListener(v -> {
+            if (EasySetSessionService.isActive()) {
+                EasySetSessionService.requestScan(this, false);
+                result.setText("Analyse demandée. Consulte la bulle sur xTool.");
+                moveTaskToBack(true);
+            } else {
+                Intent consent = new Intent(this, EasySetConsentActivity.class);
+                consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                        | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                        | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                startActivity(consent);
+                result.setText("Autorise une seule session Android. Reviens sur xTool "
+                        + "et demande l'analyse depuis la bulle.");
+            }
+        });
+        add(body, "La bulle demande l'autorisation de capture au lancement "
+                + "de Jarvis. Le partage reste actif jusqu'à sa fermeture et ne "
+                + "lit les images qu'après ouverture d'un SVG xTool ou une "
+                + "analyse demandée. Pas de contrôle de machine.",
                 13, 0xffb8c9d4);
 
         Button importButton = new Button(this);
