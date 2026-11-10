@@ -1,23 +1,24 @@
-# Jarvis Bridge 1.2.28 — lecture numérique EasySet par zones
+# Jarvis Bridge 1.2.29 — Lecture des éléments OCR EasySet
 
-Branche expérimentale indépendante créée depuis 1.2.27. La version stable 1.2.21 et l'ouverture Gmail → SVG → xTool ne sont pas modifiées.
+Cette version expérimentale dérive de 1.2.28. La version stable Jarvis 1.2.21 n'est pas modifiée, ni le transfert Gmail → SVG → xTool.
 
-## Correction 1.2.28
+## Ce qui a changé depuis 1.2.28
 
-Dans xTool Android, le libellé « Vitesse (mm/s) » est placé plus haut que sa valeur, tandis que « Passer » et son nombre peuvent être alignés. La version 1.2.27 exigeait souvent une valeur sur la même ligne OCR, d'où « non lue » malgré les chiffres visibles.
+La reconnaissance numérique précédente a lu **Puissance 59 %**, mais pas **Vitesse 114 mm/s** ni **Passer 1** sur la capture xTool du Samsung.
 
-Jarvis associe maintenant les nombres **situés à droite et à l'intérieur de la zone verticale du paramètre**. Une zone se termine au libellé de paramètre suivant ; elle est aussi limitée par la hauteur du libellé pour ne pas englober tout l'écran. Les petits chevrons de navigation à droite des chiffres sont tolérés.
+1. Le programme transmet au lecteur non seulement les lignes de texte ML Kit, mais également chaque petit **Element** reconnu individuellement, avec sa position à l'écran. Une ligne polluée par un petit chevron peut ainsi contenir un élément numérique utilisable.
+2. Si un ou plusieurs paramètres restent « non lus », une **seconde analyse OCR du tiers droit élargi de la même image** agrandit les petits chiffres jusqu'à 2×. Aucun nouveau partage d'écran n'est demandé.
+3. Les éléments de la seconde lecture sont repositionnés aux coordonnées de l'image originale et sont acceptés **seulement s'ils restent dans la bonne zone EasySet**.
+4. Les valeurs reconnues au premier passage conservent la priorité. Les lectures contradictoires ou non associables restent **« non lue »**, pas des valeurs inventées.
+5. Les pixels, les textes bruts et les valeurs numériques ne sont pas persistés. Ils ne servent qu'au diagnostic temporaire à l'écran.
 
-Chaque valeur doit être cohérente avec le champ : puissance 0–100 %, vitesse positive et passages entiers. En cas de chiffres contradictoires, la valeur reste **« non lue »**. La lecture des valeurs reste indicative, sans enregistrement durable des nombres.
+## Tester sur Samsung
 
-## Essai sur Samsung
+1. Installer l'APK signé 1.2.29 par-dessus Jarvis.
+2. Afficher dans xTool le volet EasySet avec **Puissance, Vitesse et Passer** ouverts et les trois valeurs bien visibles.
+3. Dans la bulle Jarvis, maintenir une seconde et choisir **« Analyser EasySet maintenant »**. La session de capture Android existante est réutilisée lorsqu'elle est active.
+4. Comparer le résultat aux valeurs effectivement visibles dans xTool. En cas de doute, conserver une capture du résultat.
 
-1. Installer l'APK 1.2.28 signé dans la continuité de Jarvis 1.2.27.
-2. Ouvrir xTool et afficher le volet EasySet, **avec les trois valeurs numériques visibles**.
-3. Faire un appui long sur la bulle Jarvis → « Analyser EasySet maintenant » ; réutilisation du consentement de capture Android si la session demeure active.
-4. Comparer la fenêtre de résultat à ce qui est réellement affiché dans xTool. Une valeur non lue ne doit pas être inventée.
-5. Aucun changement de réglage n'est effectué et aucun démarrage laser n'est possible depuis ce diagnostic.
+## Sécurité
 
-## Vérifications automatiques
-
-La suite de tests JVM contient des cas reproduisant la disposition observée dans xTool (curseurs et valeurs plus bas que les libellés), les chevrons, le masquage des valeurs hors-zone et les conflits. La compilation GitHub Actions exécute les tests, signe l'APK et vérifie la signature. Les tests ne remplacent pas la vérification sur le Samsung.
+Aucune modification de puissance, vitesse, passages ni commande de démarrage laser. La reconnaissance des nombres est expérimentale et doit être confirmée visuellement avant toute fabrication. La session MediaProjection reste révocable depuis la bulle et la notification Android.
