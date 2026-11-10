@@ -36,3 +36,14 @@ Dans Jarvis 1.2.32, la lecture des trois valeurs fonctionne sur le Samsung (Puis
 3. Laisser un dessin existant affiché dans xTool **avec EasySet visible**. Revenir à ChatGPT, puis réafficher xTool.
 4. Vérifier que le résultat EasySet s'affiche automatiquement, sans appui long, avec les trois valeurs.
 5. Refaire une vérification du circuit Gmail → SVG → xTool ; ne pas utiliser la fonction de découpe.
+
+## Compilation et livraison du candidat (10 novembre 2026)
+
+- Version Android : **1.2.33**, `versionCode 52`, package `ca.jarvis.bridge`.
+- Source exacte de compilation signée : commit `17094c697cc27de00f11e80434b318823010a53e`, snapshot `snapshot/jarvis-1.2.33-signed-2026-11-10`.
+- [Compilation GitHub Actions #42816171156](https://github.com/gauthiermail2021-dot/Jarvis-Launcher/actions/runs/42816171156) : succès, tests JVM et vérification APK.
+- Artefact GitHub : `Jarvis-Bridge-1.2.33-existing-xtool-signed` (ID 13764243658).
+- Copie APK distribuée dans cette conversation : `Jarvis_1_2_33.apk`, SHA-256 `53ecc7c6b1c8df0dc6beb34d542a3b10d16b6ea591ed2f68fdcf59d4534fc34d`.
+- `main` du dépôt officiel est volontairement conservée sur Jarvis 1.2.31 ; la 1.2.33 est un **candidat de test** issu de la version signée 1.2.32.
+- Cette compilation ne prouve pas encore la réception des événements d'accessibilité par l'application xTool installée sur le Samsung. Validation nécessaire avec volet EasySet déjà visible et partage d'écran actif.
+
