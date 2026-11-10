@@ -99,12 +99,28 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
         if (state == null) beginSend();
     }
 
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        // Tapping the same home-screen icon a second time reuses this
+        // singleTop Activity. Every deliberate new tap starts the next test.
+        beginSend();
+    }
+
     private void beginSend() {
         if (locallyStarted || !IN_FLIGHT.compareAndSet(false, true)) {
             status.setText("Un envoi Jarvis est déjà en cours.");
             return;
         }
         locallyStarted = true;
+        long previousSendAt = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getLong("last_sent_at", 0L);
+        long now = System.currentTimeMillis();
+        if (previousSendAt > 0L && now - previousSendAt >= 0L
+                && now - previousSendAt < 5000L) {
+            finishSend("Un test vient d'être envoyé. Réessaie après quelques secondes.");
+            return;
+        }
         long next = nextNumber();
         status.setText("Préparation de " + JarvisRepeatableTestSvg.filename(next)
                 + "\nConnexion Gmail…");
@@ -174,7 +190,9 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
                 // Persist immediately after confirmed send: a later label error
                 // must not reuse the same name and falsely promise "same click".
                 getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-                        .putLong(LAST_SENT, number).commit();
+                        .putLong(LAST_SENT, number)
+                        .putLong("last_sent_at", System.currentTimeMillis())
+                        .commit();
 
                 post(API + "/messages/" + id + "/modify", token,
                         new JSONObject().put("addLabelIds",
