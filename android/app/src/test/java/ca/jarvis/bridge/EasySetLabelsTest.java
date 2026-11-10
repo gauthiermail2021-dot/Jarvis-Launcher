@@ -28,6 +28,12 @@ public class EasySetLabelsTest {
         assertTrue(!result.contains("EasySet reconnu"));
     }
 
+    @Test public void rejectsJarvis125WindowDespiteLabels() {
+        String result = EasySetLabels.diagnose(Arrays.asList(
+                "JARVIS 1.2.25 • EASYSET", "Puissance", "Vitesse", "Passages"));
+        assertTrue(result.contains("Capture de Jarvis"));
+    }
+
     @Test public void rejectsEasySetHeadingWithoutParameters() {
         assertTrue(EasySetLabels.diagnose(Arrays.asList("Volet EasySet", "Paramètres"))
                 .contains("non reconnus"));
