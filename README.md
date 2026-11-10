@@ -1,24 +1,29 @@
-# Jarvis Bridge 1.2.29 — Lecture des éléments OCR EasySet
+# Jarvis Bridge 1.2.30 — Lecture du nombre de passages dans EasySet
 
-Cette version expérimentale dérive de 1.2.28. La version stable Jarvis 1.2.21 n'est pas modifiée, ni le transfert Gmail → SVG → xTool.
+Version expérimentale distincte. La version stable 1.2.21 et les fonctions Gmail → SVG → xTool, bulle Jarvis, capture autorisée restent inchangées.
 
-## Ce qui a changé depuis 1.2.28
+## Problème reproduit
 
-La reconnaissance numérique précédente a lu **Puissance 59 %**, mais pas **Vitesse 114 mm/s** ni **Passer 1** sur la capture xTool du Samsung.
+Sur la capture xTool fournie, Jarvis 1.2.29 a correctement lu **Puissance 63 %** et **Vitesse 134 mm/s**, mais pas la valeur de **Passer : 1**. Le petit chiffre est à l'extrémité droite, collé à un chevron.
 
-1. Le programme transmet au lecteur non seulement les lignes de texte ML Kit, mais également chaque petit **Element** reconnu individuellement, avec sa position à l'écran. Une ligne polluée par un petit chevron peut ainsi contenir un élément numérique utilisable.
-2. Si un ou plusieurs paramètres restent « non lus », une **seconde analyse OCR du tiers droit élargi de la même image** agrandit les petits chiffres jusqu'à 2×. Aucun nouveau partage d'écran n'est demandé.
-3. Les éléments de la seconde lecture sont repositionnés aux coordonnées de l'image originale et sont acceptés **seulement s'ils restent dans la bonne zone EasySet**.
-4. Les valeurs reconnues au premier passage conservent la priorité. Les lectures contradictoires ou non associables restent **« non lue »**, pas des valeurs inventées.
-5. Les pixels, les textes bruts et les valeurs numériques ne sont pas persistés. Ils ne servent qu'au diagnostic temporaire à l'écran.
+## Amélioration ciblée
 
-## Tester sur Samsung
+- Conserve les deux analyses de la 1.2.29 : OCR complet par lignes et éléments, puis relecture agrandie de la colonne droite.
+- Si le nombre de passages est **toujours non lu**, extrait en mémoire une **bande étroite autour du libellé « Passer »** et du champ numérique situé à droite.
+- Cette bande est agrandie (jusqu'à 3,5×), légèrement contrastée puis confiée une dernière fois à ML Kit avec le contexte « Passer » visible.
+- Les coordonnées OCR sont replacées dans le repère de l'écran original afin d'appliquer les mêmes garde-fous de zone, de type numérique entier positif et de non-confusion avec la vitesse.
+- **Aucune valeur par défaut**, aucune conversion automatique de « I » ou « l » en 1 : si le chiffre n'est pas reconnu, le résultat reste « non lus ».
+- Aucune capture supplémentaire ni nouveau dialogue Android. Les images et les chiffres reconnus restent temporaires et ne sont pas conservés sur disque.
 
-1. Installer l'APK signé 1.2.29 par-dessus Jarvis.
-2. Afficher dans xTool le volet EasySet avec **Puissance, Vitesse et Passer** ouverts et les trois valeurs bien visibles.
-3. Dans la bulle Jarvis, maintenir une seconde et choisir **« Analyser EasySet maintenant »**. La session de capture Android existante est réutilisée lorsqu'elle est active.
-4. Comparer le résultat aux valeurs effectivement visibles dans xTool. En cas de doute, conserver une capture du résultat.
+## Essai
 
-## Sécurité
+1. Installer Jarvis **1.2.30** sur le Samsung, avec l'APK signé.
+2. Dans xTool, afficher le volet EasySet avec les **trois valeurs visibles**.
+3. Appui long sur la bulle → « Analyser EasySet maintenant ».
+4. Vérifier que les valeurs correspondent *effectivement* à ce qui est affiché dans xTool. Si la valeur « Passer » reste non lue, envoyer une capture du résultat.
 
-Aucune modification de puissance, vitesse, passages ni commande de démarrage laser. La reconnaissance des nombres est expérimentale et doit être confirmée visuellement avant toute fabrication. La session MediaProjection reste révocable depuis la bulle et la notification Android.
+## Vérifications et limites
+
+Des tests JVM vérifient que la bande recadre bien le champ Passer sur la géométrie vue dans la capture d'écran, sans déborder sur la vitesse, et qu'aucune flèche ou lettre n'est interprétée d'office comme un nombre. GitHub Actions exécute les tests, produit un APK signé par la clé existante et vérifie la signature.
+
+**Diagnostic uniquement :** aucun changement de puissance, de vitesse ou du nombre de passages, aucune commande de lancement de fabrication. La validation finale des paramètres reste humaine.
