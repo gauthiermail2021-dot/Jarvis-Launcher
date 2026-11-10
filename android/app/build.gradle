@@ -14,7 +14,7 @@ android {
         versionCode 48
         versionName '1.2.29'
         // Jarvis 1.2.29: read-only ML Kit OCR elements and enlarged right-column fallback.
-        // Build verification: bounded xTool slider zones, read-only OCR tests and signed APK.
+        // Build trigger: run numeric OCR tests and sign Jarvis 1.2.29 with original key.
     }
 
     signingConfigs {
