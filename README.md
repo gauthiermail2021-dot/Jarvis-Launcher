@@ -1,3 +1,25 @@
+# Jarvis 1.2.24 — EasySet à partir de la bulle (test Android)
+
+Cette branche est expérimentale, issue de 1.2.23. Jarvis 1.2.21 stable demeure inchangé.
+
+## Test minimal
+
+1. Charger le SVG dans xTool et afficher le volet EasySet, avec « Puissance », « Vitesse » et « Passer » à l'écran.
+2. **Appui long (1 s)** sur la bulle Jarvis → « **Analyser EasySet maintenant** ».
+3. Accepter l'autorisation ponctuelle Android de capturer l'écran.
+4. Jarvis se met en arrière-plan, cache temporairement sa bulle, attend environ 2,6 secondes et fait **une seule capture**.
+5. La capture est lue hors ligne par ML Kit et immédiatement jetée. Le résultat est affiché dans une carte flottante au-dessus de xTool, fermable et masquée automatiquement après 20 secondes. Une notification permet aussi de retrouver le dernier diagnostic.
+6. Si Android conserve Jarvis à l'écran, l'analyse le détecte et refuse de confirmer EasySet : jamais de faux « reconnu » uniquement grâce au titre de Jarvis.
+
+## Limites et sécurité
+
+- Autorisation MediaProjection demandée **pour chaque capture** : Android l'impose.
+- La classification exige au moins deux vrais libellés de réglage et refuse une capture contenant les éléments de l'interface Jarvis.
+- Les chiffres saisis dans xTool et l'image ne sont ni enregistrés ni envoyés. La synthèse seule est sauvegardée localement.
+- Aucun service d'accessibilité xTool, aucun clic ou geste automatique, aucune modification de paramètre et **aucun démarrage laser**.
+- La reconnaissance OCR ne garantit pas la bonne configuration d'une machine. Vérifier le dessin et ses réglages dans xTool avant toute fabrication.
+- Si l'analyse directe échoue, l'écran EasySet conserve une option secondaire pour analyser une image déjà prise.
+
 # Jarvis 1.2.23 — prototype visuel EasySet (Android sans PC)
 
 Cette branche est expérimentale et distincte de 1.2.21. La reconnaissance de texte est effectuée localement à l'aide du modèle ML Kit embarqué. L'application n'exige aucune autorisation d'accessibilité supplémentaire.
