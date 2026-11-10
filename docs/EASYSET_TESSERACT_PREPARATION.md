@@ -1,34 +1,40 @@
-# Tesseract 5 — travail préparatoire vers Jarvis 1.2.32
+# Jarvis Bridge 1.2.32 — candidat signé, à tester sur Samsung
 
-**BRANCHE EXPÉRIMENTALE NON INSTALLABLE EN VERSION OFFICIELLE.**
+> **ÉTAT : APK de TEST produit, pas encore validé en conditions réelles.**
+> Dépôt officiel : **Jarvis-Launcher**. La branche `main` demeure sur 1.2.31 ; la version candidate 1.2.32 est isolée dans `experiment/easyset-tesseract-1.2.32-preparation`.
 
-- Basée sur `main` du dépôt **Jarvis-Launcher** après la migration canonique du 10 novembre 2026.
-- Base Android **1.2.31** inchangée : `versionCode 50`, package `ca.jarvis.bridge`. La prochaine vraie version 1.2.32 devra avoir un `versionCode` supérieur à 50.
-- `EasySetPassesTesseract.java` a été récupéré de `Jarvis-Bridge-Android/feature/easyset-tesseract-staging` **sans reprendre le reste de la base obsolète 0.7**.
-- Le module Tesseract est ajouté à la compilation mais **n'est volontairement pas encore raccordé au diagnostic EasySet**. Un APK compilé ne prouve donc pas que la lecture du chiffre est corrigée.
-- Le build spécial `build-tesseract-staging.yml` compile uniquement la variante **debug** `ca.jarvis.bridge.dev`. Il ne publie aucun APK, n'utilise pas de clé privée release et ne modifie pas l'app installée.
+## Traçabilité de la version test
 
-## Étapes restantes pour rendre une future 1.2.32 réelle
+- Source exacte du build : commit `9bdf30e9ce8f28f4a0fa571070ea0f2c687cdc7e` (snapshot `snapshot/jarvis-1.2.32-candidate-signed-2026-11-10`).
+- `applicationId ca.jarvis.bridge`, `versionCode 51`, `versionName 1.2.32`.
+- GitHub Actions : [compilation signée 1.2.32 #42812323145](https://github.com/gauthiermail2021-dot/Jarvis-Launcher/actions/runs/42812323145) — tests JVM, compilation Release et contrôle de signature **réussis**.
+- Artefact temporaire GitHub Actions : `Jarvis-Bridge-1.2.32-tesseract-signed`, ID `13763176020`.
+- Copie livrée dans la conversation : `Jarvis-Bridge-1.2.32-EasySet-Tesseract-signed.apk`, SHA-256 `0082b36a6a90b0bb18dd5bc53d2286ef63e66c6f1776751ee7cf0f65701e5a96`, 77 071 752 octets.
+- Le certificat de signature APK v2 a le **même SHA-256** que l'APK signé 1.2.31 : `68989EDC69061CCC06D0D6BC0CB0E3FE5BDE157AB7ADE5111F06E867A74413B7`. Il devrait s'installer comme mise à jour, sans désinstallation.
+- L'APK intègre `assets/tessdata/eng.traineddata` et les bibliothèques Tesseract natives.
 
-1. Cadrer avec précision la case **numérique** à droite du libellé `Passer` avec la géométrie de la capture originale. L'ancienne classe `EasySetPassesRegion` renvoie actuellement **toute la ligne**, ce qui est trop large pour le module de lecture chiffre seul.
-2. Brancher `EasySetPassesTesseract.read` en repli sur l'algorithme réel `EasySetVisionAnalyzer` uniquement lorsque « Passages : non lus » ; la lecture doit s'exécuter hors du fil d'interface, tout en conservant le bitmap le temps nécessaire et en recyclant le résultat.
-3. Ne jamais accepter un nombre absent, hors zone ou contradictoire avec l'observation ML Kit, et ne jamais forcer `1`.
-4. Ajouter tests sur des captures d'écran xTool représentatives, en conservant le caractère éphémère des informations OCR.
-5. Tests de non-régression : Gmail → SVG → xTool, bulle, sons, sessions de capture et signature release. Aucun démarrage laser.
-6. Quand tout est validé : `versionCode 51`, `versionName '1.2.32'`, compilation release signée, conservation durable de l'APK et des notes de test.
+## Modifications du candidat
 
-## Source de vérité
-`main` du dépôt **Jarvis-Launcher**. Aucune modification fonctionnelle n'a été faite sur l'ancienne base 0.7 durant cette migration du module.
+1. **ML Kit conservé** pour l'écran complet, la colonne droite et la zone « Passer » agrandie.
+2. Si toutes les étapes ML Kit renvoient `Passages : non lus`, un moteur **Tesseract4Android** lancé sur un thread de travail examine seulement la case numérique près du libellé `Passer`, à partir de la **même capture Android autorisée**.
+3. Le champ est cadré relativement à l'écran et à la hauteur du libellé. Les pixels foncés sont isolés, agrandis ×6, bordés de blanc, puis analysés avec PSM_SINGLE_WORD et chiffres uniquement.
+4. Le diagnostic indique la valeur, la confiance ou l'échec. En cas de doute, le texte **reste « Passages : non lus »** ; aucune valeur par défaut `1` n'est inventée.
+5. La capture n'est pas publiée sur GitHub, les Bitmap sont recyclés, la clé de signature reste dans les secrets GitHub. Aucun accès réseau OCR, aucune modification xTool, aucune commande laser.
 
+## Tests réalisés
 
-## Test réel du 10 novembre 2026 — capture fournie par l'utilisateur
+- [x] Test avec la capture reçue de xTool (**869×1536**, 69 %, 152 mm/s, Passer **1**) sur le moteur **Tesseract CLI local** : reconnaissance `1`, confiance environ **67 %** avec le bon cadrage.
+- [x] Test JVM de géométrie du cadrage ciblé et tests hérités de Jarvis.
+- [x] Compilation Android de développement, puis compilation **Release** signée, avec modèle OCR inclus.
+- [x] Vérification de la signature et du même certificat de release que la 1.2.31.
+- [ ] Installation et essai de l'APK 1.2.32 sur Samsung (lecture réelle de `Passer`).
+- [ ] Essais supplémentaires sur différentes valeurs, résolutions et thèmes, et vérification fonctionnelle Gmail → SVG → xTool et bulle.
+- [ ] Après validation, publier une release officielle durable (l'artefact Actions expire).
 
-- Capture xTool EasySet de **869 × 1536 pixels**, avec les champs visibles **Puissance 69 %**, **Vitesse 152 mm/s** et **Passer 1**.
-- Le panneau diagnostic **Jarvis 1.2.31** indique : `Libellé : repéré`, `Écran : aucun petit caractère détecté à droite`, `Colonne droite : aucun petit caractère détecté à droite`, `Zone agrandie : aucun petit caractère détecté à droite`, puis `Passages : non lus`.
-- Cela confirme que l'échec actuel est **en amont de l'association** : aucun chiffre n'est renvoyé par les trois étapes ML Kit, malgré la présence visible du `1`.
-- Analyse locale séparée avec **Tesseract CLI 5.5** : le chiffre `1` est reconnu lorsque la zone numérique droite est recadrée jusqu'aux traits noirs (environ 7 × 28 pixels dans cette capture), puis agrandie ×6 avec une bordure blanche d'environ 12 pixels avant agrandissement, avec segmentation `PSM_SINGLE_WORD`. Une tentative locale avait une confiance d'environ **67 %**. Les cadrages plus larges ou `PSM_SINGLE_CHAR` échouent fréquemment.
-- **Ce test local ne valide pas Android** : le modèle de langue, la version Tesseract et les caractéristiques de capture peuvent différer.
-- Correctif préparatoire : `EasySetPassesRegion.numberField()` cible le cadran numérique près du bord droit, et `EasySetPassesTesseract` cherche la boîte des pixels foncés, excluant la flèche grise, avant zoom ×6 et OCR PSM_SINGLE_WORD.
-- Un test JVM de géométrie utilise une disposition xTool de 869 × 1536. **Aucune capture personnelle n'a été publiée dans le dépôt GitHub public.**
-- **Reste indispensable** : raccorder la lecture Tesseract à `EasySetVisionAnalyzer` sur le fil de travail ; tester les cas 1, 2, 10, valeurs contradictoires, différents thèmes et orientations ; vérifier que l'app ne modifie jamais les réglages xTool.
+## Test sur téléphone
 
+Mettre à jour Jarvis avec l'APK signé **sans désinstaller l'app 1.2.31**. Ouvir xTool EasySet avec les 3 valeurs visibles, puis appui long sur la bulle → **Analyser EasySet maintenant**. Contrôler que l'analyse présente Puissance, Vitesse et le chiffre `Passer`, ou une raison d'échec Tesseract. La lecture seule ne doit rien changer dans xTool. Partager le résultat textuel ou une capture pour finaliser le diagnostic.
+
+## Historique et source canonique
+
+Le dépôt **Jarvis-Bridge-Android 0.7** reste une archive et ne doit pas compiler cette version. `main` du dépôt **Jarvis-Launcher** reste la référence de développement ; la branche candidate sera fusionnée uniquement après essai réel et vérifications. L'APK signé de la 1.2.31 et son snapshot restent disponibles pour revenir à une version antérieure.
