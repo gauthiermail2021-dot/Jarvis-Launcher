@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 48
-        versionName '1.2.29'
-        // Jarvis 1.2.29: read-only ML Kit OCR elements and enlarged right-column fallback.
+        versionCode 49
+        versionName '1.2.30'
+        // Jarvis 1.2.30: read-only targeted Passer-row magnification after existing OCR stages.
         // Build trigger: run numeric OCR tests and sign Jarvis 1.2.29 with original key.
     }
 
