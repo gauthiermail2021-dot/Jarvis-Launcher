@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 40
-        versionName '1.2.21'
-        // Jarvis 1.2.21: 24dp safe opening halo, single 850ms revolution and tail.
+        versionCode 41
+        versionName '1.2.22'
+        // Experimental EasySet read-only diagnostic; stable 1.2.21 branch remains unchanged.
     }
 
     signingConfigs {
