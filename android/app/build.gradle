@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 44
-        versionName '1.2.25'
-        // Jarvis 1.2.25: independent transparent consent task, preserve xTool foreground.
+        versionCode 45
+        versionName '1.2.26'
+        // Jarvis 1.2.26: one consent per active session, read-only on-demand EasySet OCR.
         // Signed experimental build: no intrusive Jarvis window over xTool.
     }
 
