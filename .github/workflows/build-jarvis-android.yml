@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.25 EasySet focus correction - signed APK
+name: Build and test Jarvis Bridge 1.2.26 EasySet reusable capture session - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au prototype EasySet 1.2.25 avec fenêtre transparente.
+  # Compilation d'essai limitée au prototype EasySet 1.2.26 autorisation unique par session.
   push:
-    branches: [experiment/easyset-focus-1.2.25]
+    branches: [experiment/easyset-session-1.2.26]
     paths:
       - 'android/app/build.gradle'
 
@@ -73,6 +73,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.25-easyset-focus-signed
+          name: Jarvis-Bridge-1.2.26-easyset-session-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
