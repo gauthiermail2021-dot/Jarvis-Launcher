@@ -6,6 +6,8 @@ on:
     branches: [experiment/easyset-tesseract-1.2.32-preparation]
     paths:
       - 'android/app/src/main/java/ca/jarvis/bridge/EasySetPassesTesseract.java'
+      - 'android/app/src/main/java/ca/jarvis/bridge/EasySetPassesRegion.java'
+      - 'android/app/src/test/java/ca/jarvis/bridge/EasySetPassesRegionTest.java'
       - 'android/app/build.gradle'
       - 'android/settings.gradle'
       - '.github/workflows/build-tesseract-staging.yml'
