@@ -53,4 +53,10 @@ public class EasySetLabelsTest {
         assertTrue(!result.contains("88") && !result.contains("123")
                 && !result.contains(" 9"));
     }
+    @Test public void rejectsJarvis129DiagnosticAsXtoolSource() {
+        String result = EasySetLabels.diagnose(Arrays.asList(
+                "JARVIS 1.2.29 • EASYSET", "Puissance", "Vitesse", "Passer"));
+        assertTrue(result.contains("Capture de Jarvis"));
+    }
+
 }
