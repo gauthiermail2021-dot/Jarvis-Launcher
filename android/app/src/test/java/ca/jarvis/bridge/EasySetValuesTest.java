@@ -83,4 +83,77 @@ public class EasySetValuesTest {
         assertTrue(result.contains("Vitesse : non lue"));
         assertTrue(result.contains("Passages : 1"));
     }
+
+    @Test public void readsXtoolSliderValuesBelowTheirLabels() {
+        // Reproduces the screenshot geometry: slider values are far right
+        // and around 100 px below the printed headings.
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("Volet EasySet", 12, 80, 340, 140),
+                at("Puissance", 72, 292, 280, 334),
+                at("65% ›", 1030, 408, 1130, 446),
+                at("Vitesse(mm/s)", 72, 580, 434, 622),
+                at("78 ▶", 1040, 670, 1120, 714),
+                at("Passer", 72, 862, 226, 908),
+                at("1 ›", 1080, 858, 1138, 912),
+                at("Paramétrage en un clic", 65, 1084, 580, 1130)));
+        assertTrue(result.contains("Puissance : 65 %"));
+        assertTrue(result.contains("Vitesse : 78 mm/s"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
+    @Test public void valueBelowNextSettingIsNeverBorrowed() {
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("EasySet", 10, 30, 170, 65),
+                at("Puissance", 50, 140, 240, 176),
+                at("Vitesse", 50, 270, 240, 306),
+                at("78", 700, 350, 760, 385),
+                at("Passer", 50, 480, 240, 515),
+                at("2", 700, 490, 760, 525)));
+        assertTrue(result.contains("Puissance : non lue"));
+        assertTrue(result.contains("Vitesse : 78 mm/s"));
+        assertTrue(result.contains("Passages : 2"));
+    }
+
+    @Test public void twoDifferentNumbersInSameZoneAreAmbiguous() {
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("EasySet", 20, 20, 200, 60),
+                at("Puissance", 30, 150, 220, 190),
+                at("65", 790, 240, 840, 280),
+                at("66", 950, 250, 1000, 290),
+                at("Vitesse", 30, 440, 220, 480),
+                at("75", 900, 500, 960, 540),
+                at("Passer", 30, 640, 210, 680),
+                at("1", 950, 640, 990, 680)));
+        assertTrue(result.contains("Puissance : non lue"));
+        assertTrue(result.contains("Vitesse : 75 mm/s"));
+    }
+
+    @Test public void rejectsCanvasNumbersAndSliderLeftSideValues() {
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("39.8 mm x 24.8 mm", 35, 15, 370, 60),
+                at("Volet EasySet", 22, 80, 430, 135),
+                at("Puissance", 65, 250, 310, 300),
+                at("80", 80, 330, 120, 375),
+                at("Vitesse", 65, 520, 300, 570),
+                at("78", 70, 620, 125, 660),
+                at("Passer", 65, 770, 230, 812),
+                at("1", 1000, 770, 1030, 812)));
+        assertTrue(result.contains("Puissance : non lue"));
+        assertTrue(result.contains("Vitesse : non lue"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
+    @Test public void malformedInlineValueIsNeverReplacedWithNeighborNumber() {
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("EasySet", 20, 20, 230, 58),
+                at("Puissance : 120%", 30, 150, 320, 186),
+                at("44", 900, 235, 955, 267),
+                at("Vitesse", 30, 420, 220, 460),
+                at("78", 900, 495, 955, 535),
+                at("Passer", 30, 650, 170, 686),
+                at("1", 900, 650, 920, 686)));
+        assertTrue(result.contains("Puissance : non lue"));
+        assertTrue(result.contains("Vitesse : 78 mm/s"));
+    }
+
 }
