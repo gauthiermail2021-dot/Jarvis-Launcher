@@ -1,3 +1,25 @@
+# Jarvis Bridge 1.2.25 — EasySet Android sans grande fenêtre Jarvis
+
+Version expérimentale distincte des branches 1.2.24 et 1.2.21 (stable).
+
+## Test sur le Samsung sans PC
+
+1. Ouvrir le SVG dans xTool, idéalement par l'ouverture Gmail automatique de Jarvis, et afficher EasySet (Puissance, Vitesse, Passer).
+2. Appui long (1 seconde) sur la bulle Jarvis → **Analyser EasySet maintenant**.
+3. Une activité **totalement transparente, isolée dans une tâche Android temporaire**, demande uniquement l'autorisation officielle de capture d'écran.
+4. Après consentement, cette tâche se termine et se place en arrière-plan : **xTool devrait redevenir visible**; la grande page « JARVIS 1.2.25 • EASYSET » n'est plus ouverte.
+5. Après une attente de stabilisation d'environ 2,6 secondes, la capture ponctuelle est analysée en local. Le résultat s'affiche dans un panneau flottant temporaire au-dessus de xTool, avec un bouton pour le fermer.
+6. En cas d'échec, le résultat reste accessible depuis l'interface de diagnostic manuelle et, si autorisées, les notifications Android.
+
+## Sécurité et limites
+
+- Android affiche toujours son propre dialogue de consentement à chaque capture. C'est obligatoire; aucune capture silencieuse.
+- La reprise du focus xTool **doit être confirmée sur l'appareil** : Android gère librement ses tâches et fenêtres.
+- L'image est analysée uniquement en mémoire puis abandonnée. Seule la synthèse du diagnostic est conservée dans les préférences locales.
+- L'OCR exige deux libellés EasySet et rejette l'interface Jarvis comme source de résultat.
+- Pas d'accès d'accessibilité supplémentaire, pas de clic, pas de saisie, pas de réglages changés, pas de commande laser.
+- Toujours faire vérifier manuellement la pièce et les paramètres avant toute fabrication.
+
 # Jarvis 1.2.24 — EasySet à partir de la bulle (test Android)
 
 Cette branche est expérimentale, issue de 1.2.23. Jarvis 1.2.21 stable demeure inchangé.
