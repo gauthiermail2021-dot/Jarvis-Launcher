@@ -285,7 +285,9 @@ public final class JarvisBubbleService extends Service {
         TextView details = new TextView(this);
         details.setText(summary == null ? "Résultat indisponible." : summary);
         details.setTextColor(Color.WHITE);
-        details.setTextSize(15);
+        final boolean detailedEasySet = summary != null
+                && summary.contains("DIAGNOSTIC PASSER (temporaire)");
+        details.setTextSize(detailedEasySet ? 12 : 15);
         details.setPadding(0, dp(8), 0, dp(8));
         panel.addView(details);
 
@@ -309,11 +311,23 @@ public final class JarvisBubbleService extends Service {
                 display.x - width - dp(12)));
         lp.y = Math.max(dp(65), Math.min(params != null
                 ? params.y + params.height + dp(8) : dp(65), display.y - dp(285)));
+        if (detailedEasySet) {
+            // Keep the temporary OCR trace inside the phone screen instead
+            // of letting a taller banner hang below the navigation bar.
+            panel.measure(
+                    View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(
+                            Math.max(dp(150), display.y - dp(90)),
+                            View.MeasureSpec.AT_MOST));
+            lp.y = Math.max(dp(56),
+                    Math.min(lp.y, display.y - panel.getMeasuredHeight() - dp(16)));
+        }
         try {
             wm.addView(panel, lp);
             easySetBanner = panel;
             easySetBannerDismiss = this::dismissEasySetBanner;
-            gestureHandler.postDelayed(easySetBannerDismiss, 20000L);
+            gestureHandler.postDelayed(easySetBannerDismiss,
+                    detailedEasySet ? 40000L : 20000L);
         } catch (RuntimeException ignored) {
             easySetBanner = null;
             Toast.makeText(this, summary, Toast.LENGTH_LONG).show();
