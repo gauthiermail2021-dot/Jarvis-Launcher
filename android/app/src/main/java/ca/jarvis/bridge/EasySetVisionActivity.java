@@ -46,7 +46,7 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.24 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.25 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
         add(body, "Jarvis peut rechercher les libellés EasySet dans une capture, "
@@ -58,9 +58,9 @@ public final class EasySetVisionActivity extends Activity {
         capture.setText("1 • ANALYSER EASYSET À L'ÉCRAN");
         body.addView(capture);
         capture.setOnClickListener(v -> requestCapture());
-        add(body, "Depuis xTool, ouvre EasySet, puis dans la bulle Jarvis "
-                + "choisis « Analyser EasySet maintenant ». "
-                + "Un seul consentement Android : résultat directement sur xTool.",
+        add(body, "Pour éviter cette grande fenêtre : affiche EasySet dans xTool "
+                + "et lance « Analyser EasySet maintenant » depuis le menu de "
+                + "la bulle Jarvis. Seule l'autorisation Android apparaîtra.",
                 13, 0xffb8c9d4);
 
         Button importButton = new Button(this);
