@@ -47,7 +47,7 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.28 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.29 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
         add(body, "Lecture expérimentale des valeurs Puissance, Vitesse et Passages "
@@ -180,19 +180,10 @@ public final class EasySetVisionActivity extends Activity {
                 var recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
                 recognizer.process(InputImage.fromFilePath(this, uri))
                         .addOnSuccessListener(vision -> {
-                            List<EasySetValues.Line> lines = new ArrayList<>();
-                            for (Text.TextBlock block : vision.getTextBlocks()) {
-                                for (Text.Line line : block.getLines()) {
-                                    Rect rect = line.getBoundingBox();
-                                    if (rect != null) {
-                                        lines.add(new EasySetValues.Line(line.getText(),
-                                                rect.left, rect.top, rect.right, rect.bottom));
-                                    } else {
-                                        lines.add(new EasySetValues.Line(line.getText(), 0, 0, 0, 0));
-                                    }
-                                }
-                            }
-                            String summary = EasySetValues.diagnose(lines);
+                            // Reuse exactly the same line + element extraction
+                            // as the automatic screen-capture OCR.
+                            String summary = EasySetValues.diagnose(
+                                    EasySetTextExtractor.extract(vision));
                             EasySetVisionAnalyzer.save(this, summary);
                             result.setText(summary);
                             Toast.makeText(this, "Analyse terminée : résultat affiché",
