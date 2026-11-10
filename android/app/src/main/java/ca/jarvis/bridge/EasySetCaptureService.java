@@ -32,6 +32,7 @@ public final class EasySetCaptureService extends Service {
     static final String RESULT_CODE = "projection_code";
     static final String RESULT_INTENT = "projection_intent";
     private static final int NOTIFICATION_ID = 923;
+    private static final int RESULT_NOTIFICATION_ID = 924;
     private static final String CHANNEL = "jarvis_easyset_scan";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ImageReader reader;
@@ -81,7 +82,9 @@ public final class EasySetCaptureService extends Service {
             int height = metrics.heightPixels;
             if (width <= 0 || height <= 0) throw new IllegalStateException("Bad display size");
             reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 3);
-            captureAt = SystemClock.elapsedRealtime() + 1800L;
+            // Wait for the diagnostic Activity / Android permission window
+            // to disappear and for the prior xTool task to come to foreground.
+            captureAt = SystemClock.elapsedRealtime() + 2600L;
             reader.setOnImageAvailableListener(this::onImage, handler);
             virtualDisplay = projection.createVirtualDisplay("Jarvis-EasySet-unique",
                     width, height, metrics.densityDpi,
@@ -175,8 +178,37 @@ public final class EasySetCaptureService extends Service {
         handler.removeCallbacks(timeout);
         releaseProjection();
         EasySetVisionAnalyzer.save(this, summary);
+        // Restore Jarvis bubble and show a dismissible result overlay directly
+        // above xTool; this runs only after the one-shot projection is stopped.
+        JarvisBubbleService.showEasySetResult(summary);
+        notifyResult(summary);
         stopForeground(true);
         stopSelf();
+    }
+
+    private void notifyResult(String summary) {
+        NotificationManager manager = (NotificationManager)
+                getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(new NotificationChannel(
+                    CHANNEL + "_result", "Résultats EasySet",
+                    NotificationManager.IMPORTANCE_DEFAULT));
+        }
+        Intent open = new Intent(this, EasySetVisionActivity.class);
+        PendingIntent intent = PendingIntent.getActivity(this, 1, open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(this, CHANNEL + "_result")
+                : new Notification.Builder(this);
+        Notification note = builder.setSmallIcon(android.R.drawable.ic_menu_info_details)
+                .setContentTitle("Jarvis • résultat EasySet")
+                .setContentText(summary)
+                .setStyle(new Notification.BigTextStyle().bigText(summary))
+                .setContentIntent(intent)
+                .setAutoCancel(true)
+                .build();
+        manager.notify(RESULT_NOTIFICATION_ID, note);
     }
 
     @Override public void onDestroy() {
