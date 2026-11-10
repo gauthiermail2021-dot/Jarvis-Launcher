@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.35 test handoff fix as direct APK
+
+on:
+  push:
+    branches: [fix/test-svg-rearm-xtool-1.2.35]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.35-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact signed and tested 1.2.35 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42926124643 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.35-test-session-rearmed-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.35-Test.apk
+      - name: Verify APK package before release
+        run: |
+          unzip -t Jarvis-Bridge-1.2.35-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.35-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.35-Test.apk
+      - name: Publish signed 1.2.35 APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.35-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.35-preview Jarvis-Bridge-1.2.35-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.35-preview Jarvis-Bridge-1.2.35-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 984dc4fe5d749d26bda6581fc4d996b663ebf057 \
+              --title 'Jarvis Bridge 1.2.35 - Correction bouton TEST SVG vers xTool' \
+              --notes 'Candidat signe de test, versionCode 54. Corrige le blocage apres les premiers envois Gmail TEST SVG : chaque pression explicite sur le bouton rearme la session protegee Jarvis AVANT envoi, afin que Gmail -> Jarvis -> xTool puisse lire le prochain fichier et ne le saute pas. Ne ferme, ne sauvegarde et ne jette aucun dessin xTool ; si xTool demande un choix sur un ancien dessin, utilisateur decide. Aucun demarrage de laser. Conserve le compteur SVG et le traitement OCR 1.2.34. Tests CI reussis; comportement Samsung a confirmer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.35-preview --repo "$GITHUB_REPOSITORY" --json tagName,assets,url
