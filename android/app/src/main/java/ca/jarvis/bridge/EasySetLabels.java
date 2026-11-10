@@ -24,6 +24,8 @@ public final class EasySetLabels {
             if (word.contains("analyse visuelle")
                     || word.contains("analyser easyset")
                     || word.contains("afficher le dernier resultat")
+                    || word.contains("jarvis 1 2 27")
+                    || word.contains("jarvis 1 2 26")
                     || word.contains("jarvis 1 2 25")
                     || word.contains("jarvis resultat easyset")
                     || word.contains("jarvis 1 2 24")
