@@ -71,6 +71,7 @@ public final class JarvisBubbleService extends Service {
     private boolean fingerDown = false;
     private boolean longPressHandled = false;
     private View menuView;
+    private boolean consentAttemptedForThisBubble;
     private View easySetBanner;
     private Runnable easySetBannerDismiss;
     private Runnable collapseRunnable;
@@ -104,7 +105,20 @@ public final class JarvisBubbleService extends Service {
         // Ne pas republier la notification de premier plan à chaque appel du service.
         if (bubble == null) {
             createNotification();
-            try { showBubble(); }
+            try {
+                showBubble();
+                // If ChatGPT started this floating bubble, request the one
+                // Android consent for the Jarvis session once. A denied/blocked
+                // start falls back to the existing bubble menu.
+                if (!consentAttemptedForThisBubble) {
+                    consentAttemptedForThisBubble = true;
+                    gestureHandler.postDelayed(() -> {
+                        if (bubble != null && !EasySetSessionService.isActive()) {
+                            launchEasySetSessionConsent();
+                        }
+                    }, 1300L);
+                }
+            }
             catch (Exception error) {
                 Toast.makeText(this, "Jarvis : " + error.getMessage(), Toast.LENGTH_LONG).show();
                 stopSelf();
@@ -218,6 +232,14 @@ public final class JarvisBubbleService extends Service {
             current.gestureHandler.postDelayed(() -> {
                 if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
             }, 14000L);
+        });
+    }
+
+    /** Revenir à l'affichage normal après une lecture ou un échec. */
+    static void restoreEasySetBubble() {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() -> {
+            if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
         });
     }
 
@@ -485,6 +507,20 @@ public final class JarvisBubbleService extends Service {
         }
     }
 
+    private void launchEasySetSessionConsent() {
+        if (EasySetSessionService.isActive()) return;
+        Intent consent = new Intent(this, EasySetConsentActivity.class);
+        consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        try { startActivity(consent); }
+        catch (RuntimeException error) {
+            Toast.makeText(this, "Appuie sur la bulle pour autoriser la capture Android.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void showMenu() {
         if (wm == null || bubble == null || menuView != null) return;
         cancelCollapse();
@@ -516,23 +552,14 @@ public final class JarvisBubbleService extends Service {
             });
         }
 
-        addMenuButton(menu, "Analyser EasySet maintenant", () -> {
-            // Only the Android system capture prompt is visible; the previous
-            // xTool window stays behind a fully transparent temporary Activity.
-            // A separate ephemeral task avoids surfacing MainActivity.
-            Intent consent = new Intent(this, EasySetConsentActivity.class);
-            consent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
-                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
-                    | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            try {
-                startActivity(consent);
-            } catch (RuntimeException denied) {
-                Toast.makeText(this,
-                        "Android n'a pas pu ouvrir l'autorisation de capture.",
-                        Toast.LENGTH_LONG).show();
-            }
-        });
+        if (EasySetSessionService.isActive()) {
+            addMenuButton(menu, "Analyser EasySet maintenant", () ->
+                    EasySetSessionService.requestScan(this, false));
+            addMenuButton(menu, "Arrêter le partage d'écran", () ->
+                    EasySetSessionService.requestStop(this));
+        } else {
+            addMenuButton(menu, "Autoriser la capture pour la session", this::launchEasySetSessionConsent);
+        }
 
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
@@ -552,7 +579,10 @@ public final class JarvisBubbleService extends Service {
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("sounds_enabled", soundsEnabled).apply();
         });
-        addMenuButton(menu, "Fermer la bulle", this::stopSelf);
+        addMenuButton(menu, "Fermer la bulle", () -> {
+            EasySetSessionService.requestStop(this);
+            stopSelf();
+        });
         addMenuButton(menu, "Annuler", () -> { });
 
         int menuWidth = dp(228);
@@ -697,6 +727,7 @@ public final class JarvisBubbleService extends Service {
     }
 
     @Override public void onDestroy() {
+        EasySetSessionService.requestStop(this);
         if (activeService == this) activeService = null;
         if (openingAnimator != null) {
             openingAnimator.cancel();
