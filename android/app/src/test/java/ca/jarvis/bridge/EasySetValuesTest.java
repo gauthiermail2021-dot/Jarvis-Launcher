@@ -156,4 +156,76 @@ public class EasySetValuesTest {
         assertTrue(result.contains("Vitesse : 78 mm/s"));
     }
 
+
+    @Test public void joinsMLKitElementsFor114AndOneWithoutGuessing() {
+        // Full OCR text lines can contain a tiny arrow whose glyph is
+        // misrecognized, while the smaller ML Kit element carries the digit.
+        String result = EasySetValues.diagnose(Arrays.asList(
+                at("Volet EasySet", 24, 18, 275, 66),
+                at("Puissance(%)", 72, 194, 280, 224),
+                at("59 ►", 736, 260, 810, 296),
+                at("Vitesse(mm/s)", 73, 391, 325, 429),
+                at("114▷?", 736, 461, 815, 490), // polluted line: reject it
+                at("114", 738, 463, 791, 490),   // standalone OCR element
+                at("Passer", 72, 597, 190, 626),
+                at("1▷?", 775, 586, 816, 622),
+                at("1", 772, 587, 793, 621)));
+        assertTrue(result.contains("Puissance : 59 %"));
+        assertTrue(result.contains("Vitesse : 114 mm/s"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
+    @Test public void enlargedRightColumnRecoversOnlyMissingValues() {
+        List<EasySetValues.Line> base = Arrays.asList(
+                at("Volet EasySet", 30, 40, 270, 88),
+                at("Puissance(%)", 72, 200, 272, 235),
+                at("59", 733, 267, 781, 300),
+                at("Vitesse(mm/s)", 72, 390, 350, 432),
+                at("Passer", 72, 600, 185, 638));
+        List<EasySetValues.Line> enhanced = Arrays.asList(
+                at("114", 735, 465, 790, 504),
+                at("1", 770, 595, 800, 630));
+        String baseline = EasySetValues.diagnose(base);
+        assertTrue(baseline.contains("Puissance : 59 %"));
+        assertTrue(baseline.contains("Vitesse : non lue"));
+        assertTrue(baseline.contains("Passages : non lus"));
+        String result = EasySetValues.diagnose(base, enhanced);
+        assertTrue(result.contains("Puissance : 59 %"));
+        assertTrue(result.contains("Vitesse : 114 mm/s"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
+    @Test public void enhancedOCRCannotOverwriteAlreadyReadPower() {
+        List<EasySetValues.Line> original = Arrays.asList(
+                at("Volet EasySet", 10, 10, 200, 55),
+                at("Puissance", 70, 150, 245, 180),
+                at("59", 765, 235, 801, 267),
+                at("Vitesse", 70, 350, 220, 385),
+                at("Passer", 70, 550, 220, 585));
+        List<EasySetValues.Line> second = Arrays.asList(
+                at("58", 765, 240, 803, 267),
+                at("114", 765, 432, 821, 465),
+                at("1", 775, 552, 793, 586));
+        String result = EasySetValues.diagnose(original, second);
+        assertTrue(result.contains("Puissance : 59 %"));
+        assertTrue(result.contains("Vitesse : 114 mm/s"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
+    @Test public void enhancedOCRDoesNotReadNumbersOutsideEasySetRow() {
+        List<EasySetValues.Line> original = Arrays.asList(
+                at("Volet EasySet", 24, 20, 285, 68),
+                at("Puissance", 72, 200, 240, 234),
+                at("Vitesse", 72, 400, 230, 434),
+                at("Passer", 72, 600, 220, 634));
+        List<EasySetValues.Line> enhanced = Arrays.asList(
+                at("39.8", 750, 90, 802, 119),
+                at("114", 755, 489, 808, 527),
+                at("1", 775, 606, 794, 637));
+        String result = EasySetValues.diagnose(original, enhanced);
+        assertTrue(result.contains("Puissance : non lue"));
+        assertTrue(result.contains("Vitesse : 114 mm/s"));
+        assertTrue(result.contains("Passages : 1"));
+    }
+
 }
