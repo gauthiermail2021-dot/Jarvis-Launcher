@@ -89,13 +89,8 @@ public final class EasySetPassesTesseract {
         // Called from Jarvis with a cloned *numeric-only* screenshot; its
         // ROI legitimately covers 100 % of that small Bitmap. Reject a broad
         // screen crop, but do not reject the verified small numeric field.
-        boolean isolatedSmallField = roi.left == 0 && roi.top == 0
-                && roi.width() == screenshot.getWidth()
-                && roi.height() == screenshot.getHeight()
-                && screenshot.getWidth() <= 180 && screenshot.getHeight() <= 128;
-        if (!isolatedSmallField
-                && (roi.width() > screenshot.getWidth() / 2
-                    || roi.height() > screenshot.getHeight() / 4)) {
+        if (!acceptsRegion(screenshot.getWidth(), screenshot.getHeight(),
+                roi.left, roi.top, roi.right, roi.bottom)) {
             return new Result(null, -1, "Zone trop large : cadrer seulement le chiffre Passer", null);
         }
 
@@ -182,6 +177,23 @@ public final class EasySetPassesTesseract {
      * Exclude xTool's light-gray spinner arrow and white margins. A single
      * narrow digit must be kept, not discarded as OCR noise.
      */
+    /**
+     * JVM-testable ROI guard. It prevents an arbitrary full-screen OCR but
+     * accepts a small isolated field copied from an already located label.
+     */
+    static boolean acceptsRegion(int screenWidth, int screenHeight,
+                                 int left, int top, int right, int bottom) {
+        int w = right - left, h = bottom - top;
+        if (screenWidth < 3 || screenHeight < 3 || left < 0 || top < 0
+                || right > screenWidth || bottom > screenHeight
+                || w < 3 || h < 3) return false;
+        boolean smallIsolatedField = left == 0 && top == 0
+                && w == screenWidth && h == screenHeight
+                && screenWidth <= 180 && screenHeight <= 128;
+        return smallIsolatedField
+                || (w <= screenWidth / 2 && h <= screenHeight / 4);
+    }
+
     private static Rect findInkBounds(Bitmap source, int threshold, boolean whiteText) {
         int w = source.getWidth(), h = source.getHeight();
         int[] pixels = new int[w * h];
