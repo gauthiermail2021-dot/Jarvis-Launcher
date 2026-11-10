@@ -14,6 +14,7 @@ android {
         versionCode 42
         versionName '1.2.23'
         // Jarvis 1.2.23: consent-based visual EasySet diagnostic; no machine control.
+        // Signed experimental build: on-device OCR only.
     }
 
     signingConfigs {
