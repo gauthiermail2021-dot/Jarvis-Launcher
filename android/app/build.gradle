@@ -14,7 +14,7 @@ android {
         versionCode 44
         versionName '1.2.25'
         // Jarvis 1.2.25: independent transparent consent task, preserve xTool foreground.
-        // Build trigger: test the one-touch EasySet capture on Android.
+        // Signed experimental build: no intrusive Jarvis window over xTool.
     }
 
     signingConfigs {
