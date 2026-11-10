@@ -276,11 +276,12 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.31 : au lancement de la bulle "
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.32 : au lancement de la bulle "
                 + "Jarvis, autorise une seule session de capture Android. Après l'ouverture "
                 + "d'un SVG dans xTool, une analyse de lecture seule est tentée automatiquement. "
-                + "La bulle affiche temporairement ce que l'OCR reconnaît près du "
-                + "champ Passer à chaque étape, puis si l'association est acceptée "
+                + "La bulle affiche temporairement les valeurs OCR. Si ML Kit ne voit pas le "
+                + "chiffre Passer, Tesseract tente de lire uniquement la case numérique. "
+                + "Le diagnostic indique si la lecture est acceptée "
                 + "ou refusée. Les lectures incertaines restent non lues. "
                 + "Le partage s'arrête lorsque la bulle est fermée ou sur commande.");
         layout.addView(easysetVisionHelp);
