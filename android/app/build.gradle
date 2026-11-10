@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 52
-        versionName '1.2.33'
-        // Jarvis 1.2.33: automatically inspect already-open xTool screen on foreground.
+        versionCode 53
+        versionName '1.2.34'
+        // Jarvis 1.2.34: add optional repeatable Gmail SVG test icon with persistent +1 filename.
         // Signed experimental release, must be verified on the Samsung.
     }
 
