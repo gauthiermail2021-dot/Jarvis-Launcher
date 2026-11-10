@@ -180,6 +180,20 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
                         mime.getBytes(StandardCharsets.UTF_8),
                         Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
 
+                // An explicit user press on TEST SVG JARVIS is a request
+                // to hand off a NEW drawing, even when a previous SVG import
+                // left Jarvis' protected xTool-session flag active. That flag
+                // normally suppresses Gmail checks, and was the reason tests
+                // #001 through #003 arrived but never opened xTool.
+                //
+                // End the *Jarvis session flag only*, immediately BEFORE the
+                // send: finish() deliberately skips all mail queued up to
+                // now. Calling it AFTER sending would wrongly skip this SVG.
+                // This does NOT close, overwrite, save, discard, or change
+                // the existing xTool document. xTool remains responsible for
+                // asking the user what to do with unsaved work.
+                XtoolSessionManager.finish(this);
+
                 JSONObject sent = post(API + "/messages/send", token,
                         new JSONObject().put("raw", raw));
                 String id = sent.optString("id", "");
@@ -200,18 +214,20 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
 
                 runOnUiThread(() -> {
                     finishSend("Envoyé et étiqueté Jarvis SVG !\n" + filename);
-                    // Trigger the existing Gmail reader; it still verifies
-                    // the self-sent subject + SENT label before opening xTool.
-                    if (!XtoolSessionManager.isActive(this)) {
-                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                            Intent refresh = new Intent(this, MainActivity.class);
-                            refresh.setAction(MainActivity.ACTION_CHECK_GMAIL);
-                            refresh.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                            startActivity(refresh);
-                        }, 600L);
-                    }
+                    // Do not depend on receiving a self-sent Gmail
+                    // notification. Trigger the existing reader directly
+                    // after both SENT and Jarvis SVG label are confirmed.
+                    // The only allowed session reset is the explicit test
+                    // press above; never bypass this gate for normal Gmail.
+                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                        if (XtoolSessionManager.isActive(this)) return;
+                        Intent refresh = new Intent(this, MainActivity.class);
+                        refresh.setAction(MainActivity.ACTION_CHECK_GMAIL);
+                        refresh.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        startActivity(refresh);
+                    }, 600L);
                 });
             } catch (Exception error) {
                 final boolean sent = acceptedByGmail;
