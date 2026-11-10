@@ -12,12 +12,34 @@ final class EasySetPassesRegion {
     private static final Pattern PASSES = Pattern.compile(
             "(?iu)^\\s*(?:passer|passage|passages|passes|pass count)\\b");
     final int left, top, right, bottom;
+    // Exact OCR label bounds are retained for a second, *numeric-only* crop.
+    final int labelTop, labelBottom;
 
-    private EasySetPassesRegion(int left, int top, int right, int bottom) {
+    private EasySetPassesRegion(int left, int top, int right, int bottom,
+                                int labelTop, int labelBottom) {
         this.left = left;
         this.top = top;
         this.right = right;
         this.bottom = bottom;
+        this.labelTop = labelTop;
+        this.labelBottom = labelBottom;
+    }
+
+    /**
+     * Numerical field immediately to the left of xTool's chevron.
+     * This is a crop HINT based on the detected Passer label, not evidence
+     * that a valid number exists. The OCR must still prove the number.
+     */
+    EasySetPassesRegion numberField(int screenWidth, int screenHeight) {
+        int labelHeight = labelBottom - labelTop;
+        if (labelHeight < 8) return null;
+        int padding = Math.max(8, Math.round(labelHeight * 0.35f));
+        int l = Math.max(0, Math.round(screenWidth * 0.845f));
+        int r = Math.min(screenWidth, Math.round(screenWidth * 0.935f));
+        int t = Math.max(0, labelTop - padding);
+        int b = Math.min(screenHeight, labelBottom + padding);
+        if (r - l < 12 || b - t < 12) return null;
+        return new EasySetPassesRegion(l, t, r, b, labelTop, labelBottom);
     }
 
     int width() { return right - left; }
@@ -48,6 +70,6 @@ final class EasySetPassesRegion {
         int left = Math.max(0, Math.round(screenWidth * 0.025f));
         int right = Math.min(screenWidth, Math.round(screenWidth * 0.975f));
         if (right - left < 200 || bottom - top < 50) return null;
-        return new EasySetPassesRegion(left, top, right, bottom);
+        return new EasySetPassesRegion(left, top, right, bottom, best.top, best.bottom);
     }
 }
