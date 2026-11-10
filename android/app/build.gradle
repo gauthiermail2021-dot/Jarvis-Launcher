@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 50
-        versionName '1.2.31'
-        // Jarvis 1.2.31: temporary read-only stage-by-stage Passer OCR diagnostics.
-        // Build trigger: run diagnostics tests and verify signed 1.2.31 APK.
+        versionCode 51
+        versionName '1.2.32'
+        // Jarvis 1.2.32: read-only numeric Tesseract fallback after ML Kit passes.
+        // Signed experimental release, must be verified on the Samsung.
     }
 
     signingConfigs {
