@@ -50,20 +50,11 @@ public final class EasySetVisionAnalyzer {
         try {
             recognizer.process(InputImage.fromBitmap(bitmap, 0))
                     .addOnSuccessListener(vision -> {
-                        List<EasySetValues.Line> lines = new ArrayList<>();
-                        for (Text.TextBlock block : vision.getTextBlocks()) {
-                            for (Text.Line line : block.getLines()) {
-                                Rect rect = line.getBoundingBox();
-                                if (rect == null) {
-                                    lines.add(new EasySetValues.Line(line.getText(), 0, 0, 0, 0));
-                                } else {
-                                    lines.add(new EasySetValues.Line(line.getText(),
-                                            rect.left, rect.top, rect.right, rect.bottom));
-                                }
-                            }
-                        }
-                        // Numeric values exist only in the temporary result callback.
-                        finish(context, EasySetValues.diagnose(lines), callback);
+                        List<EasySetValues.Line> candidates =
+                                EasySetTextExtractor.extract(vision);
+                        // Both whole lines and single text elements are read in RAM.
+                        // Values are only passed to the temporary result callback.
+                        finish(context, EasySetValues.diagnose(candidates), callback);
                     })
                     .addOnFailureListener(e ->
                             finish(context, "Lecture impossible : " + e.getClass().getSimpleName(),
