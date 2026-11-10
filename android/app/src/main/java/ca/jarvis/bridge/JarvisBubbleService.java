@@ -422,6 +422,12 @@ public final class JarvisBubbleService extends Service {
             });
         }
 
+        addMenuButton(menu, "Analyser EasySet (visuel)", () -> {
+            Intent diagnostic = new Intent(this, EasySetVisionActivity.class);
+            diagnostic.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(diagnostic);
+        });
+
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
             // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
