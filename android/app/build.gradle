@@ -14,7 +14,7 @@ android {
         versionCode 50
         versionName '1.2.31'
         // Jarvis 1.2.31: temporary read-only stage-by-stage Passer OCR diagnostics.
-        // Rebuild after validating focused Passer-heading matching in JVM tests.
+        // Build trigger: run diagnostics tests and verify signed 1.2.31 APK.
     }
 
     signingConfigs {
