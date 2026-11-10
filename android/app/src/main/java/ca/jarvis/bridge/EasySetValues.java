@@ -49,6 +49,17 @@ public final class EasySetValues {
             "(?iu)^\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)\\s*(%|mm\\s*/\\s*s|fois)?\\s*[›>▶▸►]?\\s*$");
 
     public static String diagnose(Collection<Line> scannedLines) {
+        return diagnose(scannedLines, null);
+    }
+
+    /**
+     * A second, enlarged OCR pass may provide missing right-column values.
+     * Never replace a value already read from the full screen with one from
+     * the enhancement; keep xTool's headings and safety checks anchored in
+     * the original screenshot.
+     */
+    public static String diagnose(Collection<Line> scannedLines,
+                                  Collection<Line> enhancedRightColumn) {
         if (scannedLines == null) return EasySetLabels.diagnose(null);
         List<Line> lines = new ArrayList<>(scannedLines);
         List<String> texts = new ArrayList<>();
@@ -59,6 +70,14 @@ public final class EasySetValues {
         String power = read(lines, Field.POWER);
         String speed = read(lines, Field.SPEED);
         String passes = read(lines, Field.PASSES);
+        if (enhancedRightColumn != null && !enhancedRightColumn.isEmpty()
+                && (power == null || speed == null || passes == null)) {
+            List<Line> combined = new ArrayList<>(lines);
+            combined.addAll(enhancedRightColumn);
+            if (power == null) power = read(combined, Field.POWER);
+            if (speed == null) speed = read(combined, Field.SPEED);
+            if (passes == null) passes = read(combined, Field.PASSES);
+        }
         return gate.substring(0, gate.indexOf(" — ") > 0 ? gate.indexOf(" — ") : gate.length())
                 + " — Puissance : " + (power == null ? "non lue" : power + " %")
                 + " ; Vitesse : " + (speed == null ? "non lue" : speed + " mm/s")
