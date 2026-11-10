@@ -46,6 +46,19 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/chatgpt_bubble_accessibility" />
         </service>
+        <!-- Diagnostic EasySet facultatif, lecture seule et armé par l'utilisateur. -->
+        <service
+            android:name=".EasySetDiagnosticService"
+            android:label="Jarvis — diagnostic EasySet (lecture seule)"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/easyset_diagnostic_accessibility" />
+        </service>
         <service
             android:name=".JarvisNotificationListener"
             android:label="Jarvis Bridge — Gmail"
