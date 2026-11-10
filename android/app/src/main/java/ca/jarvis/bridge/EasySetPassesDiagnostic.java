@@ -24,7 +24,8 @@ final class EasySetPassesDiagnostic {
     private final String screen;
     private String column = "non exécutée";
     private String crop = "non exécuté";
-    private String exceptional = "";
+    private boolean seenDigits;
+    private boolean seenAmbiguousGlyph;
 
     EasySetPassesDiagnostic(Collection<EasySetValues.Line> baseLines) {
         base = new ArrayList<>(baseLines);
@@ -71,11 +72,18 @@ final class EasySetPassesDiagnostic {
         if (summary == null || !summary.startsWith("EasySet ")) return summary;
         // Only 3 compact, row-restricted sets of snippets, not the entire
         // user's screen or the image. Never saved by EasySetVisionAnalyzer.
-        String association = summary.contains("Passages : non lus")
-                ? (label == null
-                        ? "refusée : libellé Passer absent"
-                        : "refusée : chiffre absent, illisible ou hors zone")
-                : "acceptée : nombre entier dans la zone Passer";
+        String association;
+        if (!summary.contains("Passages : non lus")) {
+            association = "acceptée : nombre entier dans la zone Passer";
+        } else if (label == null) {
+            association = "refusée : libellé Passer absent";
+        } else if (seenDigits) {
+            association = "refusée : OCR voit un chiffre, mais format, zone ou conflit invalide";
+        } else if (seenAmbiguousGlyph) {
+            association = "refusée : OCR lit une lettre ou une flèche, pas un entier";
+        } else {
+            association = "refusée : aucun chiffre OCR dans la zone Passer";
+        }
         return summary + "\n\nDIAGNOSTIC PASSER (temporaire)"
                 + "\nLibellé : " + (label == null ? "non repéré" : "repéré")
                 + "\nÉcran : " + screen
@@ -106,6 +114,9 @@ final class EasySetPassesDiagnostic {
             if (y < top || y > bottom || line.left < minX) continue;
             String token = line.text.trim();
             if (!SMALL_TOKEN.matcher(token).matches()) continue;
+            if (token.matches(".*[0-9].*")) seenDigits = true;
+            else if (token.matches("(?iu).*[Il|›>▶▸►▷].*"))
+                seenAmbiguousGlyph = true;
             hits.add("«" + token + "»");
             if (hits.size() >= 3) break;
         }
