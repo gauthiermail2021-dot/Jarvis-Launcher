@@ -14,7 +14,7 @@ android {
         versionCode 46
         versionName '1.2.27'
         // Jarvis 1.2.27: read-only EasySet numeric OCR with conservative label-to-value geometry.
-        // Build verification trigger: read-only OCR with one consent per Jarvis session.
+        // Build trigger: verify numeric OCR tests and signed read-only EasySet APK.
     }
 
     signingConfigs {
