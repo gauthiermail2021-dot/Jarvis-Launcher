@@ -11,11 +11,11 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 /**
- * Small, transparent one-shot permission broker launched from the Jarvis bubble.
+ * Transparent consent broker for a reusable, explicitly authorized Jarvis session.
  *
  * No diagnostic screen is drawn. This Activity runs in an independent,
  * temporary task so that Jarvis MainActivity does not rise in front of xTool.
- * The operating system still shows its own mandatory screen-capture consent.
+ * Android shows the mandatory permission once per continuous session, never silently.
  */
 public final class EasySetConsentActivity extends Activity {
     private static final int REQUEST_CAPTURE_CONSENT = 3810;
@@ -24,6 +24,10 @@ public final class EasySetConsentActivity extends Activity {
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (EasySetSessionService.isActive()) {
+            returnToPriorApp();
+            return;
+        }
         getWindow().setBackgroundDrawable(new ColorDrawable(android.graphics.Color.TRANSPARENT));
         getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
         if (savedInstanceState != null) {
@@ -64,13 +68,15 @@ public final class EasySetConsentActivity extends Activity {
         processedResult = true;
         pendingConsent = false;
         if (resultCode == RESULT_OK && data != null) {
-            Intent capture = new Intent(this, EasySetCaptureService.class);
-            capture.putExtra(EasySetCaptureService.RESULT_CODE, resultCode);
-            capture.putExtra(EasySetCaptureService.RESULT_INTENT, data);
+            Intent capture = new Intent(this, EasySetSessionService.class);
+            capture.setAction(EasySetSessionService.ACTION_START);
+            capture.putExtra(EasySetSessionService.RESULT_CODE, resultCode);
+            capture.putExtra(EasySetSessionService.RESULT_INTENT, data);
             try {
                 if (Build.VERSION.SDK_INT >= 26) startForegroundService(capture);
                 else startService(capture);
-                JarvisBubbleService.prepareEasySetCapture();
+                // Consent starts an idle session: no screenshot until a xTool
+                // SVG is opened or the user explicitly chooses Analyze.
             } catch (RuntimeException error) {
                 explainAndReturn("Capture Android refusée : "
                         + error.getClass().getSimpleName());
