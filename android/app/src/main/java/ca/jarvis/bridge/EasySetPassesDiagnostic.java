@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  */
 final class EasySetPassesDiagnostic {
     private static final Pattern LABEL = Pattern.compile(
-            "(?iu)^\s*(?:passer|passage|passages|passes|pass count)\b");
+            "(?iu)^\\s*(?:passer|passage|passages|passes|pass count)\\b");
     private static final Pattern SMALL_TOKEN = Pattern.compile(
             "(?iu)^[0-9Il|>›▶▸►▷.,?\\- ]{1,12}$");
 
