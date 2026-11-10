@@ -2,6 +2,7 @@ package ca.jarvis.bridge;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -12,6 +13,8 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * On-device, read-only EasySet OCR. Screenshots and raw OCR are kept in memory.
@@ -22,6 +25,7 @@ public final class EasySetVisionAnalyzer {
     static final String PREFS = "easyset_vision_local";
     static final String LAST = "last_diagnostic";
     private EasySetVisionAnalyzer() { }
+    private static final ExecutorService PASS_OCR_WORKER = Executors.newSingleThreadExecutor();
 
     public interface Callback {
         void onDone(String summary);
@@ -180,7 +184,16 @@ public final class EasySetVisionAnalyzer {
         if (region == null) return null;
         Bitmap slice = null;
         Bitmap resized = null;
+        Bitmap numericOnly = null;
         try {
+            // Clone the numeric field before the full screenshot is recycled
+            // by the asynchronous screen OCR completion callback.
+            EasySetPassesRegion box = region.numberField(
+                    source.getWidth(), source.getHeight());
+            if (box != null) {
+                numericOnly = Bitmap.createBitmap(source,
+                        box.left, box.top, box.width(), box.height());
+            }
             slice = Bitmap.createBitmap(source,
                     region.left, region.top, region.width(), region.height());
             float factor = Math.min(3.5f, 2900f / region.width());
@@ -207,10 +220,11 @@ public final class EasySetVisionAnalyzer {
             paint.setColorFilter(new android.graphics.ColorMatrixColorFilter(adjust));
             new android.graphics.Canvas(enhanced).drawBitmap(resized, 0, 0, paint);
             resized.recycle();
-            return new FocusedPasses(enhanced, region, factor);
+            return new FocusedPasses(enhanced, region, factor, numericOnly);
         } catch (RuntimeException ignored) {
             if (slice != null && !slice.isRecycled()) slice.recycle();
             if (resized != null && !resized.isRecycled()) resized.recycle();
+            if (numericOnly != null && !numericOnly.isRecycled()) numericOnly.recycle();
             return null;
         }
     }
@@ -219,15 +233,19 @@ public final class EasySetVisionAnalyzer {
         final Bitmap image;
         final EasySetPassesRegion region;
         final float scale;
+        final Bitmap numericOnly;
 
-        FocusedPasses(Bitmap image, EasySetPassesRegion region, float scale) {
+        FocusedPasses(Bitmap image, EasySetPassesRegion region, float scale,
+                      Bitmap numericOnly) {
             this.image = image;
             this.region = region;
             this.scale = scale;
+            this.numericOnly = numericOnly;
         }
 
         void dispose() {
             if (!image.isRecycled()) image.recycle();
+            if (numericOnly != null && !numericOnly.isRecycled()) numericOnly.recycle();
         }
     }
 
@@ -250,8 +268,7 @@ public final class EasySetVisionAnalyzer {
             recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         } catch (RuntimeException problem) {
             debug.cropError();
-            focused.dispose();
-            finish(context, debug.append(interim), callback);
+            finishWithNumericFallback(context, interim, focused, debug, callback);
             return;
         }
         try {
@@ -267,29 +284,79 @@ public final class EasySetVisionAnalyzer {
                                     focused.region.left + Math.round(line.right / focused.scale),
                                     focused.region.top + Math.round(line.bottom / focused.scale)));
                         }
-                        // The original screen's headings remain the authority.
-                        // No "assumed 1": if no actual numeric element is found,
-                        // the displayed value stays "non lus".
                         List<EasySetValues.Line> focusedCandidates =
                                 new ArrayList<>(supplement.subList(
                                         rightCandidates.size(), supplement.size()));
                         debug.readCrop(focusedCandidates);
-                        finish(context, debug.append(
-                                EasySetValues.diagnose(base, supplement)), callback);
+                        finishWithNumericFallback(context,
+                                EasySetValues.diagnose(base, supplement),
+                                focused, debug, callback);
                     })
                     .addOnFailureListener(error -> {
                         debug.cropError();
-                        finish(context, debug.append(interim), callback);
+                        finishWithNumericFallback(context, interim, focused, debug, callback);
                     })
                     .addOnCompleteListener(task -> {
                         recognizer.close();
-                        focused.dispose();
+                        // Do NOT recycle focused.numericOnly before background Tesseract
+                        // has finished; finishWithNumericFallback owns this bitmap.
                     });
         } catch (RuntimeException error) {
             debug.cropError();
             recognizer.close();
+            finishWithNumericFallback(context, interim, focused, debug, callback);
+        }
+    }
+
+    /**
+     * Fourth and final OCR stage. It runs only if all ML Kit passes failed.
+     * The original screenshot has already been released: the small numeric
+     * ROI was cloned ahead of time. Tesseract runs off the main/UI thread.
+     *
+     * The resulting number is indicative only. No xTool setting is changed,
+     * and any failure leaves "Passages : non lus" unchanged.
+     */
+    private static void finishWithNumericFallback(
+            Context context, String summary, FocusedPasses focused,
+            EasySetPassesDiagnostic debug, Callback callback) {
+        if (focused == null || focused.numericOnly == null
+                || !summary.startsWith("EasySet ")
+                || !summary.contains("Passages : non lus")) {
+            if (focused != null) focused.dispose();
+            finish(context, debug.append(summary), callback);
+            return;
+        }
+        try {
+            PASS_OCR_WORKER.execute(() -> {
+                String corrected = summary;
+                String diagnostic = "OCR chiffre seul : non lu";
+                EasySetPassesTesseract.Result reading = null;
+                try {
+                    reading = EasySetPassesTesseract.read(context,
+                            focused.numericOnly,
+                            new Rect(0, 0, focused.numericOnly.getWidth(),
+                                    focused.numericOnly.getHeight()));
+                    if (reading.passages != null
+                            && reading.passages >= 1 && reading.passages <= 99) {
+                        corrected = summary.replace("Passages : non lus",
+                                "Passages : " + reading.passages);
+                    }
+                    diagnostic = "OCR chiffre seul — " + reading.diagnostic;
+                } catch (Exception e) {
+                    // The installed OCR model might not be available on every device.
+                    diagnostic = "OCR chiffre seul indisponible ("
+                            + e.getClass().getSimpleName() + ")";
+                } finally {
+                    if (reading != null && reading.preview != null
+                            && !reading.preview.isRecycled()) reading.preview.recycle();
+                    focused.dispose();
+                }
+                finish(context, debug.append(corrected) + "\n" + diagnostic, callback);
+            });
+        } catch (RuntimeException error) {
             focused.dispose();
-            finish(context, debug.append(interim), callback);
+            finish(context, debug.append(summary)
+                    + "\nOCR chiffre seul : indisponible", callback);
         }
     }
 

@@ -260,27 +260,28 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView chatgptAutoHelp = new TextView(this);
-        chatgptAutoHelp.setText("Option ChatGPT : activer le service d'accessibilité Jarvis "
-                + "pour détecter uniquement l'ouverture de ChatGPT. "
+        chatgptAutoHelp.setText("Option facultative : activer l'accessibilité Jarvis "
+                + "pour détecter l'ouverture de ChatGPT et le retour au premier plan de xTool Creative Space. "
                 + "Autorisation facultative, désactivée par défaut. "
-                + "Jarvis ne lit pas le contenu de vos conversations.");
+                + "Jarvis ne lit pas le contenu des fenêtres avec ce service.");
         layout.addView(chatgptAutoHelp);
         Button chatgptAuto = new Button(this);
-        chatgptAuto.setText("Configurer la bulle à l'ouverture de ChatGPT");
+        chatgptAuto.setText("Configurer la bulle et l'analyse auto xTool");
         layout.addView(chatgptAuto);
         chatgptAuto.setOnClickListener(v -> {
             Intent settings = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(settings);
-            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — ChatGPT. "
+            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — ChatGPT et xTool. "
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.31 : au lancement de la bulle "
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.33 : au lancement de la bulle "
                 + "Jarvis, autorise une seule session de capture Android. Après l'ouverture "
-                + "d'un SVG dans xTool, une analyse de lecture seule est tentée automatiquement. "
-                + "La bulle affiche temporairement ce que l'OCR reconnaît près du "
-                + "champ Passer à chaque étape, puis si l'association est acceptée "
+                + "d'un SVG dans xTool, ou au retour vers un dessin xTool déjà ouvert, une analyse de lecture seule est tentée automatiquement. "
+                + "La bulle affiche temporairement les valeurs OCR. Si ML Kit ne voit pas le "
+                + "chiffre Passer, Tesseract tente de lire uniquement la case numérique. "
+                + "Le diagnostic indique si la lecture est acceptée "
                 + "ou refusée. Les lectures incertaines restent non lues. "
                 + "Le partage s'arrête lorsque la bulle est fermée ou sur commande.");
         layout.addView(easysetVisionHelp);
