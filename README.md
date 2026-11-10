@@ -1,189 +1,25 @@
-# Jarvis Bridge 1.2.25 — EasySet Android sans grande fenêtre Jarvis
+# Jarvis Bridge 1.2.26 — Session EasySet : une autorisation Android
 
-Version expérimentale distincte des branches 1.2.24 et 1.2.21 (stable).
+Prototype expérimental signé, sur une branche séparée. La version stable Jarvis 1.2.21 n'est pas modifiée.
 
-## Test sur le Samsung sans PC
+## Parcours visé sur Android
 
-1. Ouvrir le SVG dans xTool, idéalement par l'ouverture Gmail automatique de Jarvis, et afficher EasySet (Puissance, Vitesse, Passer).
-2. Appui long (1 seconde) sur la bulle Jarvis → **Analyser EasySet maintenant**.
-3. Une activité **totalement transparente, isolée dans une tâche Android temporaire**, demande uniquement l'autorisation officielle de capture d'écran.
-4. Après consentement, cette tâche se termine et se place en arrière-plan : **xTool devrait redevenir visible**; la grande page « JARVIS 1.2.25 • EASYSET » n'est plus ouverte.
-5. Après une attente de stabilisation d'environ 2,6 secondes, la capture ponctuelle est analysée en local. Le résultat s'affiche dans un panneau flottant temporaire au-dessus de xTool, avec un bouton pour le fermer.
-6. En cas d'échec, le résultat reste accessible depuis l'interface de diagnostic manuelle et, si autorisées, les notifications Android.
+1. Ouverture de ChatGPT : le détecteur facultatif déjà existant affiche la bulle Jarvis lorsqu'il est autorisé. Une seule demande de partage d'écran est alors lancée automatiquement. Si Android bloque l'ouverture du dialogue, un élément « Autoriser la capture pour la session » reste accessible dans le menu de la bulle.
+2. Si l'utilisateur accepte, un service de premier plan avec notification permanente maintient une unique session `MediaProjection`. Le `VirtualDisplay` est créé une seule fois avec une `Surface` nulle au repos : aucune image n'est lue, enregistrée ou analysée en permanence.
+3. La création/expédition d'un SVG et son ouverture par Jarvis dans xTool restent identiques aux versions précédentes.
+4. Lors de la demande d'ouverture du SVG vers xTool, Jarvis planifie **une seule analyse automatique, en lecture seule**, après un délai de 6,5 secondes. Il attache temporairement une `ImageReader`, attend la disparition de la bulle, reconnaît les libellés EasySet avec ML Kit hors ligne, puis enlève la `Surface`. Si le volet EasySet n'est pas encore visible, il ne masque pas le dessin avec un échec.
+5. Avec le volet EasySet visible, un appui long sur la bulle → « Analyser EasySet maintenant » déclenche immédiatement une autre lecture, sans nouvelle demande de consentement, à condition que la même session Android soit toujours active.
+6. « Arrêter le partage d'écran » dans le menu, « Fermer la bulle » ou l'action « Arrêter la capture » dans la notification ferment la projection et libèrent les ressources. Android peut aussi révoquer le partage (verrouillage, interruption, arrêt système). Une nouvelle session exige une nouvelle permission.
 
-## Sécurité et limites
+## Ce que le prototype ne fait pas
 
-- Android affiche toujours son propre dialogue de consentement à chaque capture. C'est obligatoire; aucune capture silencieuse.
-- La reprise du focus xTool **doit être confirmée sur l'appareil** : Android gère librement ses tâches et fenêtres.
-- L'image est analysée uniquement en mémoire puis abandonnée. Seule la synthèse du diagnostic est conservée dans les préférences locales.
-- L'OCR exige deux libellés EasySet et rejette l'interface Jarvis comme source de résultat.
-- Pas d'accès d'accessibilité supplémentaire, pas de clic, pas de saisie, pas de réglages changés, pas de commande laser.
-- Toujours faire vérifier manuellement la pièce et les paramètres avant toute fabrication.
+- Aucun accès au contenu de ChatGPT, aucune analyse continue des images, aucun stockage de capture.
+- Aucun contrôle de xTool, aucun changement de puissance/vitesse/passages et aucun démarrage de machine.
+- L'export SVG, Gmail et l'ouverture xTool sont conservés. Une demande d'ouverture ne prouve pas que xTool ou EasySet est déjà affiché.
+- L'autorisation MediaProjection n'est jamais permanente : une autorisation par **session active**, pas par installation.
+- Le comportement de la permission au démarrage dépend de restrictions du fabricant Android; le menu de la bulle sert de solution de repli.
+- Le champ « EasySet reconnu » est une détection visuelle des libellés, pas une confirmation des paramètres de fabrication.
 
-# Jarvis 1.2.24 — EasySet à partir de la bulle (test Android)
+## Tests
 
-Cette branche est expérimentale, issue de 1.2.23. Jarvis 1.2.21 stable demeure inchangé.
-
-## Test minimal
-
-1. Charger le SVG dans xTool et afficher le volet EasySet, avec « Puissance », « Vitesse » et « Passer » à l'écran.
-2. **Appui long (1 s)** sur la bulle Jarvis → « **Analyser EasySet maintenant** ».
-3. Accepter l'autorisation ponctuelle Android de capturer l'écran.
-4. Jarvis se met en arrière-plan, cache temporairement sa bulle, attend environ 2,6 secondes et fait **une seule capture**.
-5. La capture est lue hors ligne par ML Kit et immédiatement jetée. Le résultat est affiché dans une carte flottante au-dessus de xTool, fermable et masquée automatiquement après 20 secondes. Une notification permet aussi de retrouver le dernier diagnostic.
-6. Si Android conserve Jarvis à l'écran, l'analyse le détecte et refuse de confirmer EasySet : jamais de faux « reconnu » uniquement grâce au titre de Jarvis.
-
-## Limites et sécurité
-
-- Autorisation MediaProjection demandée **pour chaque capture** : Android l'impose.
-- La classification exige au moins deux vrais libellés de réglage et refuse une capture contenant les éléments de l'interface Jarvis.
-- Les chiffres saisis dans xTool et l'image ne sont ni enregistrés ni envoyés. La synthèse seule est sauvegardée localement.
-- Aucun service d'accessibilité xTool, aucun clic ou geste automatique, aucune modification de paramètre et **aucun démarrage laser**.
-- La reconnaissance OCR ne garantit pas la bonne configuration d'une machine. Vérifier le dessin et ses réglages dans xTool avant toute fabrication.
-- Si l'analyse directe échoue, l'écran EasySet conserve une option secondaire pour analyser une image déjà prise.
-
-# Jarvis 1.2.23 — prototype visuel EasySet (Android sans PC)
-
-Cette branche est expérimentale et distincte de 1.2.21. La reconnaissance de texte est effectuée localement à l'aide du modèle ML Kit embarqué. L'application n'exige aucune autorisation d'accessibilité supplémentaire.
-
-## Test directement dans xTool
-1. Ouvrir le dessin dans xTool et afficher le volet EasySet.
-2. Maintenir la bulle Jarvis une seconde pour ouvrir son menu, choisir **Analyser EasySet (visuel)**.
-3. Choisir **Analyser EasySet à l'écran**, puis accepter la demande officielle Android de partage d'écran.
-4. Jarvis se met en arrière-plan et effectue **une seule capture** après une courte attente (~2 secondes). Il interrompt immédiatement la capture.
-5. Retourner à Jarvis : le résultat indique seulement la présence des libellés EasySet, Puissance, Vitesse, Passages.
-6. Si Android empêche la capture ou si le retour à xTool ne fonctionne pas, faire une capture d'écran manuelle et utiliser **Analyser une capture déjà prise**.
-
-## Respect de la vie privée et sécurité
-- Capture avec consentement ponctuel; aucun service d'accessibilité xTool.
-- Aucune image, texte OCR intégral, ou valeur numérique de paramètres stockés ou envoyés.
-- Une courte synthèse locale est conservée pour pouvoir la lire en revenant à Jarvis.
-- La reconnaissance visuelle ne permet pas de cliquer dans xTool. Cette version ne change jamais des réglages ni ne lance de machine.
-- Valider visuellement la pièce et les paramètres directement dans xTool. L'application ne confirme pas leur pertinence.
-
-## 1.2.21 — Halo contenu et rotation ralentie
-
-- Une seule révolution de la lumière pendant **850 ms** à l'ouverture (au lieu de deux en 510 ms).
-- Halo **24 dp de diamètre** avec centre blanc identique; trajectoire recentrée pour que le cercle complet reste à l'écran, même pendant l'agrandissement.
-- **Trois petits points discrets de traînée** derrière la lumière uniquement pendant l'ouverture.
-- Les animations des SVG, les sons, les contrôles, le filtre des notifications et la session xTool restent inchangés.
-
-## 1.2.19 — Trois sons discrets et distincts
-
-- **Miniature :** petit tic électronique original de 60 ms au toucher.
-- **Ouverture :** whoosh montant discret de 250 ms, joué 85 ms après l'ouverture ; distinct du tic.
-- **Menu :** bip de confirmation distinct de 90 ms après sélection d'un bouton, sans bruit pendant le déplacement.
-- Les trois nouveaux échantillons WAV sont synthétisés pendant la compilation, sans échantillon externe.
-- Tous les nouveaux sons respectent le réglage existant **« Son »**. L'animation, la réception des SVG, xTool et les corrections Gmail restent inchangés.
-
-## 1.2.18 — Ouverture plus énergique
-
-- Animation d'ouverture plus dynamique : expansion rapide de **54 à 110 dp**, petit rebond interne **110 → 103 → 110 dp** en 390 ms (sans agrandir la fenêtre au-delà de son format final).
-- **Deux tours lumineux rapides** autour de la bulle en 510 ms, avec un éclaircissement bref du contour en fin d'ouverture.
-- L'effet respecte « Animations : désactivées ». La bulle fermée et son apparence finale sont inchangées.
-- Aucune modification de la réception des SVG, des sons, de la gestion des sessions xTool, ni du filtrage des notifications Gmail établi en 1.2.17.
-
-## 1.2.17 — Ouverture animée et notifications ciblées
-
-- Agrandissement fluide de 54 à 110 dp en **280 ms**, avec décélération douce, au toucher ou lors d'un événement SVG.
-- Un **point lumineux effectue une rotation complète du cadre (560 ms)** à chaque ouverture, indépendamment de l'animation déjà utilisée à la réception des SVG.
-- Si d'autres événements arrivent pendant l'ouverture, l'animation continue sans être relancée. L'option **« Animations : désactivées »** supprime les deux effets d'ouverture.
-- Les notifications groupées de Gmail ne sont plus prises pour des messages nouveaux.
-- **Plus d'alerte Jarvis manuelle pour chaque courriel Gmail ordinaire** : le repli manuel ne s'affiche que si la notification évoque clairement Jarvis ou un SVG. Les vérifications automatiques via le libellé Gmail continuent, sans filtre risquant de perdre un SVG.
-- La notification Android permanente « Bulle flottante active » reste nécessaire au service en arrière-plan, mais n'est plus republiée à chaque redémarrage de l'activité.
-- Bulle au repos inchangée : couleurs, cadre, dimensions finales, textes, sons et sessions xTool conservés.
-
-## 1.2.16 — Fenêtre noire derrière la bulle
-
-- **Correctif ciblé Android :** les activités temporaires utilisées pour vérifier Gmail ou démarrer uniquement la bulle n'affichent plus de vue couvrant l'écran.
-- Leur fond est explicitement transparent et aucun assombrissement de la fenêtre n'est demandé.
-- Le lancement compact ferme son activité après avoir démarré le service flottant, au lieu de conserver une fenêtre vide dans la pile Android via `moveTaskToBack(true)`.
-- Les vérifications Gmail réutilisant le lancement compact se terminent elles aussi, après le traitement.
-- Les nouvelles notifications ne relancent pas une vérification Gmail quand une session xTool est déjà active.
-- **Aucun changement de la bulle elle-même**, des couleurs, de la taille, des animations, des messages, des sons, de l'importation SVG ni du verrouillage de session.
-- À vérifier sur Samsung : après ouverture d'un SVG, la bulle reste visible et il n'y a plus de fond noir plein écran.
-
-## 1.2.15 — Son unique au refus d'un fichier
-
-- **Un seul son électronique bref et grave** (220 Hz, durée 250 ms, saturation douce), généré localement pendant la compilation, sans téléchargement.
-- Déclenché uniquement à la réception d'un fichier refusé (« REFUSÉ »), une fois par événement; le registre Gmail de la 1.2.11 empêche les répétitions liées au même message.
-- L'option « Son : désactivé » supprime aussi le son de refus.
-- **Aucun changement visuel** : la bulle, son menu, ses couleurs, sa taille, ses animations et ses messages sont inchangés.
-- Les quatre sons habituels du xylophone ne changent pas. Aucun bouton de test supplémentaire.
-
-## 1.2.14 — Menu de la bulle simplifié
-
-- Renommage de « Xylophone : activé/désactivé » en **« Son : activé/désactivé »**.
-- Suppression complète du bouton **« Tester les 4 notes »**.
-- Les sons de notification, les réglages audio existants et le mode session xTool sont inchangés.
-
-## 1.2.13 — Correction : xTool lancé via l'association Android
-
-- **Défaut confirmé en 1.2.12 :** sur certains téléphones Samsung, xTool reçoit bien le SVG par l'action Android standard, mais le résolveur ne porte pas le nom « xTool ». La session ne s'activait pas, et la bulle n'affichait pas « xTool EN COURS ».
-- **Correctif :** après tout envoi SVG réussi depuis Jarvis, **que l'activité xTool ait été trouvée directement ou qu'Android utilise son association par défaut**, Jarvis démarre la session protégée et affiche « xTool / EN COURS » dans la bulle.
-- **Menu :** l'appui long propose « Terminer la session xTool »; déplacer la bulle n'achève jamais la session.
-- **Diagnostic :** le statut Jarvis précise si le SVG a été envoyé directement à xTool ou via l'association Android.
-- **Limite :** Android ne permet pas de certifier que l'importation a réussi dans xTool. Si l'association SVG du téléphone est changée vers une autre application, Jarvis protègera quand même la session après une ouverture réussie; il faudra alors terminer la session par le menu.
-
-## 1.2.12 — Mode session xTool protégée
-
-- **Un seul SVG ouvre la session :** après l'envoi réussi vers xTool, Jarvis mémorise une session active sur le téléphone. Cette session reste active même si Android redémarre l'activité ou la bulle.
-- **Affichage de la bulle :** petite ou agrandie, elle indique **xTool / EN COURS**. Ce statut signifie que Jarvis protège la session du dessin, et non que la machine laser travaille réellement.
-- **Notifications pendant la session :** le filtre Gmail n'analyse aucun nouveau fichier. Aucune nouvelle ouverture xTool ne peut interrompre le dessin actif, même en cas de notification répétée.
-- **Gestes :** glisser la bulle ne termine rien; un appui simple agrandit la bulle; un appui long ouvre le menu.
-- **Terminer :** dans le menu, toucher **Terminer la session xTool**. Cela réarme Jarvis pour les futurs courriels sans fermer xTool. Les courriels reçus pendant la session restent ignorés après le réarmement (curseur temporel Gmail avancé à la fin de la session).
-- **Limite :** la fermeture réelle de xTool n'est pas détectée automatiquement; Android ne garantit pas la différence entre fermeture et arrière-plan. Le menu manuel reste la confirmation fiable.
-- **Appels externes :** l'envoi d'un SVG depuis une autre application ou un lien HTTPS est également bloqué pendant la session.
-
-## 1.2.11 — Traitement unique par message Gmail
-- Gmail peut générer plusieurs notifications pour un seul courriel. Les notifications déclenchent une vérification discrète; **elles n'affichent plus la bulle tant qu'un nouveau fichier n'a pas été confirmé**.
-- Les fichiers CAD/3D, DXF, inconnus et SVG invalides sont **refusés une seule fois**, puis leur identifiant Gmail et leur horodatage sont enregistrés comme déjà traités. Une notification suivante ne réaffiche pas le refus.
-- Les refus de format sont distingués des véritables erreurs transitoires (réseau, authentification) afin de ne pas empêcher la reprise d'une connexion interrompue.
-- La bulle affiche **CAD / REFUSÉ**, **DXF / REFUSÉ** ou **FICHIER / REFUSÉ** selon le cas.
-- Seuls les messages admissibles avec une nouvelle pièce jointe déclenchent l'animation; l'ouverture SVG de la 1.2.10 est conservée.
-- Les pièces jointes STEP, STL et autres formats non SVG sont maintenant identifiées et refusées explicitement au lieu d'être ignorées.
-
-# Jarvis Bridge Android 1.2.16 — Contrôle des formats
-
-Application Android pour récupérer des dessins SVG depuis Gmail et demander leur ouverture dans xTool. L'APK 1.2.8 a été testé avec succès sur Samsung Android 13, avec la fenêtre fermée et la bulle visible. La 1.2.9 renforce le code; elle doit être testée sur l'appareil avant de remplacer la version de référence.
-
-## Routage de fichiers ajouté en 1.2.10
-- **SVG 2D valide** : chemin Gmail / fichier Android / HTTPS vers xTool P2S, inchangé.
-- **STL, STEP, STP, SLDPRT, OBJ, 3MF, IGES et autres fichiers CAD 3D** : refus explicite, aucun lancement de xTool; exporter une projection 2D en SVG depuis SolidWorks pour une découpe laser.
-- **DXF 2D** : refus du transfert automatique actuel (qui est réservé au SVG). Import DXF manuel dans xTool ou conversion préalable en SVG.
-- **Fichier inconnu ou SVG invalide** : refus. Les contenus trompeurs (par exemple STEP nommé .svg) sont bloqués.
-- La fenêtre des réglages affiche la **vraie version Android** et le démarrage de la bulle n'efface plus le dernier état de diagnostic.
-- **Limite :** ce contrôle ne peut pas modifier la gestion interne des fichiers ni le choix de machine dans xTool. Jarvis sait demander l'ouverture mais ne peut pas confirmer que le dessin a bien été importé. Le routage automatique de CAD 3D vers SolidWorks ou Raise3D n'est pas encore développé.
-
-## Flux de travail
-1. Un dessin SVG est envoyé depuis le compte Gmail connecté avec un sujet commençant par `JARVIS-SVG-AUTO`.
-2. Le filtre Gmail applique l'étiquette `Jarvis SVG`. La pièce doit être un fichier `.svg`.
-3. Une notification Gmail déclenche la recherche, sans vérifier périodiquement les courriels.
-4. Jarvis recherche les messages sous cette étiquette, y compris ceux déjà marqués « lus », et retient le dessin autorisé le plus récent.
-5. Jarvis vérifie que le message porte l'étiquette système Gmail `SENT`, contrôle le sujet et valide le contenu SVG avant de demander son ouverture dans xTool.
-
-**Important :** l'ouverture de xTool n'est pas une commande de découpe, de gravure ou de démarrage du laser. Vérifier le dessin, le placement, le matériau, la ventilation et les paramètres avant toute utilisation physique.
-
-## Garanties et limites
-- Le mécanisme de déduplication conserve les identifiants Gmail, l'heure du dernier message traité et l'empreinte SHA-256 du dernier SVG.
-- Les notifications arrivées pendant une recherche provoquent une nouvelle vérification après le traitement en cours.
-- En cas de courriels envoyés très rapidement, **seul le dessin valide le plus récent** est ouvert automatiquement. Les fichiers antérieurs restent dans Gmail.
-- Aucune lecture Gmail n'est exécutée de manière périodique. Android ou Gmail peuvent supprimer des notifications : si aucun nouvel événement n'arrive, un message peut rester en attente jusqu'à la prochaine notification ou jusqu'à l'utilisation du bouton « Ouvrir le dernier SVG Gmail ».
-- L'ouverture totalement automatique dépend des autorisations de notifications et de superposition, de la présence de la bulle et des restrictions d'Android. Les mises à jour Android peuvent changer le comportement.
-- Pour l'importation automatique, le SVG doit respecter le sous-ensemble vectoriel sûr : éléments graphiques usuels, sans script, image liée, DTD, entité XML externe ni référence de réseau. Il doit comporter des dimensions explicites bornées. Les SVG complexes peuvent être refusés et nécessiter une vérification manuelle.
-- Le niveau Android cible est toujours 28 pour préserver la compatibilité de ce prototype; une migration vers les API modernes et de nouveaux essais sur appareils sont nécessaires avant publication grand public.
-
-## Structure
-- `MainActivity.java` : écran de paramètres, autorisation Gmail, récupération et transmission des SVG.
-- `JarvisNotificationListener.java` : réception et regroupement des notifications Gmail.
-- `JarvisBubbleService.java` : bulle flottante, statuts, interactions.
-- `JarvisMailGate.java` : vérification des sujets et provenance.
-- `SafeSvgValidator.java` : validation du profil SVG avant ouverture dans xTool.
-- `android/app/src/test/` : tests JVM de sécurité et de vérification des courriels.
-
-## Compilation
-La branche de stabilisation est `feature/jarvis-bridge-stability-1.2.9`. Le workflow `Build and test Jarvis Bridge 1.2.9 - signed APK` exécute les tests, assemble la version `release`, vérifie sa signature et dépose l'APK signé dans les **Artifacts GitHub Actions**. Il n'essaye plus de publier un GitHub Release (l'API Releases retournait HTTP 403 dans les essais précédents).
-
-Le certificat de signature permanent reste dans les secrets GitHub, jamais dans le dépôt. Une installation de mise à jour doit utiliser le même package `ca.jarvis.bridge`, le même certificat et un `versionCode` supérieur. Ne pas désinstaller 1.2.8 avant d'avoir validé 1.2.9.
-
-Voir `android/GOOGLE_OAUTH_CONFIGURATION.md` pour les détails d'identité et de signature.
+La compilation GitHub Actions exécute les tests Java, produit l'APK signé avec la clé d'origine et vérifie sa signature. Tester sur Samsung Android 13 la demande automatique, la notification persistante, la fermeture et une seconde analyse dans la même session sans nouveau dialogue Android.
