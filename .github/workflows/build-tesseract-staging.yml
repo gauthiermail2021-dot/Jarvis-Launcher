@@ -1,0 +1,54 @@
+name: "STAGING Tesseract EasySet - tests seulement, aucun APK publie"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [experiment/easyset-tesseract-1.2.32-preparation]
+    paths:
+      - 'android/app/src/main/java/ca/jarvis/bridge/EasySetPassesTesseract.java'
+      - 'android/app/src/main/java/ca/jarvis/bridge/EasySetPassesRegion.java'
+      - 'android/app/src/test/java/ca/jarvis/bridge/EasySetPassesRegionTest.java'
+      - 'android/app/build.gradle'
+      - 'android/settings.gradle'
+      - '.github/workflows/build-tesseract-staging.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-not-for-installation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK 35
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Prepare original audio resources
+        run: |
+          python3 tools/prepare_jarvis_wav.py
+          python3 tools/prepare_jarvis_refusal_wav.py
+          python3 tools/prepare_jarvis_interactions_wav.py
+      - name: Download English OCR model for compilation
+        run: |
+          mkdir -p android/app/src/main/assets/tessdata
+          curl --fail --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata' \
+            --output android/app/src/main/assets/tessdata/eng.traineddata
+          test "$(wc -c < android/app/src/main/assets/tessdata/eng.traineddata)" -gt 100000
+      - name: Run unit tests and compile debug-only application
+        working-directory: android
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
+      - name: Verify this build is DEV only, not official Jarvis release
+        run: |
+          grep -F "applicationIdSuffix '.dev'" android/app/build.gradle
+          echo "Compile only. No APK artifact is published from this staging workflow."
