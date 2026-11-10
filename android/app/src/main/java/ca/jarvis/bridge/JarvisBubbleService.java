@@ -71,6 +71,8 @@ public final class JarvisBubbleService extends Service {
     private boolean fingerDown = false;
     private boolean longPressHandled = false;
     private View menuView;
+    private View easySetBanner;
+    private Runnable easySetBannerDismiss;
     private Runnable collapseRunnable;
     private ValueAnimator openingAnimator;
     private long openingSpinUntil = 0L;
@@ -201,6 +203,98 @@ public final class JarvisBubbleService extends Service {
             return true;
         } catch (RuntimeException blocked) {
             return false;
+        }
+    }
+
+    /** Cacher brièvement la bulle pendant la capture consentie, puis la restaurer. */
+    static void prepareEasySetCapture() {
+        JarvisBubbleService current = activeService;
+        if (current == null) return;
+        current.gestureHandler.post(() -> {
+            if (current.bubble == null) return;
+            current.dismissEasySetBanner();
+            current.bubble.setVisibility(View.INVISIBLE);
+            // Failsafe: restore even if MediaProjection fails or the OCR process dies.
+            current.gestureHandler.postDelayed(() -> {
+                if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
+            }, 14000L);
+        });
+    }
+
+    /** Afficher le résultat SUR xTool, sans revenir dans les réglages Jarvis. */
+    static void showEasySetResult(String summary) {
+        JarvisBubbleService current = activeService;
+        if (current != null) current.gestureHandler.post(() ->
+                current.showEasySetBanner(summary));
+    }
+
+    private void dismissEasySetBanner() {
+        if (easySetBannerDismiss != null)
+            gestureHandler.removeCallbacks(easySetBannerDismiss);
+        easySetBannerDismiss = null;
+        if (wm != null && easySetBanner != null) {
+            try { wm.removeView(easySetBanner); }
+            catch (IllegalArgumentException ignored) { }
+        }
+        easySetBanner = null;
+    }
+
+    private void showEasySetBanner(String summary) {
+        if (bubble != null) bubble.setVisibility(View.VISIBLE);
+        if (wm == null || !Settings.canDrawOverlays(this)) return;
+        dismissEasySetBanner();
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(13), dp(12), dp(13), dp(10));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.rgb(12, 30, 48));
+        background.setCornerRadius(dp(14));
+        background.setStroke(dp(2), Color.rgb(75, 211, 235));
+        panel.setBackground(background);
+
+        TextView title = new TextView(this);
+        title.setText("JARVIS • RÉSULTAT EASYSET");
+        title.setTextColor(Color.rgb(85, 221, 249));
+        title.setTextSize(14);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        panel.addView(title);
+
+        TextView details = new TextView(this);
+        details.setText(summary == null ? "Résultat indisponible." : summary);
+        details.setTextColor(Color.WHITE);
+        details.setTextSize(15);
+        details.setPadding(0, dp(8), 0, dp(8));
+        panel.addView(details);
+
+        Button dismiss = new Button(this);
+        dismiss.setAllCaps(false);
+        dismiss.setText("Fermer le résultat");
+        panel.addView(dismiss);
+        dismiss.setOnClickListener(v -> dismissEasySetBanner());
+
+        Point display = new Point();
+        wm.getDefaultDisplay().getRealSize(display);
+        int width = Math.min(dp(310), display.x - dp(24));
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                width, WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT);
+        lp.gravity = Gravity.TOP | Gravity.LEFT;
+        lp.x = Math.max(dp(12), Math.min(params != null ? params.x : dp(12),
+                display.x - width - dp(12)));
+        lp.y = Math.max(dp(65), Math.min(params != null
+                ? params.y + params.height + dp(8) : dp(65), display.y - dp(285)));
+        try {
+            wm.addView(panel, lp);
+            easySetBanner = panel;
+            easySetBannerDismiss = this::dismissEasySetBanner;
+            gestureHandler.postDelayed(easySetBannerDismiss, 20000L);
+        } catch (RuntimeException ignored) {
+            easySetBanner = null;
+            Toast.makeText(this, summary, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -422,8 +516,9 @@ public final class JarvisBubbleService extends Service {
             });
         }
 
-        addMenuButton(menu, "Analyser EasySet (visuel)", () -> {
+        addMenuButton(menu, "Analyser EasySet maintenant", () -> {
             Intent diagnostic = new Intent(this, EasySetVisionActivity.class);
+            diagnostic.putExtra(EasySetVisionActivity.AUTO_CAPTURE, true);
             diagnostic.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(diagnostic);
         });
@@ -605,6 +700,7 @@ public final class JarvisBubbleService extends Service {
         cancelPendingLongPress();
         fingerDown = false;
         dismissMenu();
+        dismissEasySetBanner();
         if (wm != null && bubble != null) {
             try { wm.removeView(bubble); }
             catch (IllegalArgumentException ignored) { }
