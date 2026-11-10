@@ -47,7 +47,7 @@ public final class EasySetVisionActivity extends Activity {
         body.setPadding(dp(22), dp(26), dp(22), dp(24));
         scroll.addView(body);
 
-        TextView title = add(body, "JARVIS 1.2.29 • EASYSET", 24, 0xff52dbf8);
+        TextView title = add(body, "JARVIS 1.2.30 • EASYSET", 24, 0xff52dbf8);
         title.setGravity(Gravity.CENTER_HORIZONTAL);
         add(body, "ANALYSE VISUELLE — LECTURE SEULE", 15, 0xffc2dce5);
         add(body, "Lecture expérimentale des valeurs Puissance, Vitesse et Passages "
