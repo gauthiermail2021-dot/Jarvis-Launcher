@@ -3,6 +3,7 @@ package ca.jarvis.bridge;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import com.google.mlkit.vision.common.InputImage;
@@ -31,7 +32,12 @@ public final class EasySetVisionAnalyzer {
 
     public static void save(Context context, String result) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putString(LAST, result).apply();
+                .edit().putString(LAST, result != null
+                        && result.contains("Valeurs OCR indicatives")
+                        ? "EasySet analysé. Les valeurs numériques ont été affichées "
+                        + "temporairement et ne sont pas conservées. "
+                        + "Relance une analyse pour les revoir."
+                        : result).apply();
     }
 
     public static void analyze(Context context, Bitmap bitmap, Callback callback) {
@@ -44,14 +50,20 @@ public final class EasySetVisionAnalyzer {
         try {
             recognizer.process(InputImage.fromBitmap(bitmap, 0))
                     .addOnSuccessListener(vision -> {
-                        List<String> lines = new ArrayList<>();
+                        List<EasySetValues.Line> lines = new ArrayList<>();
                         for (Text.TextBlock block : vision.getTextBlocks()) {
                             for (Text.Line line : block.getLines()) {
-                                // Labels only: numeric values and raw lines never persisted.
-                                lines.add(line.getText());
+                                Rect rect = line.getBoundingBox();
+                                if (rect == null) {
+                                    lines.add(new EasySetValues.Line(line.getText(), 0, 0, 0, 0));
+                                } else {
+                                    lines.add(new EasySetValues.Line(line.getText(),
+                                            rect.left, rect.top, rect.right, rect.bottom));
+                                }
                             }
                         }
-                        finish(context, EasySetLabels.diagnose(lines), callback);
+                        // Numeric values exist only in the temporary result callback.
+                        finish(context, EasySetValues.diagnose(lines), callback);
                     })
                     .addOnFailureListener(e ->
                             finish(context, "Lecture impossible : " + e.getClass().getSimpleName(),
