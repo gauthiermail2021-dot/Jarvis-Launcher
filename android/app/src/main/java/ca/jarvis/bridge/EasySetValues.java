@@ -43,8 +43,10 @@ public final class EasySetValues {
         }
     }
 
+    // The xTool value cells may carry a small navigation chevron on the right.
+    // Accept only that trailing UI icon, not arbitrary OCR text or units.
     private static final Pattern NUMBER = Pattern.compile(
-            "(?iu)^\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)\\s*(%|mm\\s*/\\s*s|fois)?\\s*$");
+            "(?iu)^\\s*(\\d{1,4}(?:[.,]\\d{1,2})?)\\s*(%|mm\\s*/\\s*s|fois)?\\s*[›>▶▸►]?\\s*$");
 
     public static String diagnose(Collection<Line> scannedLines) {
         if (scannedLines == null) return EasySetLabels.diagnose(null);
@@ -71,14 +73,20 @@ public final class EasySetValues {
             Matcher heading = field.heading.matcher(label.text);
             if (!heading.find()) continue;
             String suffix = label.text.substring(heading.end()).trim();
-            // Inline fields: "Puissance (%) : 50%" and "Vitesse (mm/s) 120".
-            suffix = suffix.replaceFirst("(?iu)^\\s*\\(\\s*(?:%|mm\\s*/\\s*s)\\s*\\)", "").trim();
+            // Inline OCR: "Puissance (%) : 50%" or "Vitesse (mm/s) 78".
+            suffix = suffix.replaceFirst(
+                    "(?iu)^\\s*\\(\\s*(?:%|mm\\s*/\\s*s)\\s*\\)", "").trim();
             suffix = suffix.replaceFirst("^[=:：]\\s*", "").trim();
             String matched = asValue(suffix, field);
-            if (matched == null && suffix.isEmpty()) {
-                matched = onSameRow(lines, label, field);
+
+            // The Android xTool UI puts its values on the far right, often
+            // one row BELOW the label (at the height of the slider).
+            // Never "rescue" a malformed inline number using another cell.
+            if (matched == null && !suffix.matches(".*\\d.*")) {
+                matched = inFieldZone(lines, label, field);
             }
             if (matched != null) {
+                // Conflicting observations are ambiguous; omit, do not guess.
                 if (chosen != null && !chosen.equals(matched)) return null;
                 chosen = matched;
             }
@@ -86,26 +94,47 @@ public final class EasySetValues {
         return chosen;
     }
 
-    private static String onSameRow(List<Line> lines, Line label, Field field) {
+    /**
+     * Field-specific zone, limited above the next EasySet parameter heading.
+     * Works for the xTool "label / slider / value aligned at far right" UI
+     * without collecting a value from another setting or from the SVG canvas.
+     */
+    private static String inFieldZone(List<Line> lines, Line label, Field field) {
         if (label.right <= label.left || label.bottom <= label.top) return null;
-        int labelHeight = label.bottom - label.top;
-        int midY = (label.top + label.bottom) / 2;
+        int height = label.bottom - label.top;
+        int top = label.top - Math.max(10, height / 2);
+        int bottom = label.top + Math.max(190, height * 7);
+
+        for (Line other : lines) {
+            if (other == label || other.top <= label.top + height / 2) continue;
+            if (isSettingHeading(other.text)) {
+                bottom = Math.min(bottom, other.top - Math.max(8, height / 4));
+            }
+        }
+        if (bottom <= top) return null;
         String candidate = null;
-        for (Line line : lines) {
-            if (line == label || line.right <= line.left) continue;
-            int otherMidY = (line.top + line.bottom) / 2;
-            int tolerance = Math.max(12, labelHeight);
-            // Only associate an isolated value to the RIGHT of the label
-            // on the very same visual row. Never grab sheet dimensions or
-            // values from other fields.
-            if (Math.abs(otherMidY - midY) > tolerance) continue;
-            if (line.left < label.right - 8) continue;
-            String parsed = asValue(line.text, field);
+        for (Line other : lines) {
+            if (other == label || other.right <= other.left || other.bottom <= other.top)
+                continue;
+            int centerY = (other.top + other.bottom) / 2;
+            if (centerY < top || centerY >= bottom) continue;
+            // The editable numeric cell is to the RIGHT of the label.
+            // Reject positions that might be the left-hand slider or its tick marks.
+            if (other.left < label.right + Math.max(12, height / 2)) continue;
+            String parsed = asValue(other.text, field);
             if (parsed == null) continue;
             if (candidate != null && !candidate.equals(parsed)) return null;
             candidate = parsed;
         }
         return candidate;
+    }
+
+    private static boolean isSettingHeading(String value) {
+        if (value == null) return false;
+        for (Field candidate : Field.values()) {
+            if (candidate.heading.matcher(value).find()) return true;
+        }
+        return false;
     }
 
     private static String asValue(String text, Field field) {
