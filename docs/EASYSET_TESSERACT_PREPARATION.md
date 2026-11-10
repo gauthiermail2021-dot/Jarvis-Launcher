@@ -19,3 +19,16 @@
 
 ## Source de vérité
 `main` du dépôt **Jarvis-Launcher**. Aucune modification fonctionnelle n'a été faite sur l'ancienne base 0.7 durant cette migration du module.
+
+
+## Test réel du 10 novembre 2026 — capture fournie par l'utilisateur
+
+- Capture xTool EasySet de **869 × 1536 pixels**, avec les champs visibles **Puissance 69 %**, **Vitesse 152 mm/s** et **Passer 1**.
+- Le panneau diagnostic **Jarvis 1.2.31** indique : `Libellé : repéré`, `Écran : aucun petit caractère détecté à droite`, `Colonne droite : aucun petit caractère détecté à droite`, `Zone agrandie : aucun petit caractère détecté à droite`, puis `Passages : non lus`.
+- Cela confirme que l'échec actuel est **en amont de l'association** : aucun chiffre n'est renvoyé par les trois étapes ML Kit, malgré la présence visible du `1`.
+- Analyse locale séparée avec **Tesseract CLI 5.5** : le chiffre `1` est reconnu lorsque la zone numérique droite est recadrée jusqu'aux traits noirs (environ 7 × 28 pixels dans cette capture), puis agrandie ×6 avec une bordure blanche d'environ 12 pixels avant agrandissement, avec segmentation `PSM_SINGLE_WORD`. Une tentative locale avait une confiance d'environ **67 %**. Les cadrages plus larges ou `PSM_SINGLE_CHAR` échouent fréquemment.
+- **Ce test local ne valide pas Android** : le modèle de langue, la version Tesseract et les caractéristiques de capture peuvent différer.
+- Correctif préparatoire : `EasySetPassesRegion.numberField()` cible le cadran numérique près du bord droit, et `EasySetPassesTesseract` cherche la boîte des pixels foncés, excluant la flèche grise, avant zoom ×6 et OCR PSM_SINGLE_WORD.
+- Un test JVM de géométrie utilise une disposition xTool de 869 × 1536. **Aucune capture personnelle n'a été publiée dans le dépôt GitHub public.**
+- **Reste indispensable** : raccorder la lecture Tesseract à `EasySetVisionAnalyzer` sur le fil de travail ; tester les cas 1, 2, 10, valeurs contradictoires, différents thèmes et orientations ; vérifier que l'app ne modifie jamais les réglages xTool.
+
