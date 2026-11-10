@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 49
-        versionName '1.2.30'
-        // Jarvis 1.2.30: read-only targeted Passer-row magnification after existing OCR stages.
+        versionCode 50
+        versionName '1.2.31'
+        // Jarvis 1.2.31: temporary read-only stage-by-stage Passer OCR diagnostics.
         // Rebuild after validating focused Passer-heading matching in JVM tests.
     }
 
