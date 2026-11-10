@@ -35,6 +35,14 @@
         </activity>
         <service android:name=".JarvisBubbleService" android:exported="false" />
         <activity android:name=".EasySetVisionActivity" android:exported="false" />
+        <!-- Transparent, isolated task for a one-time system capture permission.
+             No Jarvis Bridge settings window is ever placed over xTool. -->
+        <activity
+            android:name=".EasySetConsentActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:taskAffinity="ca.jarvis.bridge.easyset.consent"
+            android:excludeFromRecents="true" />
         <service
             android:name=".EasySetCaptureService"
             android:exported="false"
