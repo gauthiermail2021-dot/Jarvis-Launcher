@@ -40,7 +40,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --target f1e169076e4c1b5d231d8dd0d6806b5850cda4d5 \
               --title 'Jarvis Bridge 1.2.38 - OCR Vitesse 1 mm/s (test)' \
-              --notes 'APK signe de test versionCode 57. Conserve la bulle flottante SVG et le succes confirme de Puissance 1 % et Passages 1 de la version precedente. Ajoute un recadrage numerique cible pour Vitesse lorsque ML Kit laisse non lue un seul chiffre. Tesseract reste indicatif ; en cas de lecture ambigue, la valeur demeure non lue. Aucun demarrage du laser, aucun changement de parametres. Compilation et tests reussis ; comportement OCR sur Samsung a verifier.'
+              --notes 'APK signe de test versionCode 57. Conserve la bulle flottante SVG et le succes confirme de Puissance 1 % et Passages 1 de la version precedente. Ajoute un recadrage numerique cible pour Vitesse lorsque ML Kit laisse non lue un seul chiffre. Tesseract reste indicatif ; en cas de lecture ambigue, la valeur demeure non lue. Aucun demarrage du laser, aucun changement de parametres. Compilation et tests reussis ; comportement OCR sur Samsung a verifier.' \
               --prerelease
           fi
           gh release view jarvis-1.2.38-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
