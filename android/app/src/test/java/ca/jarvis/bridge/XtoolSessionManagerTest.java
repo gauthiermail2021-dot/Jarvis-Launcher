@@ -15,6 +15,17 @@ public class XtoolSessionManagerTest {
         assertEquals(7500L, XtoolSessionManager.skipQueuedMailUntil(7500L, 5500L));
     }
 
+    @Test public void deliberateNextTestMustBeSentAfterSessionRearm() {
+        // Pressing TEST SVG JARVIS finishes the old Jarvis handoff BEFORE
+        // sending the next new test email. Finishing after send would skip it.
+        long previousMail = 8000L;
+        long rearmedAt = 9500L;
+        long nextTestMailTime = 9750L;
+        long cutoff = XtoolSessionManager.skipQueuedMailUntil(previousMail, rearmedAt);
+        org.junit.Assert.assertTrue(nextTestMailTime > cutoff);
+        org.junit.Assert.assertFalse(previousMail > cutoff);
+    }
+
     @Test public void onlyLaterMessagesCanPassTheGmailCursor() {
         long cutoff = XtoolSessionManager.skipQueuedMailUntil(1000L, 5500L);
         // Le scanner Gmail existant ignore internalDate <= lastProcessedTime.
