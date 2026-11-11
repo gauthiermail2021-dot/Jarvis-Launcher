@@ -15,6 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.os.SystemClock;
+import java.util.ArrayDeque;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -62,6 +63,8 @@ public final class JarvisBubbleService extends Service {
     private WindowManager wm;
     private WindowManager.LayoutParams params;
     private BubbleView bubble;
+    // Independent, movable SVG test overlay; no change to the main bubble UX.
+    private JarvisTestBubbleOverlay svgTestBubble;
     private boolean expanded = false;
     private boolean dragging = false;
     private float downX, downY;
@@ -90,6 +93,28 @@ public final class JarvisBubbleService extends Service {
     private String visualTitle = "JARVIS";
     private String visualDetail = "PRÊT";
     private long visualUntil = 0L;
+    // Gmail notification, search, SVG reception and xTool handoff can all
+    // happen faster than a human can read. Only the OVERLAY labels are
+    // serialized; the real Gmail/Android processing remains asynchronous.
+    private final ArrayDeque<VisualStage> stageQueue = new ArrayDeque<>();
+    private boolean stageHolding;
+    private Runnable stageAdvance;
+
+    private static final class VisualStage {
+        final int state;
+        final String title, detail;
+
+        VisualStage(int state, String title, String detail) {
+            this.state = state;
+            this.title = title;
+            this.detail = detail;
+        }
+
+        boolean sameAs(VisualStage other) {
+            return other != null && state == other.state
+                    && title.equals(other.title) && detail.equals(other.detail);
+        }
+    }
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
@@ -179,6 +204,7 @@ public final class JarvisBubbleService extends Service {
         wm.addView(bubble, params);
         activeService = this;
         xylophone = new JarvisXylophone(this);
+        if (prefs.getBoolean("test_svg_bubble_enabled", true)) showSvgTestBubble();
         // Si Android relance la bulle pendant le travail, restaurer l'état.
         if (XtoolSessionManager.isActive(this)) {
             visualState = STATE_XTOOL;
@@ -195,6 +221,42 @@ public final class JarvisBubbleService extends Service {
         params.y = Math.max(0, Math.min(params.y, display.y - params.height));
     }
 
+
+    /** Small 48 dp floating SVG bubble, shown beside Jarvis by default. */
+    private void showSvgTestBubble() {
+        if (svgTestBubble != null || wm == null || bubble == null) return;
+        // Default is adjacent but independent; the user may drag it anywhere.
+        int left = params.x < dp(70) ? params.x + dp(65) : params.x - dp(55);
+        int top = params.y + dp(60);
+        JarvisTestBubbleOverlay overlay = new JarvisTestBubbleOverlay(
+                this, wm, left, top, this::launchNumberedSvgTest);
+        try {
+            overlay.show();
+            svgTestBubble = overlay;
+        } catch (RuntimeException error) {
+            overlay.destroy();
+            // The long-press Jarvis menu retains the test-sender fallback.
+            Toast.makeText(this, "Bulle SVG non disponible : "
+                    + error.getClass().getSimpleName(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Explicit user gesture only: run the existing Gmail-to-xTool test flow. */
+    private void launchNumberedSvgTest() {
+        if (!Settings.canDrawOverlays(this)) return;
+        Intent send = new Intent(this, JarvisSilentSvgSendActivity.class);
+        send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                | Intent.FLAG_ACTIVITY_NO_ANIMATION
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+        try {
+            startActivity(send);
+        } catch (RuntimeException error) {
+            Toast.makeText(this, "TEST SVG : lancement indisponible ("
+                    + error.getClass().getSimpleName() + ")",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
 
     /**
      * Android autorise sous certaines versions le lancement d'activité depuis
@@ -228,9 +290,13 @@ public final class JarvisBubbleService extends Service {
             if (current.bubble == null) return;
             current.dismissEasySetBanner();
             current.bubble.setVisibility(View.INVISIBLE);
+            if (current.svgTestBubble != null)
+                current.svgTestBubble.setVisible(false);
             // Failsafe: restore even if MediaProjection fails or the OCR process dies.
             current.gestureHandler.postDelayed(() -> {
                 if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
+                if (current.svgTestBubble != null)
+                    current.svgTestBubble.setVisible(true);
             }, 14000L);
         });
     }
@@ -240,6 +306,8 @@ public final class JarvisBubbleService extends Service {
         JarvisBubbleService current = activeService;
         if (current != null) current.gestureHandler.post(() -> {
             if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
+            if (current.svgTestBubble != null)
+                current.svgTestBubble.setVisible(true);
         });
     }
 
@@ -263,6 +331,7 @@ public final class JarvisBubbleService extends Service {
 
     private void showEasySetBanner(String summary) {
         if (bubble != null) bubble.setVisibility(View.VISIBLE);
+        if (svgTestBubble != null) svgTestBubble.setVisible(true);
         if (wm == null || !Settings.canDrawOverlays(this)) return;
         dismissEasySetBanner();
 
@@ -334,58 +403,112 @@ public final class JarvisBubbleService extends Service {
         }
     }
 
-    /** Signaux exclusivement liés à des événements que Jarvis Bridge peut observer. */
-    static void onGmailNotificationReceived() {
+    /** Events actually observed by Jarvis: no simulated progress stages. */
+    private static void showStageAfterObservedEvent(int state, String title,
+                                                    String detail) {
         JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_GMAIL, "GMAIL", "NOTIFICATION"));
+        if (current == null) return;
+
+        // Validate the old xTool-session gate NOW, not after a posted UI
+        // callback: by then the SVG handoff may already have activated xTool.
+        // Events accepted earlier can finish their 500-ms visual sequence,
+        // but stale new Gmail events cannot overwrite an ongoing xTool task.
+        if (XtoolSessionManager.isActive(current) && state != STATE_XTOOL)
+            return;
+        current.gestureHandler.post(() ->
+                current.enqueueVisualStage(state, title, detail));
+    }
+
+    static void onGmailNotificationReceived() {
+        showStageAfterObservedEvent(STATE_GMAIL, "GMAIL", "NOTIFICATION");
     }
 
     static void onSvgWorkStarted() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_WORKING, "RÉCEPTION", ".SVG"));
+        showStageAfterObservedEvent(STATE_WORKING, "RÉCEPTION", ".SVG");
     }
 
     static void onGmailWorkStarted() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_WORKING, "GMAIL", "RECHERCHE"));
+        showStageAfterObservedEvent(STATE_WORKING, "GMAIL", "RECHERCHE");
     }
 
     static void onSvgOpenRequested(boolean xToolTarget) {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() -> {
-            if (xToolTarget) {
-                // Le lancement est demandé, sans prétendre que le dessin est déjà chargé.
-                current.showActivity(STATE_XTOOL, "xTool", "EN COURS");
-            } else {
-                current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ");
-            }
-        });
+        if (xToolTarget) {
+            // This is a REQUEST to Android, not proof of successful import.
+            showStageAfterObservedEvent(STATE_XTOOL, "xTool", "EN COURS");
+        } else {
+            showStageAfterObservedEvent(STATE_SUCCESS, "SVG", "ENVOYÉ");
+        }
     }
 
-    /** Refus volontaire d'un fichier : distinct d'une erreur opérationnelle. */
     static void onFileRejected(JarvisFileRouter.Kind kind) {
-        JarvisBubbleService current = activeService;
-        if (current == null) return;
         String title = kind == JarvisFileRouter.Kind.CAD_3D ? "CAD"
                 : kind == JarvisFileRouter.Kind.DXF_2D ? "DXF" : "FICHIER";
-        current.gestureHandler.post(() ->
-                current.showActivity(STATE_ERROR, title, "REFUSÉ"));
+        showStageAfterObservedEvent(STATE_ERROR, title, "REFUSÉ");
     }
 
     static void onOperationFailed() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_ERROR, "JARVIS", "ERREUR"));
+        showStageAfterObservedEvent(STATE_ERROR, "JARVIS", "ERREUR");
     }
 
     private void showActivity(int state, String title, String detail) {
         if (bubble == null || wm == null) return;
-        // Pendant la session protégée, les notifications ou résultats anciens
-        // ne doivent pas remplacer le message permanent « xTool en cours ».
+        // The manual menu must obey the same session protection as before.
         if (XtoolSessionManager.isActive(this) && state != STATE_XTOOL) return;
+        enqueueVisualStage(state, title, detail);
+    }
+
+    private void enqueueVisualStage(int state, String title, String detail) {
+        if (bubble == null || wm == null) return;
+        VisualStage next = new VisualStage(state, title, detail);
+
+        if (!animationsEnabled) {
+            clearVisualStages();
+            displayVisualStage(next);
+            return;
+        }
+
+        // Ignore duplicate notifications/redraws for the same stage.
+        VisualStage last = stageQueue.peekLast();
+        if ((stageHolding && stageQueue.isEmpty()
+                && visualState == state && visualTitle.equals(title)
+                && visualDetail.equals(detail))
+                || next.sameAs(last)) return;
+
+        // Bound backlog if the system delivers repeated notifications.
+        // Always retain the last event (e.g. xTool handoff), rather than
+        // allowing a delayed animation queue to grow without limit.
+        while (stageQueue.size() >= 7) stageQueue.removeFirst();
+        stageQueue.addLast(next);
+        if (!stageHolding) displayNextQueuedStage();
+    }
+
+    private void displayNextQueuedStage() {
+        VisualStage next = stageQueue.pollFirst();
+        if (next == null) {
+            stageHolding = false;
+            stageAdvance = null;
+            if (bubble != null) bubble.invalidate();
+            return;
+        }
+        boolean expanding = !expanded;
+        stageHolding = true;
+        displayVisualStage(next);
+        long hold = BubbleVisualStageTiming.holdMillis(
+                animationsEnabled, expanding);
+        stageAdvance = this::displayNextQueuedStage;
+        gestureHandler.postDelayed(stageAdvance, hold);
+    }
+
+    private void clearVisualStages() {
+        if (stageAdvance != null) gestureHandler.removeCallbacks(stageAdvance);
+        stageAdvance = null;
+        stageQueue.clear();
+        stageHolding = false;
+    }
+
+    private void displayVisualStage(VisualStage stage) {
+        int state = stage.state;
+        String title = stage.title, detail = stage.detail;
         boolean changed = visualState != state || !visualTitle.equals(title)
                 || !visualDetail.equals(detail);
         visualState = state;
@@ -402,14 +525,14 @@ public final class JarvisBubbleService extends Service {
             else if (state == STATE_SUCCESS) note = JarvisXylophone.SOL5;
             if (note >= 0 && xylophone != null) xylophone.play(note);
         }
-        // Un refus de fichier : exactement une tonalité courte par événement.
-        // Aucune modification de l'apparence, des couleurs ni des messages.
-        // Le registre Gmail évite déjà de retraiter deux fois le même fichier.
         if (state == STATE_ERROR && "REFUSÉ".equals(detail)
                 && soundsEnabled && xylophone != null) {
             xylophone.playRefusal();
         }
         setExpanded(true);
+        // During an expansion animator, setExpanded() can return early to
+        // avoid restarting the animation. Explicitly redraw the new label.
+        bubble.invalidate();
     }
 
     private void cancelCollapse() {
@@ -575,6 +698,22 @@ public final class JarvisBubbleService extends Service {
             addMenuButton(menu, "Autoriser la capture pour la session", this::launchEasySetSessionConsent);
         }
 
+        // Manual fallback and visibility control for the independent SVG bubble.
+        boolean testBubbleEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean("test_svg_bubble_enabled", true);
+        addMenuButton(menu, testBubbleEnabled
+                ? "Bulle TEST SVG : masquer" : "Bulle TEST SVG : afficher", () -> {
+            boolean enable = !testBubbleEnabled;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("test_svg_bubble_enabled", enable).apply();
+            if (enable) showSvgTestBubble();
+            else if (svgTestBubble != null) {
+                svgTestBubble.destroy();
+                svgTestBubble = null;
+            }
+        });
+        addMenuButton(menu, "Envoyer SVG test (+1)", this::launchNumberedSvgTest);
+
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
             // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
@@ -692,7 +831,7 @@ public final class JarvisBubbleService extends Service {
             // dépasser la fenêtre cible ni modifier sa forme finale.
             ValueAnimator animator = ValueAnimator.ofInt(
                     params.width, side, dp(103), side);
-            animator.setDuration(390L);
+            animator.setDuration(BubbleVisualStageTiming.OPENING_ANIMATION_MS);
             animator.setInterpolator(new DecelerateInterpolator(1.0f));
             openingAnimator = animator;
             animator.addUpdateListener(frame -> {
@@ -747,6 +886,7 @@ public final class JarvisBubbleService extends Service {
             openingAnimator.cancel();
             openingAnimator = null;
         }
+        clearVisualStages();
         openingSpinUntil = 0L;
         if (xylophone != null) {
             xylophone.release();
@@ -757,6 +897,10 @@ public final class JarvisBubbleService extends Service {
         fingerDown = false;
         dismissMenu();
         dismissEasySetBanner();
+        if (svgTestBubble != null) {
+            svgTestBubble.destroy();
+            svgTestBubble = null;
+        }
         if (wm != null && bubble != null) {
             try { wm.removeView(bubble); }
             catch (IllegalArgumentException ignored) { }
@@ -808,7 +952,12 @@ public final class JarvisBubbleService extends Service {
             float w = getWidth(), h = getHeight();
             if (w < 1 || h < 1) return;
             long now = SystemClock.uptimeMillis();
-            boolean xtoolActive = XtoolSessionManager.isActive(JarvisBubbleService.this);
+            // Previously accepted Gmail/SVG labels must remain readable
+            // for 500 ms even if xTool was launched immediately afterwards.
+            boolean temporaryLabel = stageHolding
+                    && visualState != STATE_XTOOL && visualState != STATE_READY;
+            boolean xtoolActive = XtoolSessionManager.isActive(
+                    JarvisBubbleService.this) && !temporaryLabel;
             // Ne montrer le texte grand format qu'une fois suffisamment de
             // place disponible pendant l'animation d'agrandissement.
             boolean expandedLayout = expanded && w >= dp(96);
