@@ -32,7 +32,7 @@ public final class EasySetAccessiblePanelTest {
         assertEquals(EasySetAccessiblePanel.State.UNKNOWN,
                 EasySetAccessiblePanel.classify(Arrays.asList(
                         "Bienvenue dans Jarvis, cliquer sur le volet EasySet",
-                        "Rien à voir avec la fenêtre"));
+                        "Rien à voir avec la fenêtre")));
         assertEquals(EasySetAccessiblePanel.State.UNKNOWN,
                 EasySetAccessiblePanel.classify(Collections.emptyList()));
     }
