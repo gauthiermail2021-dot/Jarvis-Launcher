@@ -40,6 +40,8 @@ public final class EasySetPassesTesseract {
     public static final class Result {
         /** Valeur indicative uniquement, null si absente / ambiguë. */
         public final Integer passages;
+        /** Numeric result for either Passer or Puissance; null if absent. */
+        public final Integer number;
         /** Confiance OCR de 0 à 100 ; -1 si aucun résultat. */
         public final int confidence;
         /** Explication destinée à l'affichage de diagnostic. */
@@ -49,6 +51,7 @@ public final class EasySetPassesTesseract {
 
         private Result(Integer passages, int confidence, String diagnostic, Bitmap preview) {
             this.passages = passages;
+            this.number = passages;
             this.confidence = confidence;
             this.diagnostic = diagnostic;
             this.preview = preview;
@@ -75,6 +78,23 @@ public final class EasySetPassesTesseract {
      */
     public static Result read(Context context, Bitmap screenshot, Rect numberBox)
             throws IOException {
+        return readNumber(context, screenshot, numberBox, false);
+    }
+
+    /**
+     * Separate read-only Power field recognition. Uses the same verified
+     * Tesseract preprocessing but accepts 0..100 and does not reuse the
+     * Passer value or overwrite power detected by ML Kit.
+     */
+    public static Result readPower(Context context, Bitmap screenshot, Rect numberBox)
+            throws IOException {
+        return readNumber(context, screenshot, numberBox, true);
+    }
+
+    private static Result readNumber(Context context, Bitmap screenshot,
+                                     Rect numberBox, boolean power)
+            throws IOException {
+        final String field = power ? "Puissance" : "Passer";
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw new IllegalStateException("OCR Tesseract à lancer hors du thread UI");
         }
@@ -84,14 +104,14 @@ public final class EasySetPassesTesseract {
         Rect bounds = new Rect(0, 0, screenshot.getWidth(), screenshot.getHeight());
         Rect roi = new Rect(numberBox);
         if (!roi.intersect(bounds) || roi.width() < 3 || roi.height() < 3) {
-            return new Result(null, -1, "Zone Passer vide ou hors écran", null);
+            return new Result(null, -1, "Zone " + field + " vide ou hors écran", null);
         }
         // Called from Jarvis with a cloned *numeric-only* screenshot; its
         // ROI legitimately covers 100 % of that small Bitmap. Reject a broad
         // screen crop, but do not reject the verified small numeric field.
         if (!acceptsRegion(screenshot.getWidth(), screenshot.getHeight(),
                 roi.left, roi.top, roi.right, roi.bottom)) {
-            return new Result(null, -1, "Zone trop large : cadrer seulement le chiffre Passer", null);
+            return new Result(null, -1, "Zone trop large : cadrer seulement le chiffre " + field, null);
         }
 
         File tessRoot = ensureLanguageModel(context.getApplicationContext());
@@ -125,9 +145,14 @@ public final class EasySetPassesTesseract {
                         int confidence = api.meanConfidence();
                         String normalized = raw == null ? "" : raw.trim().replaceAll("\\s+", "");
                         Integer value = null;
-                        if (normalized.matches("[0-9]{1,2}")) {
+                        // Power may contain 0 or 100, whereas Passer is
+                        // restricted to 1..99. Do not accept leading zeroes.
+                        if (normalized.matches(power
+                                ? "(?:0|[1-9][0-9]{0,2})"
+                                : "[0-9]{1,2}")) {
                             int number = Integer.parseInt(normalized);
-                            if (number >= 1 && number <= 99
+                            if ((power ? number >= 0 && number <= 100
+                                    : number >= 1 && number <= 99)
                                     && confidence >= MIN_CONFIDENCE) value = number;
                         }
                         candidates.add(new Candidate(value, confidence, normalized, prepared));
@@ -158,7 +183,7 @@ public final class EasySetPassesTesseract {
             if (c.preview != preview) c.preview.recycle();
         }
         if (disagreement) {
-            return new Result(null, -1, "Passer ambigu : deux lectures contradictoires", preview);
+            return new Result(null, -1, field + " ambigu : deux lectures contradictoires", preview);
         }
         if (best == null) {
             StringBuilder raw = new StringBuilder("Aucun chiffre fiable : ");
@@ -169,8 +194,8 @@ public final class EasySetPassesTesseract {
         }
         return new Result(best.value, best.confidence,
                 String.format(Locale.CANADA_FRENCH,
-                        "Passer : %d (Tesseract, confiance %d %%, indicatif)",
-                        best.value, best.confidence), preview);
+                        "%s : %d (Tesseract, confiance %d %%, indicatif)",
+                        field, best.value, best.confidence), preview);
     }
 
     /**
