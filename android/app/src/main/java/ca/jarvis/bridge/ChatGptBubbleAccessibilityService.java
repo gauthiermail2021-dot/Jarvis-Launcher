@@ -21,6 +21,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
     private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
+    private long lastNamedPanelTapMs = -EasySetPanelTapPolicy.NAMED_TAP_COOLDOWN_MS;
+    private long lastUnnamedPanelTapMs = -EasySetPanelTapPolicy.UNNAMED_TAP_COOLDOWN_MS;
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
@@ -31,15 +33,20 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
         boolean contentChanged = type
                 == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED;
-        if (!foregroundTransition && !contentChanged) return;
+        boolean clicked = type == AccessibilityEvent.TYPE_VIEW_CLICKED;
+        if (!foregroundTransition && !contentChanged && !clicked) return;
 
         CharSequence pkg = event.getPackageName();
         if (CHATGPT_PACKAGE.contentEquals(pkg)) {
             if (foregroundTransition) openChatGptBubbleIfNeeded();
         } else if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
-            // Content changes are ignored unless a previously authorized
-            // screenshot positively identified the CLOSED xTool EasySet
-            // row. We do not retrieve any Android window content.
+            // xTool may implement "Volet EasySet" as a custom view whose tap
+            // never produces a new Android window. Click events are observed
+            // WITHOUT reading the window tree or performing any gestures.
+            if (clicked) {
+                inspectXtoolPanelTap(event);
+                return;
+            }
             if (foregroundTransition) {
                 // Opening a modal may produce a window-state event rather
                 // than a content-change event. While awaiting the panel,
@@ -50,6 +57,29 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 inspectExistingXtoolDrawing(true);
             }
         }
+    }
+
+    private void inspectXtoolPanelTap(AccessibilityEvent event) {
+        boolean named = EasySetPanelTapPolicy.namesEasySetRow(
+                event.getText(), event.getContentDescription());
+        boolean hasText = EasySetPanelTapPolicy.hasAnyText(
+                event.getText(), event.getContentDescription());
+        long now = SystemClock.elapsedRealtime();
+        boolean allowed = EasySetPanelTapPolicy.shouldRequest(
+                EasySetForegroundScanPolicy.XCS_PACKAGE,
+                EasySetSessionService.isActive(),
+                JarvisBubbleService.isBubbleActive() && Settings.canDrawOverlays(this),
+                named, !hasText,
+                EasySetSessionService.needsPanelInspection(),
+                now, lastNamedPanelTapMs, lastUnnamedPanelTapMs);
+        if (!allowed) return;
+        if (named) lastNamedPanelTapMs = now;
+        else lastUnnamedPanelTapMs = now;
+
+        // One passive screenshot shortly after the user opens EasySet.
+        // This bypasses the older "a previous screenshot must be CLOSED"
+        // prerequisite and the prior-success block, but not Android consent.
+        EasySetSessionService.requestPanelTapScan(this);
     }
 
     private void openChatGptBubbleIfNeeded() {
