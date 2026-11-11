@@ -11,6 +11,8 @@ import android.util.Base64;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+import android.view.WindowManager;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResultLauncher;
@@ -47,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Does not control xTool, machinery, laser, passes, speed, or power.
  */
-public final class JarvisTestShortcutActivity extends ComponentActivity {
+public class JarvisTestShortcutActivity extends ComponentActivity {
     private static final String PREFS = "jarvis_test_button";
     private static final String LAST_SENT = "last_sent_number";
     private static final String API = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -60,9 +62,16 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
     private ActivityResultLauncher<IntentSenderRequest> authLauncher;
     private TextView status;
     private boolean locallyStarted;
+    private boolean silentBubbleSend;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
+        silentBubbleSend = this instanceof JarvisSilentSvgSendActivity;
+        if (silentBubbleSend) {
+            getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            getWindow().setWindowAnimations(0);
+        }
         google = Identity.getAuthorizationClient(this);
         authLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartIntentSenderForResult(), response -> {
@@ -94,7 +103,10 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
         send.setText("Envoyer un nouveau SVG test");
         root.addView(send);
         send.setOnClickListener(v -> beginSend());
-        setContentView(root);
+        // The ordinary launcher icon still offers the full diagnostic UI.
+        // The floating SVG bubble instead uses a distinct transparent
+        // Activity, without attaching any view at all.
+        if (!silentBubbleSend) setContentView(root);
 
         if (state == null) beginSend();
     }
@@ -109,7 +121,12 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
 
     private void beginSend() {
         if (locallyStarted || !IN_FLIGHT.compareAndSet(false, true)) {
-            status.setText("Un envoi Jarvis est déjà en cours.");
+            String notice = "Un envoi Jarvis est déjà en cours.";
+            if (status != null) status.setText(notice);
+            if (silentBubbleSend) {
+                Toast.makeText(this, notice, Toast.LENGTH_SHORT).show();
+                finish();
+            }
             return;
         }
         locallyStarted = true;
@@ -220,13 +237,29 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
                     // The only allowed session reset is the explicit test
                     // press above; never bypass this gate for normal Gmail.
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        if (XtoolSessionManager.isActive(this)) return;
-                        Intent refresh = new Intent(this, MainActivity.class);
-                        refresh.setAction(MainActivity.ACTION_CHECK_GMAIL);
-                        refresh.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                                | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                        startActivity(refresh);
+                        try {
+                            if (!XtoolSessionManager.isActive(this)) {
+                                Intent refresh = new Intent(this, MainActivity.class);
+                                refresh.setAction(MainActivity.ACTION_CHECK_GMAIL);
+                                refresh.putExtra(
+                                        MainActivity.EXTRA_FORCE_SILENT_GMAIL_CHECK, true);
+                                // Always create a fresh invisible Gmail check.
+                                // Do not bring a previously opened settings
+                                // Activity in front of the xTool drawing.
+                                refresh.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                        | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                                        | Intent.FLAG_ACTIVITY_NO_ANIMATION
+                                        | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+                                startActivity(refresh);
+                            }
+                        } catch (RuntimeException error) {
+                            JarvisBubbleService.onOperationFailed();
+                            if (silentBubbleSend) Toast.makeText(this,
+                                    "Gmail : ouverture automatique non disponible.",
+                                    Toast.LENGTH_LONG).show();
+                        } finally {
+                            if (silentBubbleSend) finish();
+                        }
                     }, 600L);
                 });
             } catch (Exception error) {
@@ -335,5 +368,11 @@ public final class JarvisTestShortcutActivity extends ComponentActivity {
         IN_FLIGHT.set(false);
         locallyStarted = false;
         if (status != null) status.setText(text);
+        // Successful sends stay transparent until the explicit Gmail
+        // handoff above. Errors close the invisible Activity promptly.
+        if (silentBubbleSend && !text.startsWith("Envoyé et étiqueté")) {
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+            finish();
+        }
     }
 }
