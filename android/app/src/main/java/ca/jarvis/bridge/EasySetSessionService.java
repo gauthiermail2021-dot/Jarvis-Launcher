@@ -40,6 +40,7 @@ public final class EasySetSessionService extends Service {
     static final String ACTION_SCAN = "ca.jarvis.bridge.EASYSET_SESSION_SCAN";
     static final String ACTION_SVG_OPEN = "ca.jarvis.bridge.EASYSET_SESSION_SVG";
     static final String ACTION_XTOOL_FOREGROUND = "ca.jarvis.bridge.EASYSET_XTOOL_FOREGROUND";
+    static final String ACTION_PANEL_TAP = "ca.jarvis.bridge.EASYSET_PANEL_TAP";
     static final String ACTION_STOP = "ca.jarvis.bridge.EASYSET_SESSION_STOP";
     static final String RESULT_CODE = "projection_code";
     static final String RESULT_INTENT = "projection_intent";
@@ -51,6 +52,9 @@ public final class EasySetSessionService extends Service {
     // "Volet EasySet" settings row is CLOSED. Accessibility uses it solely
     // as a gate for the next xTool UI change; no screen polling.
     private static volatile boolean awaitingPanelOpen;
+    // Only a screenshot that actually sees the three EasySet labels makes
+    // this true. An unlabeled xTool click can rescan at most once per 8s.
+    private static volatile boolean lastPanelWasRecognized;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private MediaProjection projection;
@@ -75,6 +79,10 @@ public final class EasySetSessionService extends Service {
         return sessionActive && awaitingPanelOpen;
     }
 
+    static boolean needsPanelInspection() {
+        return sessionActive && (!lastPanelWasRecognized || awaitingPanelOpen);
+    }
+
     static void requestScan(Context context, boolean fromSvg) {
         if (!isActive()) return;
         Intent intent = new Intent(context, EasySetSessionService.class);
@@ -91,6 +99,18 @@ public final class EasySetSessionService extends Service {
         if (!isActive()) return;
         Intent intent = new Intent(context, EasySetSessionService.class);
         intent.setAction(ACTION_XTOOL_FOREGROUND);
+        try { context.startService(intent); }
+        catch (RuntimeException ignored) { }
+    }
+
+    /**
+     * React to one actual xTool tap event. This is NOT a touch simulation.
+     * The capture is restricted to an existing Android-consented session.
+     */
+    static void requestPanelTapScan(Context context) {
+        if (!isActive()) return;
+        Intent intent = new Intent(context, EasySetSessionService.class);
+        intent.setAction(ACTION_PANEL_TAP);
         try { context.startService(intent); }
         catch (RuntimeException ignored) { }
     }
@@ -134,9 +154,23 @@ public final class EasySetSessionService extends Service {
                 }
             };
             handler.postDelayed(autoScanTrigger, 1500L);
+        } else if (ACTION_PANEL_TAP.equals(action)) {
+            // xTool's custom EasySet row is not reliably a distinct Android
+            // window. Its click can happen without any preceding CLOSED OCR.
+            // Honor this user gesture even after a previous successful scan.
+            // Never interrupt a screenshot/OCR already in progress.
+            if (scanPending || analyzing || autoScanTrigger != null) return START_NOT_STICKY;
+            autoRecognizedEasySet = false;
+            awaitingPanelOpen = false;
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing) beginScan(true);
+            };
+            handler.postDelayed(autoScanTrigger, 900L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
             autoRecognizedEasySet = false;
             awaitingPanelOpen = false;
+            lastPanelWasRecognized = false;
             cancelPendingAutoScan();
             // xTool needs time to render the newly opened SVG.
             // This is intentionally one read-only diagnostic, not a polling loop.
@@ -151,6 +185,7 @@ public final class EasySetSessionService extends Service {
 
     private void initialize(Intent grant) {
         awaitingPanelOpen = false;
+        lastPanelWasRecognized = false;
         createNotification();
         try {
             int code = grant.getIntExtra(RESULT_CODE, Activity.RESULT_CANCELED);
@@ -277,8 +312,10 @@ public final class EasySetSessionService extends Service {
             // Allow the next relevant xTool UI-change event to request
             // another one-shot capture. Jarvis never clicks in xTool.
             awaitingPanelOpen = true;
+            lastPanelWasRecognized = false;
         } else if (recognized) {
             awaitingPanelOpen = false;
+            lastPanelWasRecognized = true;
             autoRecognizedEasySet = true;
         }
 
@@ -323,6 +360,7 @@ public final class EasySetSessionService extends Service {
         analyzing = false;
         autoRecognizedEasySet = false;
         awaitingPanelOpen = false;
+        lastPanelWasRecognized = false;
         detachReader();
         if (virtualDisplay != null) {
             virtualDisplay.release();
