@@ -1,0 +1,49 @@
+name: Publish signed Jarvis 1.2.33 preview APK (direct GitHub download)
+
+on:
+  push:
+    branches:
+      - feature/easyset-existing-xtool-auto-1.2.33
+    paths:
+      - .github/workflows/publish-jarvis-1.2.33-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-verified-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download previously tested, signed Jarvis 1.2.33 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42816171156 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.33-existing-xtool-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.33-Test.apk
+
+      - name: Verify exact original APK checksum before distribution
+        run: |
+          echo '53ecc7c6b1c8df0dc6beb34d542a3b10d16b6ea591ed2f68fdcf59d4534fc34d  Jarvis-Bridge-1.2.33-Test.apk' | sha256sum --check
+          test "$(wc -c < Jarvis-Bridge-1.2.33-Test.apk)" -eq 77071868
+
+      - name: Publish permanent direct-download GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.33-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release tag already exists: only uploading verified APK if necessary.'
+            gh release upload jarvis-1.2.33-preview Jarvis-Bridge-1.2.33-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.33-preview Jarvis-Bridge-1.2.33-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 17094c697cc27de00f11e80434b318823010a53e \
+              --title 'Jarvis Bridge 1.2.33 - EasySet automatique (test Samsung)' \
+              --notes 'APK signe de test. SHA-256: 53ecc7c6b1c8df0dc6beb34d542a3b10d16b6ea591ed2f68fdcf59d4534fc34d. Base 1.2.32 fonctionnelle avec OCR Tesseract. Nouvelle tentative de detection EasySet quand xTool Creative Space revient au premier plan avec un dessin deja ouvert. Necessite le service Accessibilite Jarvis (optionnel) et le partage Android autorise. Ne modifie aucun parametre machine. Test reel Samsung encore requis.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.33-preview --repo "$GITHUB_REPOSITORY" --json tagName,assets,url
