@@ -46,3 +46,9 @@ En 1.2.39 :
 - Tests Java `EasySetPanelStateTest` et `EasySetForegroundScanPolicyTest`, en plus des tests OCR existants.
 - Compilation GitHub signée, avec les mêmes secrets Android permanents ; branche `main` non modifiée.
 - Le comportement Android/Samsung est **à vérifier sur appareil réel** ; une réussite CI ne suffit pas.
+
+## Nouvelle capture Samsung — OCR 43 / 58 / 1
+
+L'utilisateur a fourni une capture xTool affichant **Puissance 43 %**, **Vitesse 58 mm/s**, **Passer 1**. Le panneau bleu « JARVIS • RÉSULTAT EASYSET » affiche correctement **43 % / 58 mm/s / 1**. Dans ce cas, Passer 1 est reconnu dans la zone agrandie ML Kit (« 1 » accepté) sans ligne Tesseract affichée. Les bulles flottantes Jarvis (xTool EN COURS) et SVG sont visibles.
+
+**Concordance 3/3 confirmée sur cette capture.** La capture démontre l'affichage du panneau de **résultat EasySet**, pas celui de la fenêtre **d'envoi TEST SVG JARVIS**. Elle ne permet pas d'établir si la fenêtre d'envoi est apparue brièvement avant, ni si le nouveau déclencheur automatique « volet fermé → ouvert » a réellement fonctionné, car le volet est déjà ouvert. Ne pas déclarer ces deux fonctions validées sans retour utilisateur distinct.
