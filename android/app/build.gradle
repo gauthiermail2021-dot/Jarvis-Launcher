@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 58
-        versionName '1.2.39'
-        // Jarvis 1.2.39: silent floating SVG send and automatic read-only EasySet panel-open recognition.
+        versionCode 59
+        versionName '1.2.40'
+        // Jarvis 1.2.40: keep each observed Gmail, SVG and xTool bubble animation visible for 500 ms.
         // Signed experimental release, must be verified on the Samsung.
     }
 
