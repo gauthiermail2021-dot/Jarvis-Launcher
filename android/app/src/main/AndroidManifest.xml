@@ -45,6 +45,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- A hidden, consent-aware entry point ONLY for an explicit tap on
+             the floating SVG test bubble. Never shows the sender screen. -->
+        <activity
+            android:name=".JarvisSilentSvgSendActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:windowSoftInputMode="stateAlwaysHidden" />
         <service android:name=".JarvisBubbleService" android:exported="false" />
         <activity android:name=".EasySetVisionActivity" android:exported="false" />
         <!-- Transparent, isolated task for a one-time system capture permission.
