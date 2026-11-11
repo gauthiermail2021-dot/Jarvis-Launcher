@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle à l’ouverture de ChatGPT et analyser EasySet en lecture seule lorsque xTool revient au premier plan ou lorsque son volet fermé est ouvert, après autorisation explicite de capture Android. Observe seulement les événements des applications ChatGPT et xTool, sans lire le contenu des fenêtres ni effectuer de gestes.</string>
+    <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle à l’ouverture de ChatGPT et analyser EasySet en lecture seule lorsque xTool revient au premier plan ou lorsque son volet fermé est ouvert, après autorisation explicite de capture Android. Observe les événements de fenêtre et les clics dans ChatGPT et xTool afin de reconnaître l’ouverture manuelle du volet EasySet, sans lire le contenu des fenêtres ni effectuer de gestes. Ne capture que si le partage d’écran Android est déjà autorisé.</string>
 </resources>
