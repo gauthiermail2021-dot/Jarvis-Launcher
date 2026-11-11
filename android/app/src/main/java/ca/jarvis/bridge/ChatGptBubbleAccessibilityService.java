@@ -23,6 +23,41 @@ import java.util.List;
  */
 public final class ChatGptBubbleAccessibilityService extends AccessibilityService {
     private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
+    // These diagnostics contain ONLY connection state, timings and counts,
+    // never window text, numbers, screenshots or user-specific app contents.
+    private static volatile boolean accessibilityConnected;
+    private static volatile long lastXtoolEventAt;
+    private static volatile int lastXtoolEventType;
+    private static volatile String lastXtoolTreeStatus = "Aucune inspection";
+    private static volatile int lastXtoolNodes;
+    private static volatile int lastEasySetHeadings;
+    private static volatile long lastXtoolTreeAt;
+
+    static String easySetConnectionDiagnostic() {
+        long now = SystemClock.elapsedRealtime();
+        String event = lastXtoolEventAt == 0L ? "aucun"
+                : ((now - lastXtoolEventAt) / 1000L) + " s"
+                + " (" + AccessibilityEvent.eventTypeToString(lastXtoolEventType) + ")";
+        String tree = lastXtoolTreeAt == 0L ? "non inspectée"
+                : lastXtoolTreeStatus + " (" + (now - lastXtoolTreeAt) / 1000L
+                + " s, " + lastXtoolNodes + " nœuds, "
+                + lastEasySetHeadings + " libellés)";
+        return "DIAGNOSTIC EASYSET"
+                + "\nAccessibilité Jarvis : " + (accessibilityConnected ? "active" : "inactive")
+                + "\nCapture autorisée : " + (EasySetSessionService.isActive() ? "oui" : "non")
+                + "\nDernier événement xTool : " + event
+                + "\nFenêtre inspectée : " + tree
+                + "\nAucun paramètre modifié.";
+    }
+
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+        accessibilityConnected = true;
+        lastXtoolEventAt = 0L;
+        lastXtoolTreeAt = 0L;
+        lastXtoolTreeStatus = "Aucune inspection";
+    }
     private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
     private long lastNamedPanelTapMs = -EasySetPanelTapPolicy.NAMED_TAP_COOLDOWN_MS;
@@ -47,6 +82,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         if (CHATGPT_PACKAGE.contentEquals(pkg)) {
             if (foregroundTransition) openChatGptBubbleIfNeeded();
         } else if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
+            lastXtoolEventAt = SystemClock.elapsedRealtime();
+            lastXtoolEventType = type;
             // xTool may implement "Volet EasySet" as a custom view whose tap
             // never produces a new Android window. Click events are observed
             // WITHOUT reading the window tree or performing any gestures.
@@ -91,10 +128,21 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     }
 
     private void inspectAccessiblePanelOnce() {
+        lastXtoolTreeAt = SystemClock.elapsedRealtime();
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null || root.getPackageName() == null
-                || !EasySetForegroundScanPolicy.XCS_PACKAGE
-                        .contentEquals(root.getPackageName())) return;
+        if (root == null || root.getPackageName() == null) {
+            lastXtoolTreeStatus = "Fenêtre Android non disponible";
+            lastXtoolNodes = 0;
+            lastEasySetHeadings = 0;
+            return;
+        }
+        if (!EasySetForegroundScanPolicy.XCS_PACKAGE
+                .contentEquals(root.getPackageName())) {
+            lastXtoolTreeStatus = "Fenêtre active différente de xTool";
+            lastXtoolNodes = 0;
+            lastEasySetHeadings = 0;
+            return;
+        }
 
         final int maxNodes = 240;
         final int maxDepth = 12;
@@ -125,6 +173,11 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
         EasySetAccessiblePanel.State state =
                 EasySetAccessiblePanel.classify(labels);
+        lastXtoolNodes = examined;
+        lastEasySetHeadings = labels.size();
+        lastXtoolTreeStatus = state == EasySetAccessiblePanel.State.OPEN
+                ? "EasySet ouvert visible" : state == EasySetAccessiblePanel.State.CLOSED
+                ? "Volet EasySet fermé visible" : "Champs EasySet non identifiés";
         if (state == EasySetAccessiblePanel.State.CLOSED) {
             // A new opening is eligible after the human closes the panel.
             scannedCurrentAccessibleOpenPanel = false;
@@ -170,6 +223,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
     @Override
     public void onDestroy() {
+        accessibilityConnected = false;
         if (pendingPanelRead != null)
             panelHandler.removeCallbacks(pendingPanelRead);
         pendingPanelRead = null;
