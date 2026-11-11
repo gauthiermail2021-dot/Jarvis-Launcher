@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.41 EasySet panel tap preview APK
+
+on:
+  push:
+    branches: [fix/easyset-open-on-tap-1.2.41]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.41-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download tested and signed Jarvis 1.2.41 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42944191561 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.41-panel-tap-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.41-Test.apk
+      - name: Verify APK structure and print checksum
+        run: |
+          unzip -t Jarvis-Bridge-1.2.41-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.41-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.41-Test.apk
+      - name: Publish direct signed GitHub APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.41-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.41-preview Jarvis-Bridge-1.2.41-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.41-preview Jarvis-Bridge-1.2.41-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 9782a85cc9d0e1afc36c583f3c6fa8ac0ccb8fc6 \
+              --title 'Jarvis Bridge 1.2.41 - EasySet analyse au clic' \
+              --notes 'APK signe experimental versionCode 60. Corrige le blocage quand xTool ouvre le volet EasySet sans capture prealable du panneau ferme. Le service Accessibilite Jarvis peut reagir a un evenement xTool TYPE_VIEW_CLICKED sur la ligne Volet EasySet et demander une analyse passive avec capture Android deja autorisee. Recours borne quand le clic ne contient aucun texte, sans scan continu. Conserve les lectures OCR des trois parametres, la bulle SVG silencieuse et les animations 500 ms. Aucun changement de parametres ni commande de decoupe. La notification Accessibilite doit etre active sur Android; test terrain Samsung a confirmer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.41-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
