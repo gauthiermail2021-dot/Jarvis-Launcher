@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 54
-        versionName '1.2.35'
-        // Jarvis 1.2.35: explicitly rearm Gmail-to-xTool handoff on numbered test button press.
+        versionCode 55
+        versionName '1.2.36'
+        // Jarvis 1.2.36: an independent floating SVG test bubble sends the next numbered test with one tap.
         // Signed experimental release, must be verified on the Samsung.
     }
 
