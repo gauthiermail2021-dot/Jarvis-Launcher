@@ -26,14 +26,23 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null || event.getPackageName() == null) return;
         int type = event.getEventType();
-        if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                && type != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return;
+        boolean foregroundTransition = type
+                == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED;
+        boolean contentChanged = type
+                == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED;
+        if (!foregroundTransition && !contentChanged) return;
 
         CharSequence pkg = event.getPackageName();
         if (CHATGPT_PACKAGE.contentEquals(pkg)) {
-            openChatGptBubbleIfNeeded();
+            if (foregroundTransition) openChatGptBubbleIfNeeded();
         } else if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
-            inspectExistingXtoolDrawing();
+            // Content changes are ignored unless a previously authorized
+            // screenshot positively identified the CLOSED xTool EasySet
+            // row. We do not retrieve any Android window content.
+            if (foregroundTransition) inspectExistingXtoolDrawing(false);
+            else if (EasySetSessionService.isAwaitingPanelOpen())
+                inspectExistingXtoolDrawing(true);
         }
     }
 
@@ -52,15 +61,24 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }
     }
 
-    private void inspectExistingXtoolDrawing() {
+    private void inspectExistingXtoolDrawing(boolean panelContentChanged) {
         // The capture service de-duplicates an existing SVG-triggered scan
         // and accepts xTool projects that were already open.
         long now = SystemClock.elapsedRealtime();
-        if (!EasySetForegroundScanPolicy.shouldRequest(
-                EasySetForegroundScanPolicy.XCS_PACKAGE,
-                EasySetSessionService.isActive(),
-                JarvisBubbleService.isBubbleActive() && Settings.canDrawOverlays(this),
-                now, lastXtoolScanRequestMillis)) return;
+        boolean projectionGranted = EasySetSessionService.isActive();
+        boolean bubbleVisible = JarvisBubbleService.isBubbleActive()
+                && Settings.canDrawOverlays(this);
+        boolean allowed = panelContentChanged
+                ? EasySetForegroundScanPolicy.shouldRequestAfterPanelChange(
+                        EasySetForegroundScanPolicy.XCS_PACKAGE,
+                        projectionGranted, bubbleVisible,
+                        EasySetSessionService.isAwaitingPanelOpen(),
+                        now, lastXtoolScanRequestMillis)
+                : EasySetForegroundScanPolicy.shouldRequest(
+                        EasySetForegroundScanPolicy.XCS_PACKAGE,
+                        projectionGranted, bubbleVisible,
+                        now, lastXtoolScanRequestMillis);
+        if (!allowed) return;
         lastXtoolScanRequestMillis = now;
 
         // No screenshot is taken here. The projection service waits briefly
