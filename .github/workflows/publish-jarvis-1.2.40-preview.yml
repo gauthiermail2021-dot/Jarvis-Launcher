@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.40 500ms animation preview APK
+
+on:
+  push:
+    branches: [feature/visible-animation-hold-500ms-1.2.40]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.40-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact signed tested 1.2.40 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42942099909 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.40-visible-500ms-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.40-Test.apk
+      - name: Verify APK integrity and size
+        run: |
+          unzip -t Jarvis-Bridge-1.2.40-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.40-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.40-Test.apk
+      - name: Publish direct GitHub APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.40-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.40-preview Jarvis-Bridge-1.2.40-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.40-preview Jarvis-Bridge-1.2.40-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target ce617811f540f076c03113e3255dae7e0918b0e0 \
+              --title 'Jarvis Bridge 1.2.40 - Animations Gmail / SVG 500 ms' \
+              --notes 'APK signe de test, versionCode 59. Chaque etape observee Gmail, reception SVG et ouverture xTool reste affichee au moins 500 ms dans la bulle Jarvis. La premiere animation ajoute 500 ms de temps pour agrandir la bulle. Les delais concernent seulement les messages visuels, pas les envois Gmail, les fichiers ou les actions xTool. Les anciennes lectures EasySet et la bulle SVG silencieuse sont conservees. Aucun reglage machine modifie ni demarrage du laser. CI reussie, animation sur Samsung encore a confirmer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.40-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
