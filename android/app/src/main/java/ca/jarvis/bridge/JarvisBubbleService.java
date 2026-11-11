@@ -221,8 +221,11 @@ public final class JarvisBubbleService extends Service {
     /** Explicit user gesture only: run the existing Gmail-to-xTool test flow. */
     private void launchNumberedSvgTest() {
         if (!Settings.canDrawOverlays(this)) return;
-        Intent send = new Intent(this, JarvisTestShortcutActivity.class);
-        send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        Intent send = new Intent(this, JarvisSilentSvgSendActivity.class);
+        send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                | Intent.FLAG_ACTIVITY_NO_ANIMATION
+                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
         try {
             startActivity(send);
         } catch (RuntimeException error) {
