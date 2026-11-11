@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.43 EasySet diagnosis preview APK
+
+on:
+  push:
+    branches: [diagnostic/easyset-accessibility-1.2.43]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.43-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download successfully tested signed Jarvis 1.2.43 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 43121544528 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.43-easyset-diagnostic-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.43-Test.apk
+      - name: Verify APK integrity
+        run: |
+          unzip -t Jarvis-Bridge-1.2.43-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.43-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.43-Test.apk
+      - name: Publish direct GitHub APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.43-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.43-preview Jarvis-Bridge-1.2.43-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.43-preview Jarvis-Bridge-1.2.43-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target de0f623be0c96573b1855d591c7939526f2f853f \
+              --title 'Jarvis Bridge 1.2.43 - Diagnostic connexion EasySet' \
+              --notes 'APK signe de test versionCode 62. Ajoute le menu Diagnostic EasySet (connexion) pour indiquer si le service Accessibilite est connecte, la capture Android autorisee, les derniers evenements xTool recus et si les champs EasySet sont accessibles dans la fenetre. Donnees strictement limitees a des statuts et nombres de noeuds ; aucune capture, texte de fenetre ou valeur parametre enregistree par le diagnostic. Conserve la lecture OCR, la bulle SVG et les animations 500 ms. Ne modifie aucun parametre laser et n execute aucun geste ou lancement. Test Samsung a effectuer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.43-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
