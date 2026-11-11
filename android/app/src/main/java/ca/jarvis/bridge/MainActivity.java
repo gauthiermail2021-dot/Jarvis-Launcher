@@ -64,6 +64,10 @@ public class MainActivity extends ComponentActivity {
     private static final int PICK_SVG = 1001;
     private static final int NOTIFICATION_PERMISSION = 1003;
     public static final String ACTION_CHECK_GMAIL = "ca.jarvis.bridge.ACTION_CHECK_GMAIL";
+    // Explicit floating SVG test requests do not depend on the regular
+    // autonomous Gmail notification setting; never show Jarvis settings.
+    public static final String EXTRA_FORCE_SILENT_GMAIL_CHECK =
+            "ca.jarvis.bridge.EXTRA_FORCE_SILENT_GMAIL_CHECK";
     private static volatile MainActivity foregroundActivity;
     private static final int MAX_SVG_BYTES = 5000000;
     private static final String PREFS = "jarvis_bridge";
@@ -102,8 +106,10 @@ public class MainActivity extends ComponentActivity {
         Intent launchIntent = getIntent();
         silentAutoCheck = launchIntent != null
                 && ACTION_CHECK_GMAIL.equals(launchIntent.getAction())
-                && getSharedPreferences(PREFS, MODE_PRIVATE)
-                        .getBoolean(AUTO_OPEN_ENABLED, false);
+                && (launchIntent.getBooleanExtra(
+                            EXTRA_FORCE_SILENT_GMAIL_CHECK, false)
+                        || getSharedPreferences(PREFS, MODE_PRIVATE)
+                                .getBoolean(AUTO_OPEN_ENABLED, false));
         compactLauncher = launchIntent != null
                 && Intent.ACTION_MAIN.equals(launchIntent.getAction())
                 && getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -806,8 +812,11 @@ public class MainActivity extends ComponentActivity {
         // Si Android réutilise l'Activity compacte pour une notification,
         // sa vérification Gmail reste temporaire et doit se fermer à la fin.
         if (intent != null && ACTION_CHECK_GMAIL.equals(intent.getAction())
-                && compactLauncher && getSharedPreferences(PREFS, MODE_PRIVATE)
-                        .getBoolean(AUTO_OPEN_ENABLED, false)) {
+                && (intent.getBooleanExtra(
+                            EXTRA_FORCE_SILENT_GMAIL_CHECK, false)
+                        || compactLauncher
+                                && getSharedPreferences(PREFS, MODE_PRIVATE)
+                                        .getBoolean(AUTO_OPEN_ENABLED, false))) {
             silentAutoCheck = true;
         }
         handleIncomingIntent(intent);
