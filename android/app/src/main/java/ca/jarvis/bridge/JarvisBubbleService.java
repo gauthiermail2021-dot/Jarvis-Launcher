@@ -15,6 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 import android.os.SystemClock;
+import java.util.ArrayDeque;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -92,6 +93,28 @@ public final class JarvisBubbleService extends Service {
     private String visualTitle = "JARVIS";
     private String visualDetail = "PRÊT";
     private long visualUntil = 0L;
+    // Gmail notification, search, SVG reception and xTool handoff can all
+    // happen faster than a human can read. Only the OVERLAY labels are
+    // serialized; the real Gmail/Android processing remains asynchronous.
+    private final ArrayDeque<VisualStage> stageQueue = new ArrayDeque<>();
+    private boolean stageHolding;
+    private Runnable stageAdvance;
+
+    private static final class VisualStage {
+        final int state;
+        final String title, detail;
+
+        VisualStage(int state, String title, String detail) {
+            this.state = state;
+            this.title = title;
+            this.detail = detail;
+        }
+
+        boolean sameAs(VisualStage other) {
+            return other != null && state == other.state
+                    && title.equals(other.title) && detail.equals(other.detail);
+        }
+    }
 
     @Override public IBinder onBind(Intent intent) { return null; }
 
@@ -380,58 +403,112 @@ public final class JarvisBubbleService extends Service {
         }
     }
 
-    /** Signaux exclusivement liés à des événements que Jarvis Bridge peut observer. */
-    static void onGmailNotificationReceived() {
+    /** Events actually observed by Jarvis: no simulated progress stages. */
+    private static void showStageAfterObservedEvent(int state, String title,
+                                                    String detail) {
         JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_GMAIL, "GMAIL", "NOTIFICATION"));
+        if (current == null) return;
+
+        // Validate the old xTool-session gate NOW, not after a posted UI
+        // callback: by then the SVG handoff may already have activated xTool.
+        // Events accepted earlier can finish their 500-ms visual sequence,
+        // but stale new Gmail events cannot overwrite an ongoing xTool task.
+        if (XtoolSessionManager.isActive(current) && state != STATE_XTOOL)
+            return;
+        current.gestureHandler.post(() ->
+                current.enqueueVisualStage(state, title, detail));
+    }
+
+    static void onGmailNotificationReceived() {
+        showStageAfterObservedEvent(STATE_GMAIL, "GMAIL", "NOTIFICATION");
     }
 
     static void onSvgWorkStarted() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_WORKING, "RÉCEPTION", ".SVG"));
+        showStageAfterObservedEvent(STATE_WORKING, "RÉCEPTION", ".SVG");
     }
 
     static void onGmailWorkStarted() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_WORKING, "GMAIL", "RECHERCHE"));
+        showStageAfterObservedEvent(STATE_WORKING, "GMAIL", "RECHERCHE");
     }
 
     static void onSvgOpenRequested(boolean xToolTarget) {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() -> {
-            if (xToolTarget) {
-                // Le lancement est demandé, sans prétendre que le dessin est déjà chargé.
-                current.showActivity(STATE_XTOOL, "xTool", "EN COURS");
-            } else {
-                current.showActivity(STATE_SUCCESS, "SVG", "ENVOYÉ");
-            }
-        });
+        if (xToolTarget) {
+            // This is a REQUEST to Android, not proof of successful import.
+            showStageAfterObservedEvent(STATE_XTOOL, "xTool", "EN COURS");
+        } else {
+            showStageAfterObservedEvent(STATE_SUCCESS, "SVG", "ENVOYÉ");
+        }
     }
 
-    /** Refus volontaire d'un fichier : distinct d'une erreur opérationnelle. */
     static void onFileRejected(JarvisFileRouter.Kind kind) {
-        JarvisBubbleService current = activeService;
-        if (current == null) return;
         String title = kind == JarvisFileRouter.Kind.CAD_3D ? "CAD"
                 : kind == JarvisFileRouter.Kind.DXF_2D ? "DXF" : "FICHIER";
-        current.gestureHandler.post(() ->
-                current.showActivity(STATE_ERROR, title, "REFUSÉ"));
+        showStageAfterObservedEvent(STATE_ERROR, title, "REFUSÉ");
     }
 
     static void onOperationFailed() {
-        JarvisBubbleService current = activeService;
-        if (current != null) current.gestureHandler.post(() ->
-                current.showActivity(STATE_ERROR, "JARVIS", "ERREUR"));
+        showStageAfterObservedEvent(STATE_ERROR, "JARVIS", "ERREUR");
     }
 
     private void showActivity(int state, String title, String detail) {
         if (bubble == null || wm == null) return;
-        // Pendant la session protégée, les notifications ou résultats anciens
-        // ne doivent pas remplacer le message permanent « xTool en cours ».
+        // The manual menu must obey the same session protection as before.
         if (XtoolSessionManager.isActive(this) && state != STATE_XTOOL) return;
+        enqueueVisualStage(state, title, detail);
+    }
+
+    private void enqueueVisualStage(int state, String title, String detail) {
+        if (bubble == null || wm == null) return;
+        VisualStage next = new VisualStage(state, title, detail);
+
+        if (!animationsEnabled) {
+            clearVisualStages();
+            displayVisualStage(next);
+            return;
+        }
+
+        // Ignore duplicate notifications/redraws for the same stage.
+        VisualStage last = stageQueue.peekLast();
+        if ((stageHolding && stageQueue.isEmpty()
+                && visualState == state && visualTitle.equals(title)
+                && visualDetail.equals(detail))
+                || next.sameAs(last)) return;
+
+        // Bound backlog if the system delivers repeated notifications.
+        // Always retain the last event (e.g. xTool handoff), rather than
+        // allowing a delayed animation queue to grow without limit.
+        while (stageQueue.size() >= 7) stageQueue.removeFirst();
+        stageQueue.addLast(next);
+        if (!stageHolding) displayNextQueuedStage();
+    }
+
+    private void displayNextQueuedStage() {
+        VisualStage next = stageQueue.pollFirst();
+        if (next == null) {
+            stageHolding = false;
+            stageAdvance = null;
+            if (bubble != null) bubble.invalidate();
+            return;
+        }
+        boolean expanding = !expanded;
+        stageHolding = true;
+        displayVisualStage(next);
+        long hold = BubbleVisualStageTiming.holdMillis(
+                animationsEnabled, expanding);
+        stageAdvance = this::displayNextQueuedStage;
+        gestureHandler.postDelayed(stageAdvance, hold);
+    }
+
+    private void clearVisualStages() {
+        if (stageAdvance != null) gestureHandler.removeCallbacks(stageAdvance);
+        stageAdvance = null;
+        stageQueue.clear();
+        stageHolding = false;
+    }
+
+    private void displayVisualStage(VisualStage stage) {
+        int state = stage.state;
+        String title = stage.title, detail = stage.detail;
         boolean changed = visualState != state || !visualTitle.equals(title)
                 || !visualDetail.equals(detail);
         visualState = state;
@@ -448,14 +525,14 @@ public final class JarvisBubbleService extends Service {
             else if (state == STATE_SUCCESS) note = JarvisXylophone.SOL5;
             if (note >= 0 && xylophone != null) xylophone.play(note);
         }
-        // Un refus de fichier : exactement une tonalité courte par événement.
-        // Aucune modification de l'apparence, des couleurs ni des messages.
-        // Le registre Gmail évite déjà de retraiter deux fois le même fichier.
         if (state == STATE_ERROR && "REFUSÉ".equals(detail)
                 && soundsEnabled && xylophone != null) {
             xylophone.playRefusal();
         }
         setExpanded(true);
+        // During an expansion animator, setExpanded() can return early to
+        // avoid restarting the animation. Explicitly redraw the new label.
+        bubble.invalidate();
     }
 
     private void cancelCollapse() {
@@ -754,7 +831,7 @@ public final class JarvisBubbleService extends Service {
             // dépasser la fenêtre cible ni modifier sa forme finale.
             ValueAnimator animator = ValueAnimator.ofInt(
                     params.width, side, dp(103), side);
-            animator.setDuration(390L);
+            animator.setDuration(BubbleVisualStageTiming.OPENING_ANIMATION_MS);
             animator.setInterpolator(new DecelerateInterpolator(1.0f));
             openingAnimator = animator;
             animator.addUpdateListener(frame -> {
@@ -809,6 +886,7 @@ public final class JarvisBubbleService extends Service {
             openingAnimator.cancel();
             openingAnimator = null;
         }
+        clearVisualStages();
         openingSpinUntil = 0L;
         if (xylophone != null) {
             xylophone.release();
@@ -874,7 +952,12 @@ public final class JarvisBubbleService extends Service {
             float w = getWidth(), h = getHeight();
             if (w < 1 || h < 1) return;
             long now = SystemClock.uptimeMillis();
-            boolean xtoolActive = XtoolSessionManager.isActive(JarvisBubbleService.this);
+            // Previously accepted Gmail/SVG labels must remain readable
+            // for 500 ms even if xTool was launched immediately afterwards.
+            boolean temporaryLabel = stageHolding
+                    && visualState != STATE_XTOOL && visualState != STATE_READY;
+            boolean xtoolActive = XtoolSessionManager.isActive(
+                    JarvisBubbleService.this) && !temporaryLabel;
             // Ne montrer le texte grand format qu'une fois suffisamment de
             // place disponible pendant l'animation d'agrandissement.
             boolean expandedLayout = expanded && w >= dp(96);
