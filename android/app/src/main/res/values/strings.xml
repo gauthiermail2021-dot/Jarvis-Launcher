@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle à l’ouverture de ChatGPT et analyser EasySet en lecture seule lorsque xTool revient au premier plan ou lorsque son volet fermé est ouvert, après autorisation explicite de capture Android. Observe les événements de fenêtre et les clics dans ChatGPT et xTool afin de reconnaître l’ouverture manuelle du volet EasySet, sans lire le contenu des fenêtres ni effectuer de gestes. Ne capture que si le partage d’écran Android est déjà autorisé.</string>
+    <string name="chatgpt_accessibility_description">Fonction facultative : Jarvis peut lire uniquement les libellés accessibles du volet EasySet dans xTool afin de reconnaître son ouverture et demander une capture OCR déjà autorisée par Android. Il observe aussi l’ouverture de ChatGPT pour afficher la bulle. Il ne stocke pas le contenu des fenêtres, n’effectue aucun geste, ne modifie aucun réglage et ne commande jamais le laser.</string>
 </resources>
