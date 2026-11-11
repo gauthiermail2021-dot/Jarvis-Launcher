@@ -1,0 +1,46 @@
+name: Publish Jarvis 1.2.42 signed UI inspector preview APK
+
+on:
+  push:
+    branches: [feature/easyset-accessibility-inspector-1.2.42]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.42-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download successfully tested Jarvis 1.2.42 signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42949863205 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.42-ui-inspector-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.42-Test.apk
+      - name: Verify the APK
+        run: |
+          unzip -t Jarvis-Bridge-1.2.42-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.42-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.42-Test.apk
+      - name: Publish direct APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.42-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.42-preview Jarvis-Bridge-1.2.42-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.42-preview Jarvis-Bridge-1.2.42-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 9c3954303325076b3ae8b4f20226730d3690c5c8 \
+              --title 'Jarvis Bridge 1.2.42 - Inspection EasySet Android (test)' \
+              --notes 'APK signe de test versionCode 61. Ajoute une inspection ciblee et en lecture seule des libelles accessibles dans la fenetre xTool pour detecter quand EasySet s ouvre, et declencher une seule reconnaissance OCR deja autorisee. Le service Accessibilite Android peut necessiter une reactivation apres la mise a jour. Ne modifie aucun parametre, ne fait aucun geste et ne lance pas de laser. Conserve la bulle SVG silencieuse, Gmail et les animations 500ms. Compilation et tests automatiques reussis ; comportement a confirmer sur Samsung.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.42-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
