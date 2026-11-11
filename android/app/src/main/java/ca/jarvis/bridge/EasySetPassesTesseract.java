@@ -78,7 +78,7 @@ public final class EasySetPassesTesseract {
      */
     public static Result read(Context context, Bitmap screenshot, Rect numberBox)
             throws IOException {
-        return readNumber(context, screenshot, numberBox, false);
+        return readNumber(context, screenshot, numberBox, 0);
     }
 
     /**
@@ -88,13 +88,24 @@ public final class EasySetPassesTesseract {
      */
     public static Result readPower(Context context, Bitmap screenshot, Rect numberBox)
             throws IOException {
-        return readNumber(context, screenshot, numberBox, true);
+        return readNumber(context, screenshot, numberBox, 1);
     }
 
-    private static Result readNumber(Context context, Bitmap screenshot,
-                                     Rect numberBox, boolean power)
+    /**
+     * Only the isolated speed numeric field; never a slider, canvas
+     * dimension or unrelated value. Valid speed range: 1..3000.
+     */
+    public static Result readSpeed(Context context, Bitmap screenshot, Rect numberBox)
             throws IOException {
-        final String field = power ? "Puissance" : "Passer";
+        return readNumber(context, screenshot, numberBox, 2);
+    }
+
+    // Mode 0 Passer, 1 Puissance, 2 Vitesse; all read-only.
+    private static Result readNumber(Context context, Bitmap screenshot,
+                                     Rect numberBox, int fieldMode)
+            throws IOException {
+        final String field = fieldMode == 1 ? "Puissance"
+                : fieldMode == 2 ? "Vitesse" : "Passer";
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw new IllegalStateException("OCR Tesseract à lancer hors du thread UI");
         }
@@ -145,16 +156,7 @@ public final class EasySetPassesTesseract {
                         int confidence = api.meanConfidence();
                         String normalized = raw == null ? "" : raw.trim().replaceAll("\\s+", "");
                         Integer value = null;
-                        // Power may contain 0 or 100, whereas Passer is
-                        // restricted to 1..99. Do not accept leading zeroes.
-                        if (normalized.matches(power
-                                ? "(?:0|[1-9][0-9]{0,2})"
-                                : "[0-9]{1,2}")) {
-                            int number = Integer.parseInt(normalized);
-                            if ((power ? number >= 0 && number <= 100
-                                    : number >= 1 && number <= 99)
-                                    && confidence >= MIN_CONFIDENCE) value = number;
-                        }
+                        value = acceptedNumber(normalized, confidence, fieldMode);
                         candidates.add(new Candidate(value, confidence, normalized, prepared));
                         api.clear();
                     } catch (RuntimeException e) {
@@ -196,6 +198,23 @@ public final class EasySetPassesTesseract {
                 String.format(Locale.CANADA_FRENCH,
                         "%s : %d (Tesseract, confiance %d %%, indicatif)",
                         field, best.value, best.confidence), preview);
+    }
+
+    /**
+     * JVM-testable strict numeric validation for the three separate cells.
+     * Rejects leading zeros and impossible values instead of guessing.
+     */
+    static Integer acceptedNumber(String raw, int confidence, int mode) {
+        if (raw == null || confidence < MIN_CONFIDENCE) return null;
+        final int max = mode == 1 ? 100 : mode == 2 ? 3000 : 99;
+        final int min = mode == 1 ? 0 : 1;
+        if (!raw.matches(mode == 1 ? "(?:0|[1-9][0-9]{0,2})"
+                : mode == 2 ? "[1-9][0-9]{0,3}"
+                : "[1-9][0-9]?")) return null;
+        int parsed;
+        try { parsed = Integer.parseInt(raw); }
+        catch (NumberFormatException ignored) { return null; }
+        return parsed >= min && parsed <= max ? parsed : null;
     }
 
     /**
