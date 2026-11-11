@@ -1,0 +1,47 @@
+name: Publish Jarvis 1.2.36 signed floating SVG bubble preview APK
+
+on:
+  push:
+    branches:
+      - feature/floating-svg-test-bubble-1.2.36
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.36-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-verified-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download already compiled and signed floating SVG bubble 1.2.36
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42930541995 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.36-floating-svg-bubble-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.36-Test.apk
+      - name: Verify signed Android APK ZIP container and size before publishing
+        run: |
+          unzip -t Jarvis-Bridge-1.2.36-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.36-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.36-Test.apk
+      - name: Publish direct GitHub Release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.36-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.36-preview Jarvis-Bridge-1.2.36-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.36-preview Jarvis-Bridge-1.2.36-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target e558466b740536bd470823b457c8a15bce194103 \
+              --title 'Jarvis Bridge 1.2.36 - Nouvelle bulle flottante SVG (test)' \
+              --notes 'APK Android signe 1.2.36 / versionCode 55. Une seconde bulle flottante ronde SVG de 48dp apparait a cote de la bulle Jarvis si les autorisations de superposition sont deja accordees. Toucher une fois pour envoyer le prochain SVG de test numerote via Gmail puis tenter de l ouvrir dans xTool. Glisser pour deplacer sans envoi. Appui long sur Jarvis : Bulle TEST SVG masquer/afficher et fallback Envoyer SVG test (+1). Bulle cachee pendant capture EasySet. Aucun demarrage de laser ni changement de parametre machine. Le comportement sur le Samsung est un test a confirmer. Conserve les donnees des versions precedentes en mettant a jour sans desinstaller.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.36-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
