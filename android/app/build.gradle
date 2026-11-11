@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 57
-        versionName '1.2.38'
-        // Jarvis 1.2.38: add bounded Vitesse number OCR fallback for isolated small digits.
+        versionCode 58
+        versionName '1.2.39'
+        // Jarvis 1.2.39: silent floating SVG send and automatic read-only EasySet panel-open recognition.
         // Signed experimental release, must be verified on the Samsung.
     }
 
