@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 56
-        versionName '1.2.37'
-        // Jarvis 1.2.37: add bounded numeric OCR fallback for tiny Puissance digit (e.g. 1%).
+        versionCode 57
+        versionName '1.2.38'
+        // Jarvis 1.2.38: add bounded Vitesse number OCR fallback for isolated small digits.
         // Signed experimental release, must be verified on the Samsung.
     }
 
