@@ -26,3 +26,18 @@ La capture n'établit pas à elle seule si l'appui sur la bulle SVG a effectivem
 - Tests `EasySetSpeedRegionTest` : géométrie Samsung, chiffre isolé sous le libellé, exclusion des voisins, contrôle des valeurs 1, 20, 152, 3000, refus de 0, 3001, 01 et caractères ambigus. Contrôle que les plages Puissance et Passer restent différentes.
 - Branche : `fix/easyset-speed-small-digit-1.2.38`; version Android `1.2.38`, `versionCode 57`.
 - L'APK signé est une **version expérimentale**. Les tests automatiques ne constituent pas encore une validation d'OCR sur le Samsung; demander une nouvelle capture de l'interface avec « 1, 1, 1 » et les trois valeurs Jarvis.
+
+
+## Test Samsung — trois valeurs reconnues (capture fournie)
+
+Capture EasySet suivante fournie par l'utilisateur, après la proposition de Jarvis 1.2.38 :
+
+| Champ | Valeur visible xTool | Valeur indiquée par Jarvis | Concordance |
+| --- | --- | --- | --- |
+| Puissance | 5 % | 5 % | Oui |
+| Vitesse | 9 mm/s | 9 mm/s | Oui |
+| Passer | 10 | 10 | Oui |
+
+Diagnostic affiché pour **Passer** : libellé repéré ; OCR « Écran » `10▸` accepté ; OCR « Colonne droite » `10▸` accepté ; zone agrandie non exécutée, car inutile ; association acceptée. Aucun secours Tesseract numérique n'est affiché sur cette capture.
+
+**Constat terrain : 3/3 concordants pour 5 %, 9 mm/s et 10 passages.** Cela valide cette combinaison sur le téléphone, mais **ne prouve pas** encore une reconnaissance fiable de toutes les valeurs (notamment `Vitesse : 1 mm/s` qui échouait auparavant), ni le déclenchement de la bulle SVG. La capture seule ne montre pas le numéro de version installé ; éviter de l'inférer avec certitude.
