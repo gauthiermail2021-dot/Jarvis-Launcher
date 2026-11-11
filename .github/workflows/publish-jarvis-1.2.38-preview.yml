@@ -1,0 +1,46 @@
+name: Publish Jarvis 1.2.38 signed Vitesse OCR preview APK
+
+on:
+  push:
+    branches: [fix/easyset-speed-small-digit-1.2.38]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.38-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed tested Jarvis 1.2.38 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42934846178 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.38-speed-digit-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.38-Test.apk
+      - name: Verify APK and print checksum
+        run: |
+          unzip -t Jarvis-Bridge-1.2.38-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.38-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.38-Test.apk
+      - name: Publish direct APK GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.38-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.38-preview Jarvis-Bridge-1.2.38-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.38-preview Jarvis-Bridge-1.2.38-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target f1e169076e4c1b5d231d8dd0d6806b5850cda4d5 \
+              --title 'Jarvis Bridge 1.2.38 - OCR Vitesse 1 mm/s (test)' \
+              --notes 'APK signe de test versionCode 57. Conserve la bulle flottante SVG et le succes confirme de Puissance 1 % et Passages 1 de la version precedente. Ajoute un recadrage numerique cible pour Vitesse lorsque ML Kit laisse non lue un seul chiffre. Tesseract reste indicatif ; en cas de lecture ambigue, la valeur demeure non lue. Aucun demarrage du laser, aucun changement de parametres. Compilation et tests reussis ; comportement OCR sur Samsung a verifier.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.38-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets

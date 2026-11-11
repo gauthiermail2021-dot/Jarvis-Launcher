@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle Jarvis à l’ouverture de ChatGPT. Observe uniquement le changement d’application au premier plan ; ne lit pas les conversations ni le contenu de l’écran.</string>
+    <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle à l’ouverture de ChatGPT et demander une analyse EasySet en lecture seule quand xTool Creative Space revient au premier plan, après autorisation de capture Android. Observe seulement ces deux applications, sans lire les fenêtres ni exécuter de gestes.</string>
 </resources>
