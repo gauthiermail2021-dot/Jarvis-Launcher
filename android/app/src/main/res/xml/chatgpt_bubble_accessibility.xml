@@ -5,6 +5,6 @@
     android:packageNames="com.openai.chatgpt,com.makeblock.xcs"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="300"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:canPerformGestures="false"
     android:description="@string/chatgpt_accessibility_description" />
