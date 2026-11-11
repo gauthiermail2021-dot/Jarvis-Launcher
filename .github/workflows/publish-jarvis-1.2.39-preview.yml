@@ -1,0 +1,46 @@
+name: Publish Jarvis 1.2.39 signed Vitesse OCR preview APK
+
+on:
+  push:
+    branches: [feature/easyset-open-panel-trigger-1.2.39]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.39-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed tested Jarvis 1.2.39 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42940024201 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.39-silent-panel-detection-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.39-Test.apk
+      - name: Verify APK and print checksum
+        run: |
+          unzip -t Jarvis-Bridge-1.2.39-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.39-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.39-Test.apk
+      - name: Publish direct APK GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.39-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.39-preview Jarvis-Bridge-1.2.39-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.39-preview Jarvis-Bridge-1.2.39-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target e1709ec4a5a250ff6729faa77527f3e63392796f \
+              --title 'Jarvis Bridge 1.2.39 - Bulle SVG sans fenetre et EasySet ferme/ouvert' \
+              --notes 'APK signe de test versionCode 58. Toucher la bulle flottante SVG envoie un SVG numerote sans afficher la fenetre TEST SVG JARVIS. Un ecran Google peut encore apparaitre si le consentement Gmail est requis. La verification Gmail reste transparente. Jarvis detecte le volet EasySet ferme depuis une capture Android autorisee et declenche une nouvelle lecture passive lorsque l utilisateur l ouvre. Les changements d interface xTool sont observes seulement si le volet a ete confirme ferme, sans lecture des fenetres ni gestes. Aucune commande laser, aucun changement de reglage. Conserve les deux bulles et l OCR de la 1.2.38. Compilation et tests reussis, a confirmer sur Samsung.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.39-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
