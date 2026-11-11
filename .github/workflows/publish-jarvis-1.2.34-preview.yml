@@ -1,0 +1,49 @@
+name: Publish signed Jarvis 1.2.34 test button preview (direct APK)
+
+on:
+  push:
+    branches:
+      - feature/repeatable-home-test-svg-1.2.34
+    paths:
+      - .github/workflows/publish-jarvis-1.2.34-preview.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish-verified-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download previously built signed Jarvis 1.2.34 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 42922046812 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.34-numbered-test-button-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.34-Test.apk
+      - name: Verify APK before publishing
+        run: |
+          unzip -t Jarvis-Bridge-1.2.34-Test.apk | tail -n 2
+          ls -lh Jarvis-Bridge-1.2.34-Test.apk
+          sha256sum Jarvis-Bridge-1.2.34-Test.apk
+          test "$(wc -c < Jarvis-Bridge-1.2.34-Test.apk)" -gt 20000000
+      - name: Publish test APK to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.34-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release already exists. Updating verified APK only.'
+            gh release upload jarvis-1.2.34-preview Jarvis-Bridge-1.2.34-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.34-preview Jarvis-Bridge-1.2.34-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 92996bc1e5750a9bce12b9b1f764110edac2ec0f \
+              --title 'Jarvis Bridge 1.2.34 - Bouton externe TEST SVG numéroté' \
+              --notes 'APK signé de test, code 53. Ajoute une seconde icône TEST SVG JARVIS sur Android. Chaque clic confirmé envoie au compte Gmail connecté le même dessin SVG de trapèze 44x30 mm. Nom du fichier : Jarvis_Test_001.svg puis Jarvis_Test_002.svg, etc. Un commentaire SVG invisible change pour éviter la protection anti-doublons ; aucune modification du dessin. Premier clic : autorisation Google gmail.modify (permission plus large que la lecture seule existante), utilisée uniquement pour envoyer et appliquer le libellé Jarvis SVG. Ne modifie aucun réglage xTool et ne lance jamais de laser. L envoi Gmail et le déclenchement sur Samsung restent à vérifier ; ne pas fusionner sans tests.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.34-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets

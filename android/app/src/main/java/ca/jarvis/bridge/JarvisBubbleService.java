@@ -62,6 +62,8 @@ public final class JarvisBubbleService extends Service {
     private WindowManager wm;
     private WindowManager.LayoutParams params;
     private BubbleView bubble;
+    // Independent, movable SVG test overlay; no change to the main bubble UX.
+    private JarvisTestBubbleOverlay svgTestBubble;
     private boolean expanded = false;
     private boolean dragging = false;
     private float downX, downY;
@@ -179,6 +181,7 @@ public final class JarvisBubbleService extends Service {
         wm.addView(bubble, params);
         activeService = this;
         xylophone = new JarvisXylophone(this);
+        if (prefs.getBoolean("test_svg_bubble_enabled", true)) showSvgTestBubble();
         // Si Android relance la bulle pendant le travail, restaurer l'état.
         if (XtoolSessionManager.isActive(this)) {
             visualState = STATE_XTOOL;
@@ -195,6 +198,39 @@ public final class JarvisBubbleService extends Service {
         params.y = Math.max(0, Math.min(params.y, display.y - params.height));
     }
 
+
+    /** Small 48 dp floating SVG bubble, shown beside Jarvis by default. */
+    private void showSvgTestBubble() {
+        if (svgTestBubble != null || wm == null || bubble == null) return;
+        // Default is adjacent but independent; the user may drag it anywhere.
+        int left = params.x < dp(70) ? params.x + dp(65) : params.x - dp(55);
+        int top = params.y + dp(60);
+        JarvisTestBubbleOverlay overlay = new JarvisTestBubbleOverlay(
+                this, wm, left, top, this::launchNumberedSvgTest);
+        try {
+            overlay.show();
+            svgTestBubble = overlay;
+        } catch (RuntimeException error) {
+            overlay.destroy();
+            // The long-press Jarvis menu retains the test-sender fallback.
+            Toast.makeText(this, "Bulle SVG non disponible : "
+                    + error.getClass().getSimpleName(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /** Explicit user gesture only: run the existing Gmail-to-xTool test flow. */
+    private void launchNumberedSvgTest() {
+        if (!Settings.canDrawOverlays(this)) return;
+        Intent send = new Intent(this, JarvisTestShortcutActivity.class);
+        send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        try {
+            startActivity(send);
+        } catch (RuntimeException error) {
+            Toast.makeText(this, "TEST SVG : lancement indisponible ("
+                    + error.getClass().getSimpleName() + ")",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
 
     /**
      * Android autorise sous certaines versions le lancement d'activité depuis
@@ -228,9 +264,13 @@ public final class JarvisBubbleService extends Service {
             if (current.bubble == null) return;
             current.dismissEasySetBanner();
             current.bubble.setVisibility(View.INVISIBLE);
+            if (current.svgTestBubble != null)
+                current.svgTestBubble.setVisible(false);
             // Failsafe: restore even if MediaProjection fails or the OCR process dies.
             current.gestureHandler.postDelayed(() -> {
                 if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
+                if (current.svgTestBubble != null)
+                    current.svgTestBubble.setVisible(true);
             }, 14000L);
         });
     }
@@ -240,6 +280,8 @@ public final class JarvisBubbleService extends Service {
         JarvisBubbleService current = activeService;
         if (current != null) current.gestureHandler.post(() -> {
             if (current.bubble != null) current.bubble.setVisibility(View.VISIBLE);
+            if (current.svgTestBubble != null)
+                current.svgTestBubble.setVisible(true);
         });
     }
 
@@ -263,6 +305,7 @@ public final class JarvisBubbleService extends Service {
 
     private void showEasySetBanner(String summary) {
         if (bubble != null) bubble.setVisibility(View.VISIBLE);
+        if (svgTestBubble != null) svgTestBubble.setVisible(true);
         if (wm == null || !Settings.canDrawOverlays(this)) return;
         dismissEasySetBanner();
 
@@ -575,6 +618,22 @@ public final class JarvisBubbleService extends Service {
             addMenuButton(menu, "Autoriser la capture pour la session", this::launchEasySetSessionConsent);
         }
 
+        // Manual fallback and visibility control for the independent SVG bubble.
+        boolean testBubbleEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getBoolean("test_svg_bubble_enabled", true);
+        addMenuButton(menu, testBubbleEnabled
+                ? "Bulle TEST SVG : masquer" : "Bulle TEST SVG : afficher", () -> {
+            boolean enable = !testBubbleEnabled;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                    .putBoolean("test_svg_bubble_enabled", enable).apply();
+            if (enable) showSvgTestBubble();
+            else if (svgTestBubble != null) {
+                svgTestBubble.destroy();
+                svgTestBubble = null;
+            }
+        });
+        addMenuButton(menu, "Envoyer SVG test (+1)", this::launchNumberedSvgTest);
+
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
             // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
@@ -757,6 +816,10 @@ public final class JarvisBubbleService extends Service {
         fingerDown = false;
         dismissMenu();
         dismissEasySetBanner();
+        if (svgTestBubble != null) {
+            svgTestBubble.destroy();
+            svgTestBubble = null;
+        }
         if (wm != null && bubble != null) {
             try { wm.removeView(bubble); }
             catch (IllegalArgumentException ignored) { }

@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 50
-        versionName '1.2.31'
-        // Jarvis 1.2.31: temporary read-only stage-by-stage Passer OCR diagnostics.
-        // Build trigger: run diagnostics tests and verify signed 1.2.31 APK.
+        versionCode 56
+        versionName '1.2.37'
+        // Jarvis 1.2.37: add bounded numeric OCR fallback for tiny Puissance digit (e.g. 1%).
+        // Signed experimental release, must be verified on the Samsung.
     }
 
     signingConfigs {
@@ -67,5 +67,7 @@ dependencies {
     implementation 'com.google.android.gms:play-services-auth:21.5.0'
     implementation 'androidx.activity:activity:1.9.3'
     implementation 'com.google.mlkit:text-recognition:16.0.1'
+    // OCR numérique hors ligne, branché sur EasySetVisionAnalyzer en secours après ML Kit.
+    implementation 'cz.adaptech.tesseract4android:tesseract4android:4.9.0'
     testImplementation 'junit:junit:4.13.2'
 }

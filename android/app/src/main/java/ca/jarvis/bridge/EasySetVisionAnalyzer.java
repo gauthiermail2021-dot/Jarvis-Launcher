@@ -2,6 +2,7 @@ package ca.jarvis.bridge;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -12,6 +13,8 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * On-device, read-only EasySet OCR. Screenshots and raw OCR are kept in memory.
@@ -22,6 +25,7 @@ public final class EasySetVisionAnalyzer {
     static final String PREFS = "easyset_vision_local";
     static final String LAST = "last_diagnostic";
     private EasySetVisionAnalyzer() { }
+    private static final ExecutorService PASS_OCR_WORKER = Executors.newSingleThreadExecutor();
 
     public interface Callback {
         void onDone(String summary);
@@ -102,7 +106,19 @@ public final class EasySetVisionAnalyzer {
         Bitmap enlarged = null;
         TextRecognizer recognizer = null;
         FocusedPasses focused = null;
+        Bitmap powerNumeric = null;
         try {
+            // Clone only the power number (not the slider or the chevron),
+            // while the original consented screenshot is still available.
+            if (baseline.contains("Puissance : non lue")) {
+                EasySetPowerRegion powerRegion = EasySetPowerRegion.find(
+                        base, original.getWidth(), original.getHeight());
+                if (powerRegion != null) {
+                    powerNumeric = Bitmap.createBitmap(original,
+                            powerRegion.left, powerRegion.top,
+                            powerRegion.width(), powerRegion.height());
+                }
+            }
             // Build a third-pass crop NOW, before the first recognizer's
             // completion listener recycles the source screen bitmap.
             // It is used only if the enlarged right-column OCR still fails.
@@ -117,7 +133,7 @@ public final class EasySetVisionAnalyzer {
             if (width < 48 || height < 48) {
                 debug.columnSkipped("capture trop petite");
                 readPassesIfMissing(context, base, new ArrayList<>(),
-                        baseline, focused, debug, callback);
+                        baseline, focused, powerNumeric, debug, callback);
                 return;
             }
             Bitmap cropped = Bitmap.createBitmap(original, left, 0, width, height);
@@ -131,6 +147,7 @@ public final class EasySetVisionAnalyzer {
             final TextRecognizer detail = recognizer;
             final Bitmap enlargedImage = enlarged;
             final FocusedPasses passesCrop = focused;
+            final Bitmap powerCrop = powerNumeric;
             final float resizeFactor = scale;
             final int offsetX = left;
             detail.process(InputImage.fromBitmap(enlargedImage, 0))
@@ -148,12 +165,12 @@ public final class EasySetVisionAnalyzer {
                         debug.readColumn(rightCandidates);
                         String interim = EasySetValues.diagnose(base, rightCandidates);
                         readPassesIfMissing(context, base, rightCandidates, interim,
-                                passesCrop, debug, callback);
+                                passesCrop, powerCrop, debug, callback);
                     })
                     .addOnFailureListener(error -> {
                         debug.columnError();
                         readPassesIfMissing(context, base, new ArrayList<>(), baseline,
-                                passesCrop, debug, callback);
+                                passesCrop, powerCrop, debug, callback);
                     })
                     .addOnCompleteListener(task -> {
                         detail.close();
@@ -164,7 +181,7 @@ public final class EasySetVisionAnalyzer {
             if (enlarged != null && !enlarged.isRecycled()) enlarged.recycle();
             debug.columnError();
             readPassesIfMissing(context, base, new ArrayList<>(),
-                    baseline, focused, debug, callback);
+                    baseline, focused, powerNumeric, debug, callback);
         }
     }
 
@@ -180,7 +197,16 @@ public final class EasySetVisionAnalyzer {
         if (region == null) return null;
         Bitmap slice = null;
         Bitmap resized = null;
+        Bitmap numericOnly = null;
         try {
+            // Clone the numeric field before the full screenshot is recycled
+            // by the asynchronous screen OCR completion callback.
+            EasySetPassesRegion box = region.numberField(
+                    source.getWidth(), source.getHeight());
+            if (box != null) {
+                numericOnly = Bitmap.createBitmap(source,
+                        box.left, box.top, box.width(), box.height());
+            }
             slice = Bitmap.createBitmap(source,
                     region.left, region.top, region.width(), region.height());
             float factor = Math.min(3.5f, 2900f / region.width());
@@ -207,10 +233,11 @@ public final class EasySetVisionAnalyzer {
             paint.setColorFilter(new android.graphics.ColorMatrixColorFilter(adjust));
             new android.graphics.Canvas(enhanced).drawBitmap(resized, 0, 0, paint);
             resized.recycle();
-            return new FocusedPasses(enhanced, region, factor);
+            return new FocusedPasses(enhanced, region, factor, numericOnly);
         } catch (RuntimeException ignored) {
             if (slice != null && !slice.isRecycled()) slice.recycle();
             if (resized != null && !resized.isRecycled()) resized.recycle();
+            if (numericOnly != null && !numericOnly.isRecycled()) numericOnly.recycle();
             return null;
         }
     }
@@ -219,30 +246,36 @@ public final class EasySetVisionAnalyzer {
         final Bitmap image;
         final EasySetPassesRegion region;
         final float scale;
+        final Bitmap numericOnly;
 
-        FocusedPasses(Bitmap image, EasySetPassesRegion region, float scale) {
+        FocusedPasses(Bitmap image, EasySetPassesRegion region, float scale,
+                      Bitmap numericOnly) {
             this.image = image;
             this.region = region;
             this.scale = scale;
+            this.numericOnly = numericOnly;
         }
 
         void dispose() {
             if (!image.isRecycled()) image.recycle();
+            if (numericOnly != null && !numericOnly.isRecycled()) numericOnly.recycle();
         }
     }
 
     private static void readPassesIfMissing(
             Context context, List<EasySetValues.Line> base,
             List<EasySetValues.Line> rightCandidates, String interim,
-            FocusedPasses focused,
+            FocusedPasses focused, Bitmap powerNumeric,
             EasySetPassesDiagnostic debug, Callback callback) {
         if (focused == null || !interim.startsWith("EasySet ")
                 || !interim.contains("Passages : non lus")) {
             debug.cropSkipped(focused == null
                     ? "zone Passer introuvable"
                     : "Passer déjà lu ou EasySet absent");
-            if (focused != null) focused.dispose();
-            finish(context, debug.append(interim), callback);
+            // A Passer crop may be unavailable or unnecessary, but power
+            // still needs its own targeted numeric fallback.
+            finishWithNumericFallback(context, interim, focused, powerNumeric,
+                    debug, callback);
             return;
         }
         TextRecognizer recognizer;
@@ -250,8 +283,8 @@ public final class EasySetVisionAnalyzer {
             recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
         } catch (RuntimeException problem) {
             debug.cropError();
-            focused.dispose();
-            finish(context, debug.append(interim), callback);
+            finishWithNumericFallback(context, interim, focused, powerNumeric,
+                    debug, callback);
             return;
         }
         try {
@@ -267,29 +300,123 @@ public final class EasySetVisionAnalyzer {
                                     focused.region.left + Math.round(line.right / focused.scale),
                                     focused.region.top + Math.round(line.bottom / focused.scale)));
                         }
-                        // The original screen's headings remain the authority.
-                        // No "assumed 1": if no actual numeric element is found,
-                        // the displayed value stays "non lus".
                         List<EasySetValues.Line> focusedCandidates =
                                 new ArrayList<>(supplement.subList(
                                         rightCandidates.size(), supplement.size()));
                         debug.readCrop(focusedCandidates);
-                        finish(context, debug.append(
-                                EasySetValues.diagnose(base, supplement)), callback);
+                        finishWithNumericFallback(context,
+                                EasySetValues.diagnose(base, supplement),
+                                focused, powerNumeric, debug, callback);
                     })
                     .addOnFailureListener(error -> {
                         debug.cropError();
-                        finish(context, debug.append(interim), callback);
+                        finishWithNumericFallback(context, interim, focused, powerNumeric,
+                    debug, callback);
                     })
                     .addOnCompleteListener(task -> {
                         recognizer.close();
-                        focused.dispose();
+                        // Do NOT recycle focused.numericOnly before background Tesseract
+                        // has finished; finishWithNumericFallback owns this bitmap.
                     });
         } catch (RuntimeException error) {
             debug.cropError();
             recognizer.close();
-            focused.dispose();
-            finish(context, debug.append(interim), callback);
+            finishWithNumericFallback(context, interim, focused, powerNumeric,
+                    debug, callback);
+        }
+    }
+
+    /**
+     * Bounded numeric-only OCR for Power and Passer. Each region is tied to
+     * its detected field label; no number is borrowed from a neighboring row.
+     * Never overwrite a value already read by ML Kit.
+     *
+     * This is a passive, indicative display. No xTool controls are changed.
+     * All bitmaps are freed on both success and failure.
+     */
+    private static void finishWithNumericFallback(
+            Context context, String summary, FocusedPasses focused,
+            Bitmap powerNumeric, EasySetPassesDiagnostic debug,
+            Callback callback) {
+        boolean needsPower = summary.startsWith("EasySet ")
+                && summary.contains("Puissance : non lue")
+                && powerNumeric != null;
+        boolean needsPasses = summary.startsWith("EasySet ")
+                && summary.contains("Passages : non lus")
+                && focused != null && focused.numericOnly != null;
+        if (!needsPower && !needsPasses) {
+            if (focused != null) focused.dispose();
+            if (powerNumeric != null && !powerNumeric.isRecycled())
+                powerNumeric.recycle();
+            finish(context, debug.append(summary), callback);
+            return;
+        }
+        try {
+            PASS_OCR_WORKER.execute(() -> {
+                String corrected = summary;
+                String powerDiagnostic = "";
+                String passesDiagnostic = "";
+                EasySetPassesTesseract.Result powerReading = null;
+                EasySetPassesTesseract.Result passesReading = null;
+                try {
+                    if (needsPower) {
+                        try {
+                            powerReading = EasySetPassesTesseract.readPower(
+                                    context, powerNumeric,
+                                    new Rect(0, 0, powerNumeric.getWidth(),
+                                            powerNumeric.getHeight()));
+                            if (powerReading.number != null
+                                    && powerReading.number >= 0
+                                    && powerReading.number <= 100) {
+                                corrected = corrected.replace("Puissance : non lue",
+                                        "Puissance : " + powerReading.number + " %");
+                            }
+                            powerDiagnostic = "\nOCR chiffre seul — "
+                                    + powerReading.diagnostic;
+                        } catch (Exception e) {
+                            powerDiagnostic = "\nOCR Puissance indisponible ("
+                                    + e.getClass().getSimpleName() + ")";
+                        }
+                    }
+                    if (needsPasses) {
+                        try {
+                            passesReading = EasySetPassesTesseract.read(
+                                    context, focused.numericOnly,
+                                    new Rect(0, 0, focused.numericOnly.getWidth(),
+                                            focused.numericOnly.getHeight()));
+                            if (passesReading.passages != null
+                                    && passesReading.passages >= 1
+                                    && passesReading.passages <= 99) {
+                                corrected = corrected.replace("Passages : non lus",
+                                        "Passages : " + passesReading.passages);
+                            }
+                            passesDiagnostic = "\nOCR chiffre seul — "
+                                    + passesReading.diagnostic;
+                        } catch (Exception e) {
+                            passesDiagnostic = "\nOCR Passer indisponible ("
+                                    + e.getClass().getSimpleName() + ")";
+                        }
+                    }
+                } finally {
+                    if (powerReading != null && powerReading.preview != null
+                            && !powerReading.preview.isRecycled())
+                        powerReading.preview.recycle();
+                    if (passesReading != null && passesReading.preview != null
+                            && !passesReading.preview.isRecycled())
+                        passesReading.preview.recycle();
+                    if (focused != null) focused.dispose();
+                    if (powerNumeric != null && !powerNumeric.isRecycled())
+                        powerNumeric.recycle();
+                }
+                finish(context, debug.append(corrected)
+                        + powerDiagnostic + passesDiagnostic, callback);
+            });
+        } catch (RuntimeException error) {
+            if (focused != null) focused.dispose();
+            if (powerNumeric != null && !powerNumeric.isRecycled())
+                powerNumeric.recycle();
+            finish(context, debug.append(summary)
+                    + "\nOCR chiffre seul : indisponible", callback);
         }
     }
 
