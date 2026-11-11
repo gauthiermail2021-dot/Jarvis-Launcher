@@ -47,6 +47,10 @@ public final class EasySetSessionService extends Service {
     private static final int NOTIFICATION_ID = 935;
     private static final String CHANNEL = "jarvis_easyset_session_126";
     private static volatile boolean sessionActive;
+    // True only after an explicitly authorized screenshot proves the
+    // "Volet EasySet" settings row is CLOSED. Accessibility uses it solely
+    // as a gate for the next xTool UI change; no screen polling.
+    private static volatile boolean awaitingPanelOpen;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private MediaProjection projection;
@@ -65,6 +69,10 @@ public final class EasySetSessionService extends Service {
 
     static boolean isActive() {
         return sessionActive;
+    }
+
+    static boolean isAwaitingPanelOpen() {
+        return sessionActive && awaitingPanelOpen;
     }
 
     static void requestScan(Context context, boolean fromSvg) {
@@ -128,6 +136,7 @@ public final class EasySetSessionService extends Service {
             handler.postDelayed(autoScanTrigger, 1500L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
             autoRecognizedEasySet = false;
+            awaitingPanelOpen = false;
             cancelPendingAutoScan();
             // xTool needs time to render the newly opened SVG.
             // This is intentionally one read-only diagnostic, not a polling loop.
@@ -141,6 +150,7 @@ public final class EasySetSessionService extends Service {
     }
 
     private void initialize(Intent grant) {
+        awaitingPanelOpen = false;
         createNotification();
         try {
             int code = grant.getIntExtra(RESULT_CODE, Activity.RESULT_CANCELED);
@@ -254,18 +264,26 @@ public final class EasySetSessionService extends Service {
         analyzing = false;
         autoScan = false;
         EasySetVisionAnalyzer.save(this, summary);
-        if (analyzed && summary != null
+
+        boolean closed = analyzed && summary != null
+                && summary.startsWith("Volet EasySet fermé.");
+        boolean recognized = analyzed && summary != null
                 && (summary.startsWith("EasySet reconnu")
-                    || summary.startsWith("EasySet probable"))) {
-            // Stop re-scanning the same panel in this Jarvis session.
-            // An actual new SVG handoff re-arms the observer.
+                    || summary.startsWith("EasySet probable"));
+        if (closed) {
+            // Allow exactly the next relevant xTool UI-change event to
+            // request another one-shot capture, after the user opens the
+            // panel. Jarvis never clicks or changes settings in xTool.
+            awaitingPanelOpen = true;
+        } else if (recognized) {
+            awaitingPanelOpen = false;
             autoRecognizedEasySet = true;
         }
+
         if (!closing && sessionActive) {
-            // On the automatic path, a missing EasySet panel should not throw
-            // a large error overlay over the freshly opened xTool drawing.
-            if (!automatic || (analyzed && (summary.startsWith("EasySet reconnu")
-                    || summary.startsWith("EasySet probable")))) {
+            // CLOSED is an actionable hint, not an OCR error.
+            // Unknown screens remain quiet on automatic scans.
+            if (!automatic || recognized || closed) {
                 JarvisBubbleService.showEasySetResult(summary);
             } else {
                 JarvisBubbleService.restoreEasySetBubble();
@@ -302,6 +320,7 @@ public final class EasySetSessionService extends Service {
         scanPending = false;
         analyzing = false;
         autoRecognizedEasySet = false;
+        awaitingPanelOpen = false;
         detachReader();
         if (virtualDisplay != null) {
             virtualDisplay.release();
