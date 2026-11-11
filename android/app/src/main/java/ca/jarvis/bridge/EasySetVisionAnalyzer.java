@@ -64,6 +64,14 @@ public final class EasySetVisionAnalyzer {
             recognizer.process(InputImage.fromBitmap(bitmap, 0))
                     .addOnSuccessListener(vision -> {
                         List<EasySetValues.Line> base = EasySetTextExtractor.extract(vision);
+                        // The xTool settings page has a CLOSED "Volet EasySet"
+                        // row. In that state there are no visible numbers to
+                        // read: report a short hint, not an OCR failure.
+                        if (EasySetPanelState.classify(base)
+                                == EasySetPanelState.State.CLOSED) {
+                            finish(context, EasySetPanelState.CLOSED_NOTICE, callback);
+                            return;
+                        }
                         String baseline = EasySetValues.diagnose(base);
                         EasySetPassesDiagnostic debug = new EasySetPassesDiagnostic(base);
                         // The full-screen OCR often misses a tiny isolated '1'
