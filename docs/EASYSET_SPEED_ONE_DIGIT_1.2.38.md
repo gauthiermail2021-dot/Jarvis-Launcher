@@ -41,3 +41,17 @@ Capture EasySet suivante fournie par l'utilisateur, après la proposition de Jar
 Diagnostic affiché pour **Passer** : libellé repéré ; OCR « Écran » `10▸` accepté ; OCR « Colonne droite » `10▸` accepté ; zone agrandie non exécutée, car inutile ; association acceptée. Aucun secours Tesseract numérique n'est affiché sur cette capture.
 
 **Constat terrain : 3/3 concordants pour 5 %, 9 mm/s et 10 passages.** Cela valide cette combinaison sur le téléphone, mais **ne prouve pas** encore une reconnaissance fiable de toutes les valeurs (notamment `Vitesse : 1 mm/s` qui échouait auparavant), ni le déclenchement de la bulle SVG. La capture seule ne montre pas le numéro de version installé ; éviter de l'inférer avec certitude.
+
+## Test Samsung — valeurs 1 / 1 / 1 reconnues
+
+Nouvelle capture utilisateur de xTool et du panneau de résultat Jarvis, transmise après publication de la version candidate 1.2.38. La capture montre :
+
+| Champ | xTool affiché | Jarvis affiché | OCR |
+| --- | --- | --- | --- |
+| Puissance | 1 % | 1 % | Tesseract, confiance indiquée 95 % |
+| Vitesse | 1 mm/s | 1 mm/s | Tesseract, confiance indiquée 95 % |
+| Passer | 1 | 1 | Tesseract, confiance indiquée 95 % |
+
+**Résultat : 3/3 concordants, y compris le chiffre 1 en Vitesse qui était illisible avec le candidat précédent.** Le diagnostic précise que les trois étages ML Kit n'ont pas identifié le petit chiffre Passer, ce qui explique l'utilisation du secours Tesseract.
+
+Validation réelle du fonctionnement passif OCR pour cette combinaison; cela ne valide pas une précision universelle, les déclencheurs de bulle SVG, ni toute la chaîne automatique Gmail → xTool. L'image ne montre pas explicitement le numéro de version dans l'interface Android ; cette attribution suit le contexte de test, sans preuve directe de la version dans la capture. Pas de modification de paramètres xTool.
