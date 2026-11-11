@@ -40,9 +40,15 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             // Content changes are ignored unless a previously authorized
             // screenshot positively identified the CLOSED xTool EasySet
             // row. We do not retrieve any Android window content.
-            if (foregroundTransition) inspectExistingXtoolDrawing(false);
-            else if (EasySetSessionService.isAwaitingPanelOpen())
+            if (foregroundTransition) {
+                // Opening a modal may produce a window-state event rather
+                // than a content-change event. While awaiting the panel,
+                // accept either event with the shorter one-shot debounce.
+                inspectExistingXtoolDrawing(
+                        EasySetSessionService.isAwaitingPanelOpen());
+            } else if (EasySetSessionService.isAwaitingPanelOpen()) {
                 inspectExistingXtoolDrawing(true);
+            }
         }
     }
 
