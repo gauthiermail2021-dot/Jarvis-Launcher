@@ -345,7 +345,8 @@ public final class JarvisBubbleService extends Service {
         panel.setBackground(background);
 
         TextView title = new TextView(this);
-        title.setText("JARVIS • RÉSULTAT EASYSET");
+        title.setText(summary != null && summary.startsWith("DIAGNOSTIC EASYSET")
+                ? "JARVIS • DIAGNOSTIC EASYSET" : "JARVIS • RÉSULTAT EASYSET");
         title.setTextColor(Color.rgb(85, 221, 249));
         title.setTextSize(14);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -688,6 +689,12 @@ public final class JarvisBubbleService extends Service {
                 }
             });
         }
+
+        // One-tap diagnostic showing exactly which Android prerequisite or
+        // accessible xTool heading detection failed, without recording app data.
+        addMenuButton(menu, "Diagnostic EasySet (connexion)", () ->
+                showEasySetBanner(
+                        ChatGptBubbleAccessibilityService.easySetConnectionDiagnostic()));
 
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->
