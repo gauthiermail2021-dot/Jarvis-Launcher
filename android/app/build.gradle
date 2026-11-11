@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 61
-        versionName '1.2.42'
-        // Jarvis 1.2.42: inspect xTool accessible labels directly to detect EasySet panel opening, read-only.
+        versionCode 62
+        versionName '1.2.43'
+        // Jarvis 1.2.43: show why xTool accessibility label detection did not trigger, read-only diagnostics.
         // Signed experimental release, must be verified on the Samsung.
     }
 
