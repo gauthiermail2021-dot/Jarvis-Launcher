@@ -271,9 +271,11 @@ public final class EasySetSessionService extends Service {
                 && (summary.startsWith("EasySet reconnu")
                     || summary.startsWith("EasySet probable"));
         if (closed) {
-            // Allow exactly the next relevant xTool UI-change event to
-            // request another one-shot capture, after the user opens the
-            // panel. Jarvis never clicks or changes settings in xTool.
+            // A previous successful scan must not block the next panel-open
+            // scan. The user may have closed EasySet after reading it.
+            autoRecognizedEasySet = false;
+            // Allow the next relevant xTool UI-change event to request
+            // another one-shot capture. Jarvis never clicks in xTool.
             awaitingPanelOpen = true;
         } else if (recognized) {
             awaitingPanelOpen = false;
