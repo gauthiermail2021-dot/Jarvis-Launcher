@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 65
-        versionName '1.2.46'
-        // Jarvis 1.2.46: inspect the read-only Android properties of EasySet controls and their parents.
+        versionCode 66
+        versionName '1.2.47'
+        // Jarvis 1.2.47: one explicit test click on the EasySet panel opener only.
         // Signed experimental release, must be verified on the Samsung.
     }
 

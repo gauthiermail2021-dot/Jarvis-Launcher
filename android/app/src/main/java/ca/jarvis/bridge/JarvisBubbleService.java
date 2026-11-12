@@ -721,6 +721,9 @@ public final class JarvisBubbleService extends Service {
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
 
+        addMenuButton(menu, "Tester clic Volet EasySet", () ->
+                ChatGptBubbleAccessibilityService.requestEasySetPanelClickTest());
+
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->
                     EasySetSessionService.requestScan(this, false));

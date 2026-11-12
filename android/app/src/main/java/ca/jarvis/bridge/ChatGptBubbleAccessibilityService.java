@@ -27,6 +27,24 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     // These diagnostics contain ONLY connection state, timings and counts,
     // never window text, numbers, screenshots or user-specific app contents.
     private static volatile boolean accessibilityConnected;
+    private static volatile ChatGptBubbleAccessibilityService clickTestService;
+    private boolean clickTestPending;
+
+    /** User-requested test, never triggered by an Android accessibility event. */
+    static void requestEasySetPanelClickTest() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "TEST CLIC : activer le service « Jarvis Bridge — ChatGPT et xTool » dans Accessibilité.");
+            return;
+        }
+        if (svc.clickTestPending) return;
+        svc.clickTestPending = true;
+        svc.panelHandler.postDelayed(() ->
+                EasySetOneShotClickTest.run(svc, svc.panelHandler,
+                        () -> svc.clickTestPending = false), 650L);
+    }
+
     private static volatile long lastXtoolEventAt;
     private static volatile int lastXtoolEventType;
     private static volatile String lastXtoolTreeStatus = "Aucune inspection";
@@ -99,6 +117,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     protected void onServiceConnected() {
         super.onServiceConnected();
         accessibilityConnected = true;
+        clickTestService = this;
         lastXtoolEventAt = 0L;
         lastXtoolTreeAt = 0L;
         lastXtoolTreeStatus = "Aucune inspection";
@@ -372,6 +391,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     @Override
     public void onDestroy() {
         accessibilityConnected = false;
+        if (clickTestService == this) clickTestService = null;
+        clickTestPending = false;
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
         lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
