@@ -39,6 +39,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.Toast;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 /** Bulle Jarvis 1.0 : informations locales, signaux lumineux et réduction automatique. */
@@ -357,13 +358,29 @@ public final class JarvisBubbleService extends Service {
         details.setTextColor(Color.WHITE);
         final boolean detailedEasySet = summary != null
                 && summary.contains("DIAGNOSTIC PASSER (temporaire)");
-        details.setTextSize(detailedEasySet ? 12 : 15);
+        final boolean connectionDiagnostic = summary != null
+                && summary.startsWith("DIAGNOSTIC EASYSET");
+        details.setTextSize(detailedEasySet || connectionDiagnostic ? 12 : 15);
         details.setPadding(0, dp(8), 0, dp(8));
-        panel.addView(details);
+        if (connectionDiagnostic) {
+            // Five exact accessibility labels need more lines than before.
+            // Keep the dialog and its dismiss button on-screen; allow the
+            // diagnostic to scroll without moving xTool or the SVG bubble.
+            ScrollView scroll = new ScrollView(this);
+            scroll.setFillViewport(false);
+            scroll.addView(details);
+            int maxDiagnosticHeight = Math.min(dp(330),
+                    getResources().getDisplayMetrics().heightPixels / 2);
+            panel.addView(scroll, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, maxDiagnosticHeight));
+        } else {
+            panel.addView(details);
+        }
 
         Button dismiss = new Button(this);
         dismiss.setAllCaps(false);
-        dismiss.setText("Fermer le résultat");
+        dismiss.setText(connectionDiagnostic
+                ? "Fermer le diagnostic" : "Fermer le résultat");
         panel.addView(dismiss);
         dismiss.setOnClickListener(v -> dismissEasySetBanner());
 
@@ -381,8 +398,8 @@ public final class JarvisBubbleService extends Service {
                 display.x - width - dp(12)));
         lp.y = Math.max(dp(65), Math.min(params != null
                 ? params.y + params.height + dp(8) : dp(65), display.y - dp(285)));
-        if (detailedEasySet) {
-            // Keep the temporary OCR trace inside the phone screen instead
+        if (detailedEasySet || connectionDiagnostic) {
+            // Keep the temporary OCR trace and connection diagnostic inside the phone screen instead
             // of letting a taller banner hang below the navigation bar.
             panel.measure(
                     View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -397,7 +414,7 @@ public final class JarvisBubbleService extends Service {
             easySetBanner = panel;
             easySetBannerDismiss = this::dismissEasySetBanner;
             gestureHandler.postDelayed(easySetBannerDismiss,
-                    detailedEasySet ? 40000L : 20000L);
+                    detailedEasySet || connectionDiagnostic ? 40000L : 20000L);
         } catch (RuntimeException ignored) {
             easySetBanner = null;
             Toast.makeText(this, summary, Toast.LENGTH_LONG).show();
