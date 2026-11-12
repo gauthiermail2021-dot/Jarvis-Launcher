@@ -2,6 +2,7 @@ package ca.jarvis.bridge;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -41,6 +42,11 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private static volatile String lastDiscoveredXtoolWords =
             "Aucune inspection xTool disponible.";
     private static volatile long lastDiscoveredWordsAt;
+    // Targeted EasySet control properties, retained in RAM until next
+    // xTool tree inspection; no AccessibilityNodeInfo handles are retained.
+    private static volatile String lastEasySetControlProperties =
+            "Aucune inspection des commandes disponible.";
+    private static volatile long lastControlInspectionAt;
 
     static String easySetConnectionDiagnostic() {
         long now = SystemClock.elapsedRealtime();
@@ -75,6 +81,20 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 + "\n\nLecture locale uniquement. Aucun paramètre modifié.";
     }
 
+    static String xToolControlsDiagnostic() {
+        long age = lastControlInspectionAt == 0L ? -1L
+                : Math.max(0L, (SystemClock.elapsedRealtime()
+                        - lastControlInspectionAt) / 1000L);
+        return "DIAGNOSTIC EASYSET — COMMANDES xTool\n"
+                + (age < 0L ? "Aucun relevé disponible.\n"
+                : "Dernière inspection : " + age + " s.\n")
+                + "Source : propriétés accessibles Android dans xTool.\n"
+                + "Les contrôles parents sont inclus quand disponibles.\n"
+                + "Lecture seule : aucune action exécutée.\n\n"
+                + lastEasySetControlProperties
+                + "\nAucun réglage ou commande laser modifié.";
+    }
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
@@ -85,6 +105,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         lastEasySetExactLabels = "Aucun libellé relevé";
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
+        lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
+        lastControlInspectionAt = 0L;
     }
     private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
@@ -165,6 +187,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastEasySetExactLabels = "Aucun libellé relevé";
             lastDiscoveredXtoolWords = "Fenêtre Android indisponible.";
             lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
+            lastEasySetControlProperties = "Fenêtre Android indisponible.";
+            lastControlInspectionAt = SystemClock.elapsedRealtime();
             return;
         }
         if (!EasySetForegroundScanPolicy.XCS_PACKAGE
@@ -175,6 +199,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastEasySetExactLabels = "Aucun libellé relevé";
             lastDiscoveredXtoolWords = "Fenêtre active différente de xTool.";
             lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
+            lastEasySetControlProperties = "Fenêtre active différente de xTool.";
+            lastControlInspectionAt = SystemClock.elapsedRealtime();
             return;
         }
 
@@ -184,6 +210,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         List<String> labels = new ArrayList<>(12);
         List<String> exactLabels = new ArrayList<>(12);
         List<String> allAccessibleWords = new ArrayList<>(40);
+        List<String> easySetControls = new ArrayList<>(8);
         queue.add(new NodeAtDepth(root, 0));
         int examined = 0;
 
@@ -201,6 +228,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
             collectEasySetLabel(node.getContentDescription(), labels,
                     exactLabels, "Description");
+            // No gestures, clicks or value changes: inspect only named
+            // EasySet nodes and the immediately associated parent.
+            appendEasySetControl(node, easySetControls);
 
             if (item.depth >= maxDepth) continue;
             int count = Math.min(40, node.getChildCount());
@@ -219,6 +249,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 XtoolAccessibleWords.format(allAccessibleWords, examined);
         lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
         lastEasySetExactLabels = EasySetDiagnosticHeadings.enumerate(exactLabels);
+        lastEasySetControlProperties =
+                EasySetControlProperties.report(easySetControls, examined);
+        lastControlInspectionAt = SystemClock.elapsedRealtime();
         lastXtoolTreeStatus = state == EasySetAccessiblePanel.State.OPEN
                 ? "EasySet ouvert visible" : state == EasySetAccessiblePanel.State.CLOSED
                 ? "Volet EasySet fermé visible" : "Champs EasySet non identifiés";
@@ -235,6 +268,66 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }
         // UNKNOWN is intentionally quiet: never infer panel state from
         // unrelated numbers or initiate repeated screenshot polling.
+    }
+
+    private static void appendEasySetControl(AccessibilityNodeInfo node,
+                                            List<String> controls) {
+        if (controls.size() >= EasySetControlProperties.MAX_MATCHES)
+            return;
+        CharSequence text = node.getText();
+        CharSequence description = node.getContentDescription();
+        String heading = null;
+        String source = null;
+        if (text != null && EasySetControlProperties.matchesHeading(text.toString())) {
+            heading = text.toString();
+            source = "Texte";
+        } else if (description != null
+                && EasySetControlProperties.matchesHeading(description.toString())) {
+            heading = description.toString();
+            source = "Description";
+        }
+        if (heading == null) return;
+
+        StringBuilder item = new StringBuilder();
+        item.append(source).append(" : «").append(heading).append("»\n");
+        item.append("Élément :\n").append(describeNode(node));
+        AccessibilityNodeInfo parent = node.getParent();
+        if (parent != null && parent.getPackageName() != null
+                && EasySetForegroundScanPolicy.XCS_PACKAGE
+                        .contentEquals(parent.getPackageName())) {
+            item.append("\nParent :\n").append(describeNode(parent));
+        }
+        controls.add(item.toString());
+    }
+
+    private static String describeNode(AccessibilityNodeInfo node) {
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        String boundsText = bounds.left + "," + bounds.top
+                + " — " + bounds.right + "," + bounds.bottom;
+        List<String> actions = new ArrayList<>(6);
+        for (AccessibilityNodeInfo.AccessibilityAction action : node.getActionList()) {
+            int actionId = action.getId();
+            String actionName;
+            switch (actionId) {
+                case AccessibilityNodeInfo.ACTION_CLICK: actionName = "CLICK"; break;
+                case AccessibilityNodeInfo.ACTION_LONG_CLICK: actionName = "LONG_CLICK"; break;
+                case AccessibilityNodeInfo.ACTION_FOCUS: actionName = "FOCUS"; break;
+                case AccessibilityNodeInfo.ACTION_SET_TEXT: actionName = "SET_TEXT"; break;
+                case android.R.id.accessibilityActionSetProgress:
+                    actionName = "SET_PROGRESS"; break;
+                case AccessibilityNodeInfo.ACTION_SCROLL_FORWARD:
+                    actionName = "SCROLL_FORWARD"; break;
+                case AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD:
+                    actionName = "SCROLL_BACKWARD"; break;
+                default: actionName = "action-" + actionId; break;
+            }
+            actions.add(actionName);
+        }
+        return EasySetControlProperties.line(
+                node.getClassName() == null ? null : node.getClassName().toString(),
+                node.isClickable(), node.isEditable(), node.isFocusable(),
+                boundsText, actions);
     }
 
     private static void collectEasySetLabel(CharSequence raw,
@@ -277,6 +370,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         accessibilityConnected = false;
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
+        lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
+        lastControlInspectionAt = 0L;
         if (pendingPanelRead != null)
             panelHandler.removeCallbacks(pendingPanelRead);
         pendingPanelRead = null;
