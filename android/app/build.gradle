@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 64
-        versionName '1.2.45'
-        // Jarvis 1.2.45: show all xTool accessibility texts and descriptions on demand, in memory only.
+        versionCode 65
+        versionName '1.2.46'
+        // Jarvis 1.2.46: inspect the read-only Android properties of EasySet controls and their parents.
         // Signed experimental release, must be verified on the Samsung.
     }
 
