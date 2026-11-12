@@ -26,6 +26,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private static volatile boolean accessibilityConnected;
     private static volatile ChatGptBubbleAccessibilityService clickTestService;
     private boolean clickTestPending;
+    private boolean redLayerTapPending;
 
     // Armed ONLY by MainActivity after a new SVG has been handed to Android.
     // Once armed, xTool UI events or a single fallback timer may complete it.
@@ -131,6 +132,25 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 200L);
     }
 
+    /**
+     * Test manuel unique : toucher la ligne exacte « rouge » dans le panneau
+     * Calque de XCS. Ne modifie aucun mode, parametre ou commande machine.
+     */
+    static void requestRedLayerTapTest() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "TEST CALQUE ROUGE\nAccessibilite Jarvis — xTool inactive.");
+            return;
+        }
+        if (svc.clickTestPending || svc.redLayerTapPending) return;
+        svc.cancelAutomaticEasySet();
+        svc.redLayerTapPending = true;
+        svc.panelHandler.postDelayed(() ->
+                XtoolRedLayerOneShot.run(svc, svc.panelHandler,
+                        () -> svc.redLayerTapPending = false), 400L);
+    }
+
     /** User-requested test, never triggered by an Android accessibility event. */
     static void requestEasySetPanelClickTest() {
         ChatGptBubbleAccessibilityService svc = clickTestService;
@@ -139,7 +159,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     "TEST TOUCHER : activer le service « Jarvis Bridge — xTool » dans Accessibilité.");
             return;
         }
-        if (svc.clickTestPending) return;
+        if (svc.clickTestPending || svc.redLayerTapPending) return;
         svc.cancelAutomaticEasySet();
         svc.clickTestPending = true;
         svc.panelHandler.postDelayed(() ->
@@ -509,6 +529,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         accessibilityConnected = false;
         if (clickTestService == this) clickTestService = null;
         clickTestPending = false;
+        redLayerTapPending = false;
         cancelAutomaticEasySet();
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;

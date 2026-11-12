@@ -346,7 +346,9 @@ public final class JarvisBubbleService extends Service {
         panel.setBackground(background);
 
         TextView title = new TextView(this);
-        title.setText(summary != null && summary.startsWith("DIAGNOSTIC XTOOL")
+        title.setText(summary != null && summary.startsWith("TEST CALQUE ROUGE")
+                ? "JARVIS • TEST CALQUE ROUGE"
+                : summary != null && summary.startsWith("DIAGNOSTIC XTOOL")
                 ? "JARVIS • DIAGNOSTIC CALQUES"
                 : summary != null && summary.startsWith("DIAGNOSTIC EASYSET")
                 ? "JARVIS • DIAGNOSTIC EASYSET" : "JARVIS • RÉSULTAT EASYSET");
@@ -733,6 +735,8 @@ public final class JarvisBubbleService extends Service {
                         ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
+        addMenuButton(menu, "Tester selection calque rouge", () ->
+                ChatGptBubbleAccessibilityService.requestRedLayerTapTest());
         addMenuButton(menu, "Tester toucher Volet EasySet", () ->
                 ChatGptBubbleAccessibilityService.requestEasySetPanelClickTest());
 
