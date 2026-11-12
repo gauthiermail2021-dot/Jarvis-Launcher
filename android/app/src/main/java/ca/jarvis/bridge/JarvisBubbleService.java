@@ -696,9 +696,6 @@ public final class JarvisBubbleService extends Service {
         LinearLayout menu = createMenuPanel("JARVIS · MENU");
 
         addMenuButton(menu, "Envoyer SVG test (+1)", this::launchNumberedSvgTest);
-        addMenuButton(menu, "EasySet", () ->
-                showEasySetBanner(
-                        ChatGptBubbleAccessibilityService.easySetShortStatus()));
 
         if (XtoolSessionManager.isActive(this)) {
             addMenuButton(menu, "Terminer la session xTool", () -> {
@@ -711,7 +708,7 @@ public final class JarvisBubbleService extends Service {
             });
         }
 
-        addMenuButton(menu, "Réglages et diagnostics", this::showDiagnosticsMenu);
+        addMenuButton(menu, "Réglages", this::showDiagnosticsMenu);
         addMenuButton(menu, "Fermer la bulle", () -> {
             EasySetSessionService.requestStop(this);
             stopSelf();
@@ -719,26 +716,16 @@ public final class JarvisBubbleService extends Service {
         attachMenu(menu, false);
     }
 
-    /** Fonctions avancees accessibles sans surcharger le menu principal. */
+    /** Menu leger : seulement les fonctions encore pertinentes pour Jarvis. */
     private void showDiagnosticsMenu() {
         if (wm == null || bubble == null || menuView != null) return;
         LinearLayout menu = createMenuPanel("JARVIS · RÉGLAGES");
 
-        addMenuButton(menu, "Diagnostic EasySet (connexion)", () ->
-                showEasySetBanner(
-                        ChatGptBubbleAccessibilityService.easySetConnectionDiagnostic()));
-        addMenuButton(menu, "Voir les mots détectés (xTool)", () ->
-                showEasySetBanner(
-                        ChatGptBubbleAccessibilityService.xToolDiscoveredWordsDiagnostic()));
-        addMenuButton(menu, "Inspecter les commandes xTool", () ->
-                showEasySetBanner(
-                        ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
+        // La reconnaissance des calques est le diagnostic actif.
+        // Les anciens tests de toucher EasySet et de selection rouge
+        // restent dans le code mais ne surchargent plus le menu.
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
-        addMenuButton(menu, "Tester selection calque rouge", () ->
-                ChatGptBubbleAccessibilityService.requestRedLayerTapTest());
-        addMenuButton(menu, "Tester toucher Volet EasySet", () ->
-                ChatGptBubbleAccessibilityService.requestEasySetPanelClickTest());
 
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->

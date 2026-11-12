@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 71
-        versionName '1.2.52'
-        // Jarvis 1.2.52: one-shot manual red layer selection test; no laser parameter writes.
+        versionCode 72
+        versionName '1.2.53'
+        // Jarvis 1.2.53: compact bubble menus; no changes to EasySet or layer navigation.
         // Signed experimental release, must be verified on the Samsung.
     }
 
