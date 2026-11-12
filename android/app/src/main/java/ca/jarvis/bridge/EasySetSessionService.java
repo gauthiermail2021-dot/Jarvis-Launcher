@@ -39,6 +39,8 @@ public final class EasySetSessionService extends Service {
     static final String ACTION_START = "ca.jarvis.bridge.EASYSET_SESSION_START";
     static final String ACTION_SCAN = "ca.jarvis.bridge.EASYSET_SESSION_SCAN";
     static final String ACTION_SVG_OPEN = "ca.jarvis.bridge.EASYSET_SESSION_SVG";
+    static final String ACTION_XTOOL_FOREGROUND = "ca.jarvis.bridge.EASYSET_XTOOL_FOREGROUND";
+    static final String ACTION_PANEL_TAP = "ca.jarvis.bridge.EASYSET_PANEL_TAP";
     static final String ACTION_STOP = "ca.jarvis.bridge.EASYSET_SESSION_STOP";
     static final String RESULT_CODE = "projection_code";
     static final String RESULT_INTENT = "projection_intent";
@@ -46,6 +48,28 @@ public final class EasySetSessionService extends Service {
     private static final int NOTIFICATION_ID = 935;
     private static final String CHANNEL = "jarvis_easyset_session_126";
     private static volatile boolean sessionActive;
+    // True only after an explicitly authorized screenshot proves the
+    // "Volet EasySet" settings row is CLOSED. Accessibility uses it solely
+    // as a gate for the next xTool UI change; no screen polling.
+    private static volatile boolean awaitingPanelOpen;
+    // Only a screenshot that actually sees the three EasySet labels makes
+    // this true. An unlabeled xTool click can rescan at most once per 8s.
+    private static volatile boolean lastPanelWasRecognized;
+    // Only state metadata for diagnostics. Never retains screenshot or OCR text.
+    private static volatile String panelFlowStatus = "Aucune demande";
+    private static volatile long panelFlowAt;
+
+    private static void recordPanelFlow(String status) {
+        panelFlowStatus = status;
+        panelFlowAt = SystemClock.elapsedRealtime();
+    }
+
+    static String panelFlowDiagnostic() {
+        long at = panelFlowAt;
+        if (at == 0L) return "OCR automatique : aucune demande";
+        long age = Math.max(0L, (SystemClock.elapsedRealtime() - at) / 1000L);
+        return "OCR automatique : " + panelFlowStatus + " (" + age + " s)";
+    }
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private MediaProjection projection;
@@ -55,14 +79,25 @@ public final class EasySetSessionService extends Service {
     private boolean scanPending;
     private boolean analyzing;
     private boolean autoScan;
+    private boolean autoRecognizedEasySet;
     private long scanReadyAt;
     private int captureWidth;
     private int captureHeight;
     private Runnable scanTimeout;
     private Runnable autoScanTrigger;
+    private boolean panelScanScheduled;
+    private boolean panelRetryAfterActiveScan;
 
     static boolean isActive() {
         return sessionActive;
+    }
+
+    static boolean isAwaitingPanelOpen() {
+        return sessionActive && awaitingPanelOpen;
+    }
+
+    static boolean needsPanelInspection() {
+        return sessionActive && (!lastPanelWasRecognized || awaitingPanelOpen);
     }
 
     static void requestScan(Context context, boolean fromSvg) {
@@ -71,6 +106,37 @@ public final class EasySetSessionService extends Service {
         intent.setAction(fromSvg ? ACTION_SVG_OPEN : ACTION_SCAN);
         try { context.startService(intent); }
         catch (RuntimeException ignored) { }
+    }
+
+    /**
+     * Detect an already open xTool document: no SVG handoff is required.
+     * This cannot start a new projection or bypass Android consent.
+     */
+    static void requestExistingXtoolScan(Context context) {
+        if (!isActive()) return;
+        Intent intent = new Intent(context, EasySetSessionService.class);
+        intent.setAction(ACTION_XTOOL_FOREGROUND);
+        try { context.startService(intent); }
+        catch (RuntimeException ignored) { }
+    }
+
+    /**
+     * React to one actual xTool tap event. This is NOT a touch simulation.
+     * The capture is restricted to an existing Android-consented session.
+     */
+    static void requestPanelTapScan(Context context) {
+        if (!isActive()) {
+            recordPanelFlow("refusé : partage écran inactif");
+            return;
+        }
+        recordPanelFlow("demande transmise au service");
+        Intent intent = new Intent(context, EasySetSessionService.class);
+        intent.setAction(ACTION_PANEL_TAP);
+        try { context.startService(intent); }
+        catch (RuntimeException error) {
+            recordPanelFlow("Android a refusé le service ("
+                    + error.getClass().getSimpleName() + ")");
+        }
     }
 
     static void requestStop(Context context) {
@@ -99,7 +165,49 @@ public final class EasySetSessionService extends Service {
         if (ACTION_SCAN.equals(action)) {
             cancelPendingAutoScan();
             beginScan(false);
+        } else if (ACTION_XTOOL_FOREGROUND.equals(action)) {
+            // One passive scan on an xTool UI transition. An existing drawing
+            // may coexist with an old XtoolSessionManager flag; do not reject.
+            // An incoming SVG already has its own pending OCR trigger.
+            if (autoRecognizedEasySet || autoScanTrigger != null
+                    || scanPending || analyzing) return START_NOT_STICKY;
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing && !autoRecognizedEasySet) {
+                    beginScan(true);
+                }
+            };
+            handler.postDelayed(autoScanTrigger, 1500L);
+        } else if (ACTION_PANEL_TAP.equals(action)) {
+            // Priority: xTool's EasySet headings have now been OBSERVED,
+            // so this request supersedes an older 1.5s foreground scan or
+            // 6.5s SVG handoff timer. Previously we discarded the request
+            // whenever autoScanTrigger != null, with no visible feedback.
+            EasySetScanHandoff.Decision handoff = EasySetScanHandoff.decide(
+                    scanPending, analyzing, autoScanTrigger != null);
+            if (handoff == EasySetScanHandoff.Decision.DEFER_UNTIL_CURRENT_FINISHES) {
+                panelRetryAfterActiveScan = true;
+                recordPanelFlow("autre lecture en cours : reprise mise en attente");
+                return START_NOT_STICKY;
+            }
+            if (handoff == EasySetScanHandoff.Decision.REPLACE_EXISTING_TIMER)
+                recordPanelFlow("ancien minuteur OCR remplacé");
+            cancelPendingAutoScan();
+            autoRecognizedEasySet = false;
+            lastPanelWasRecognized = false;
+            awaitingPanelOpen = false;
+            panelScanScheduled = true;
+            recordPanelFlow("capture programmée après ouverture du volet");
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing) beginScan(true);
+                else recordPanelFlow("annulée : session terminée");
+            };
+            handler.postDelayed(autoScanTrigger, 900L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
+            autoRecognizedEasySet = false;
+            awaitingPanelOpen = false;
+            lastPanelWasRecognized = false;
             cancelPendingAutoScan();
             // xTool needs time to render the newly opened SVG.
             // This is intentionally one read-only diagnostic, not a polling loop.
@@ -113,6 +221,8 @@ public final class EasySetSessionService extends Service {
     }
 
     private void initialize(Intent grant) {
+        awaitingPanelOpen = false;
+        lastPanelWasRecognized = false;
         createNotification();
         try {
             int code = grant.getIntExtra(RESULT_CODE, Activity.RESULT_CANCELED);
@@ -156,7 +266,13 @@ public final class EasySetSessionService extends Service {
     }
 
     private void beginScan(boolean automatically) {
-        if (!sessionActive || virtualDisplay == null || scanPending || analyzing) return;
+        if (!sessionActive || virtualDisplay == null || scanPending || analyzing) {
+            if (panelScanScheduled)
+                recordPanelFlow("capture différée : scanner indisponible");
+            return;
+        }
+        if (panelScanScheduled)
+            recordPanelFlow("capture écran EasySet démarrée");
         scanPending = true;
         autoScan = automatically;
         JarvisBubbleService.prepareEasySetCapture();
@@ -190,6 +306,8 @@ public final class EasySetSessionService extends Service {
             if (SystemClock.elapsedRealtime() < scanReadyAt) return;
             scanPending = false;
             analyzing = true;
+            if (panelScanScheduled)
+                recordPanelFlow("image capturée ; OCR en cours");
             cancelScanTimeout();
             Image.Plane plane = image.getPlanes()[0];
             ByteBuffer buffer = plane.getBuffer();
@@ -226,11 +344,52 @@ public final class EasySetSessionService extends Service {
         analyzing = false;
         autoScan = false;
         EasySetVisionAnalyzer.save(this, summary);
+
+        boolean closed = analyzed && summary != null
+                && summary.startsWith("Volet EasySet fermé.");
+        boolean recognized = analyzed && summary != null
+                && (summary.startsWith("EasySet reconnu")
+                    || summary.startsWith("EasySet probable"));
+        if (panelScanScheduled) {
+            recordPanelFlow(recognized ? "OCR terminé : trois valeurs reconnues"
+                    : closed ? "OCR terminé : volet fermé"
+                    : analyzed ? "OCR terminé : champs ou valeurs non reconnus"
+                    : "OCR échoué : capture ou image indisponible");
+            panelScanScheduled = false;
+        }
+        boolean retryAfterCurrent = panelRetryAfterActiveScan && !recognized;
+        panelRetryAfterActiveScan = false;
+        if (closed) {
+            // A previous successful scan must not block the next panel-open
+            // scan. The user may have closed EasySet after reading it.
+            autoRecognizedEasySet = false;
+            // Allow the next relevant xTool UI-change event to request
+            // another one-shot capture. Jarvis never clicks in xTool.
+            awaitingPanelOpen = true;
+            lastPanelWasRecognized = false;
+        } else if (recognized) {
+            awaitingPanelOpen = false;
+            lastPanelWasRecognized = true;
+            autoRecognizedEasySet = true;
+        }
+
+        if (retryAfterCurrent && !closing && sessionActive) {
+            // One deferred follow-up, only when an overlapping scan did not
+            // successfully recognize EasySet. Do not start a polling loop.
+            cancelPendingAutoScan();
+            panelScanScheduled = true;
+            recordPanelFlow("reprise différée programmée");
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing) beginScan(true);
+            };
+            handler.postDelayed(autoScanTrigger, 900L);
+        }
+
         if (!closing && sessionActive) {
-            // On the automatic path, a missing EasySet panel should not throw
-            // a large error overlay over the freshly opened xTool drawing.
-            if (!automatic || (analyzed && (summary.startsWith("EasySet reconnu")
-                    || summary.startsWith("EasySet probable")))) {
+            // CLOSED is an actionable hint, not an OCR error.
+            // Unknown screens remain quiet on automatic scans.
+            if (!automatic || recognized || closed) {
                 JarvisBubbleService.showEasySetResult(summary);
             } else {
                 JarvisBubbleService.restoreEasySetBubble();
@@ -266,6 +425,12 @@ public final class EasySetSessionService extends Service {
         cancelScanTimeout();
         scanPending = false;
         analyzing = false;
+        autoRecognizedEasySet = false;
+        awaitingPanelOpen = false;
+        lastPanelWasRecognized = false;
+        panelScanScheduled = false;
+        panelRetryAfterActiveScan = false;
+        recordPanelFlow("session de capture fermée");
         detachReader();
         if (virtualDisplay != null) {
             virtualDisplay.release();
