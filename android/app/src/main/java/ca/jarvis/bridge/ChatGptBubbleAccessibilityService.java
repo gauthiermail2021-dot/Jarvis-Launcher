@@ -31,6 +31,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private static volatile String lastXtoolTreeStatus = "Aucune inspection";
     private static volatile int lastXtoolNodes;
     private static volatile int lastEasySetHeadings;
+    // Only short EasySet headings are retained in memory for diagnostics,
+    // preserving duplicates/source: never collect numeric control values.
+    private static volatile String lastEasySetExactLabels = "Aucun libellé relevé";
     private static volatile long lastXtoolTreeAt;
 
     static String easySetConnectionDiagnostic() {
@@ -47,6 +50,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 + "\nCapture autorisée : " + (EasySetSessionService.isActive() ? "oui" : "non")
                 + "\nDernier événement xTool : " + event
                 + "\nFenêtre inspectée : " + tree
+                + "\nLibellés exacts (avec doublons) :\n" + lastEasySetExactLabels
+                + "\n" + EasySetSessionService.panelFlowDiagnostic()
                 + "\nAucun paramètre modifié.";
     }
 
@@ -57,6 +62,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         lastXtoolEventAt = 0L;
         lastXtoolTreeAt = 0L;
         lastXtoolTreeStatus = "Aucune inspection";
+        lastEasySetExactLabels = "Aucun libellé relevé";
     }
     private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
@@ -134,6 +140,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastXtoolTreeStatus = "Fenêtre Android non disponible";
             lastXtoolNodes = 0;
             lastEasySetHeadings = 0;
+            lastEasySetExactLabels = "Aucun libellé relevé";
             return;
         }
         if (!EasySetForegroundScanPolicy.XCS_PACKAGE
@@ -141,6 +148,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastXtoolTreeStatus = "Fenêtre active différente de xTool";
             lastXtoolNodes = 0;
             lastEasySetHeadings = 0;
+            lastEasySetExactLabels = "Aucun libellé relevé";
             return;
         }
 
@@ -148,6 +156,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         final int maxDepth = 12;
         ArrayDeque<NodeAtDepth> queue = new ArrayDeque<>();
         List<String> labels = new ArrayList<>(12);
+        List<String> exactLabels = new ArrayList<>(12);
         queue.add(new NodeAtDepth(root, 0));
         int examined = 0;
 
@@ -159,8 +168,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             if (pkg != null && !EasySetForegroundScanPolicy.XCS_PACKAGE
                     .contentEquals(pkg)) continue;
 
-            collectEasySetLabel(node.getText(), labels);
-            collectEasySetLabel(node.getContentDescription(), labels);
+            collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
+            collectEasySetLabel(node.getContentDescription(), labels,
+                    exactLabels, "Description");
 
             if (item.depth >= maxDepth) continue;
             int count = Math.min(40, node.getChildCount());
@@ -175,6 +185,13 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 EasySetAccessiblePanel.classify(labels);
         lastXtoolNodes = examined;
         lastEasySetHeadings = labels.size();
+        StringBuilder exact = new StringBuilder();
+        for (int i = 0; i < exactLabels.size(); i++) {
+            if (i > 0) exact.append('\n');
+            exact.append(i + 1).append(". ").append(exactLabels.get(i));
+        }
+        lastEasySetExactLabels = exact.length() == 0
+                ? "Aucun libellé relevé" : exact.toString();
         lastXtoolTreeStatus = state == EasySetAccessiblePanel.State.OPEN
                 ? "EasySet ouvert visible" : state == EasySetAccessiblePanel.State.CLOSED
                 ? "Volet EasySet fermé visible" : "Champs EasySet non identifiés";
@@ -194,9 +211,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     }
 
     private static void collectEasySetLabel(CharSequence raw,
-                                            List<String> result) {
+                                            List<String> result,
+                                            List<String> exactResult, String source) {
         if (raw == null || result.size() >= 20) return;
-        String normalized = EasySetLabels.normalize(raw.toString());
+        String original = raw.toString().trim().replaceAll("\\s+", " ");
+        if (original.length() > 48 || original.length() == 0) return;
+        String normalized = EasySetLabels.normalize(original);
         // Collect *only* the few recognized parameter headings.
         // Other xTool contents must not leave this method.
         if (normalized.length() > 0 && normalized.length() <= 48
@@ -209,6 +229,13 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     || normalized.startsWith("passages")
                     || normalized.startsWith("passes"))) {
             result.add(normalized);
+            // Prevent numeric setting values appearing in diagnostics.
+            // Headings normally contain letters, symbols and measurement
+            // units, not numeric values.
+            if (!original.matches(".*[0-9].*"))
+                exactResult.add(source + " : «" + original + "»");
+            else
+                exactResult.add(source + " : [libellé avec nombre masqué]");
         }
     }
 
