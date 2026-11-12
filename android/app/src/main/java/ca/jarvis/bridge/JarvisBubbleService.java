@@ -460,6 +460,16 @@ public final class JarvisBubbleService extends Service {
                 opened ? "OUVERT" : "À VÉRIFIER");
     }
 
+    static void onUngroupAutoFinished(boolean touchSent, boolean confirmed) {
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
+                !touchSent ? "TOUCHER ÉCHOUÉ"
+                        : confirmed ? "PROBABLEMENT OK" : "TOUCHER OK");
+    }
+
+    static void onUngroupNotFound() {
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER", "NON TROUVÉ");
+    }
+
     static void onSvgOpenRequested(boolean xToolTarget) {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.

@@ -1147,6 +1147,9 @@ public class MainActivity extends ComponentActivity {
         // xTool keeps the drawing in its normal canvas view for the human
         // to inspect the objects, layers and processing settings.
         // Existing accessibility diagnostics remain available in Jarvis.
+        // Premiere action graphique uniquement : chercher le bouton nomme
+        // "Degrouper" dans XCS et le toucher une seule fois si disponible.
+        ChatGptBubbleAccessibilityService.requestAutomaticUngroupAfterSvg();
         setStatus("xTool en cours : session protégée (" + route
                 + "). Appui long sur la bulle pour terminer.");
     }
