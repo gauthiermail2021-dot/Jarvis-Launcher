@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.44 EasySet labels and OCR handoff preview
+
+on:
+  push:
+    branches: [fix/easyset-labelled-ocr-handoff-1.2.44]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.44-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact tested and signed Jarvis 1.2.44 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 43137084555 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.44-labels-ocr-handoff-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.44-Test.apk
+      - name: Validate file and print SHA256
+        run: |
+          unzip -t Jarvis-Bridge-1.2.44-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.44-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.44-Test.apk
+      - name: Publish direct APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.44-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.44-preview Jarvis-Bridge-1.2.44-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.44-preview Jarvis-Bridge-1.2.44-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 93aeebdf8f07c1066b9af5e7710bb682e520f4b6 \
+              --title 'Jarvis Bridge 1.2.44 - Cinq libelles EasySet et OCR' \
+              --notes 'APK signe de test versionCode 63. Diagnostic EasySet: affiche les 5 libelles exacts lus par accessibilite Android (avec doublons et provenance texte/description) et l etat de chaque demande OCR. Une analyse d EasySet visible remplace un ancien minuteur de scan plutot que d etre rejetee silencieusement ; une capture OCR deja active laisse une seule reprise differee si necessaire. Panneau de diagnostic defilable. Conserve capture Android consentie, lecture sans modification des reglages xTool, aucun geste ni commande laser. Compilation et tests automatiques reussis ; verification sur Samsung necessaire.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.44-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
