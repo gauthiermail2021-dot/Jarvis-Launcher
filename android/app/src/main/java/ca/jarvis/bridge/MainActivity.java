@@ -1150,8 +1150,8 @@ public class MainActivity extends ComponentActivity {
         // Premiere action graphique uniquement : chercher le bouton nomme
         // "Degrouper" dans XCS et le toucher une seule fois si disponible.
         ChatGptBubbleAccessibilityService.requestAutomaticUngroupAfterSvg();
-        setStatus("xTool en cours : session protégée (" + route
-                + "). Appui long sur la bulle pour terminer.");
+        setStatus("SVG transmis à Android (" + route
+                + "). Import xTool et dégroupement non confirmés.");
     }
 
     private boolean blockWhileXtoolActive() {

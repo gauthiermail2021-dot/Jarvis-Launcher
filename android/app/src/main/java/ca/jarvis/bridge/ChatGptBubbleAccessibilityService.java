@@ -122,7 +122,11 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
     static void requestAutomaticUngroupAfterSvg() {
         ChatGptBubbleAccessibilityService instance = clickTestService;
-        if (instance != null) instance.armUngroupAfterSvg();
+        if (instance == null) {
+            JarvisBubbleService.onUngroupServiceUnavailable();
+            return;
+        }
+        instance.armUngroupAfterSvg();
     }
 
     private void armUngroupAfterSvg() {

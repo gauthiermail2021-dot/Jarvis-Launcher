@@ -18,7 +18,7 @@ final class XtoolUngroupOneShot {
     private static final int MAX_DEPTH = 14;
 
     interface Outcome {
-        void onComplete(boolean touchSent, boolean likelyUngrouped);
+        void onComplete(boolean touchSent, boolean verifiedUngrouped);
     }
 
     private XtoolUngroupOneShot() { }
@@ -65,24 +65,10 @@ final class XtoolUngroupOneShot {
                     new AccessibilityService.GestureResultCallback() {
                         @Override
                         public void onCompleted(GestureDescription description) {
-                            handler.postDelayed(() -> {
-                                AccessibilityNodeInfo after = null;
-                                AccessibilityNodeInfo stillEnabled = null;
-                                try {
-                                    after = service.getRootInActiveWindow();
-                                    if (!isXtool(after)) {
-                                        callback.onComplete(true, false);
-                                        return;
-                                    }
-                                    stillEnabled = findNamedEnabled(after, 0);
-                                    callback.onComplete(true, stillEnabled == null);
-                                } catch (RuntimeException ignored) {
-                                    callback.onComplete(true, false);
-                                } finally {
-                                    if (stillEnabled != null) stillEnabled.recycle();
-                                    if (after != null) after.recycle();
-                                }
-                            }, 850L);
+                            // Android delivered the touch, but this alone
+                            // cannot confirm that the objects are separated.
+                            // Disappearance of the label is not proof either.
+                            callback.onComplete(true, false);
                         }
                         @Override
                         public void onCancelled(GestureDescription description) {
