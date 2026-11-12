@@ -346,7 +346,9 @@ public final class JarvisBubbleService extends Service {
         panel.setBackground(background);
 
         TextView title = new TextView(this);
-        title.setText(summary != null && summary.startsWith("DIAGNOSTIC EASYSET")
+        title.setText(summary != null && summary.startsWith("DIAGNOSTIC XTOOL")
+                ? "JARVIS • DIAGNOSTIC CALQUES"
+                : summary != null && summary.startsWith("DIAGNOSTIC EASYSET")
                 ? "JARVIS • DIAGNOSTIC EASYSET" : "JARVIS • RÉSULTAT EASYSET");
         title.setTextColor(Color.rgb(85, 221, 249));
         title.setTextSize(14);
@@ -359,7 +361,8 @@ public final class JarvisBubbleService extends Service {
         final boolean detailedEasySet = summary != null
                 && summary.contains("DIAGNOSTIC PASSER (temporaire)");
         final boolean connectionDiagnostic = summary != null
-                && summary.startsWith("DIAGNOSTIC EASYSET");
+                && (summary.startsWith("DIAGNOSTIC EASYSET")
+                || summary.startsWith("DIAGNOSTIC XTOOL"));
         details.setTextSize(detailedEasySet || connectionDiagnostic ? 12 : 15);
         details.setPadding(0, dp(8), 0, dp(8));
         if (connectionDiagnostic) {
@@ -728,6 +731,8 @@ public final class JarvisBubbleService extends Service {
         addMenuButton(menu, "Inspecter les commandes xTool", () ->
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
+        addMenuButton(menu, "Inspecter calques et couleurs", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
         addMenuButton(menu, "Tester toucher Volet EasySet", () ->
                 ChatGptBubbleAccessibilityService.requestEasySetPanelClickTest());
 

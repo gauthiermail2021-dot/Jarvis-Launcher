@@ -113,6 +113,24 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         });
     }
 
+    /**
+     * Lecture ponctuelle des noms et positions des calques xTool.
+     * Aucune action sur XCS : ni clic, ni geste, ni reglage.
+     */
+    static void requestXtoolLayerDiagnostic() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "DIAGNOSTIC XTOOL — CALQUES\n"
+                    + "Activer « Jarvis Bridge — xTool » dans Accessibilite.");
+            return;
+        }
+        svc.panelHandler.postDelayed(() ->
+                JarvisBubbleService.showEasySetResult(
+                        XtoolLayerInspector.inspect(svc.getRootInActiveWindow())),
+                200L);
+    }
+
     /** User-requested test, never triggered by an Android accessibility event. */
     static void requestEasySetPanelClickTest() {
         ChatGptBubbleAccessibilityService svc = clickTestService;
