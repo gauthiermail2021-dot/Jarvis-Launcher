@@ -350,8 +350,7 @@ public final class EasySetSessionService extends Service {
             recordPanelFlow(recognized ? "OCR terminé : trois valeurs reconnues"
                     : closed ? "OCR terminé : volet fermé"
                     : analyzed ? "OCR terminé : champs ou valeurs non reconnus"
-                    : "OCR échoué : " + (summary == null ? "raison inconnue"
-                    : summary.length() > 45 ? summary.substring(0, 45) : summary));
+                    : "OCR échoué : capture ou image indisponible");
             panelScanScheduled = false;
         }
         boolean retryAfterCurrent = panelRetryAfterActiveScan && !recognized;
