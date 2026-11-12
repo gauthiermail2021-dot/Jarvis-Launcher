@@ -717,6 +717,10 @@ public final class JarvisBubbleService extends Service {
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.xToolDiscoveredWordsDiagnostic()));
 
+        addMenuButton(menu, "Inspecter les commandes xTool", () ->
+                showEasySetBanner(
+                        ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
+
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->
                     EasySetSessionService.requestScan(this, false));
