@@ -68,6 +68,8 @@ public class MainActivity extends ComponentActivity {
     // autonomous Gmail notification setting; never show Jarvis settings.
     public static final String EXTRA_FORCE_SILENT_GMAIL_CHECK =
             "ca.jarvis.bridge.EXTRA_FORCE_SILENT_GMAIL_CHECK";
+    public static final String EXTRA_GMAIL_TEST_MESSAGE_ID =
+            "ca.jarvis.bridge.EXTRA_GMAIL_TEST_MESSAGE_ID";
     private static volatile MainActivity foregroundActivity;
     private static final int MAX_SVG_BYTES = 5000000;
     private static final String PREFS = "jarvis_bridge";
@@ -580,13 +582,28 @@ public class MainActivity extends ComponentActivity {
         }
         if (labelId == null) throw new Exception("Libellé Jarvis SVG introuvable");
 
-        // Gmail renvoie les messages du plus récent au plus ancien.
-        // Le serveur filtre déjà les sujets Jarvis envoyés depuis ce compte.
-        String query = API + "/messages?labelIds="
-                + URLEncoder.encode(labelId, "UTF-8")
-                + "&q=" + URLEncoder.encode("subject:JARVIS-SVG-AUTO in:sent", "UTF-8")
-                + "&maxResults=50";
-        JSONArray messages = getJson(query, token).optJSONArray("messages");
+        // For the bubble's own new message, fetch the exact Gmail ID
+        // returned by POST /messages/send. This avoids races with indexed
+        // label/subject search visibility after a successful send+modify.
+        // The SAME sent-subject-label/content checks below still apply.
+        Intent requestIntent = getIntent();
+        String exactId = requestIntent != null
+                && ACTION_CHECK_GMAIL.equals(requestIntent.getAction())
+                ? requestIntent.getStringExtra(EXTRA_GMAIL_TEST_MESSAGE_ID) : null;
+        exactId = JarvisGmailTargetPolicy.validMessageId(exactId);
+        final boolean exactMessageCheck = exactId != null;
+
+        JSONArray messages;
+        if (exactMessageCheck) {
+            messages = new JSONArray().put(new JSONObject().put("id", exactId));
+        } else {
+            String query = API + "/messages?labelIds="
+                    + URLEncoder.encode(labelId, "UTF-8")
+                    + "&q=" + URLEncoder.encode(
+                            "subject:JARVIS-SVG-AUTO in:sent", "UTF-8")
+                    + "&maxResults=50";
+            messages = getJson(query, token).optJSONArray("messages");
+        }
         if (messages == null || messages.length() == 0) {
             if (!silentAutoCheck) runOnUiThread(() ->
                     setStatus("Aucun courriel sous Jarvis SVG"));
@@ -635,19 +652,28 @@ public class MainActivity extends ComponentActivity {
             String id = messages.getJSONObject(i).getString("id");
             // Ne pas recharger une pièce jointe d'un message déjà réglé :
             // Gmail peut notifier plusieurs fois le même courriel.
-            if (JarvisMailLedger.wasLastMessage(id, previous)) break;
+            if (JarvisMailLedger.wasLastMessage(id, previous)) {
+                if (exactMessageCheck) return;
+                break;
+            }
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
             long timestamp;
             try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
             catch (NumberFormatException ignored) { continue; }
-            if (timestamp <= lastProcessedTime) break;
+            if (timestamp <= lastProcessedTime) {
+                if (exactMessageCheck) return;
+                break;
+            }
             JSONObject payload = message.optJSONObject("payload");
             JSONArray labelIds = message.optJSONArray("labelIds");
             boolean selfSent = false;
+            boolean jarvisLabelPresent = false;
             if (labelIds != null) for (int k = 0; k < labelIds.length(); k++) {
                 if ("SENT".equals(labelIds.optString(k))) selfSent = true;
+                if (labelId.equals(labelIds.optString(k))) jarvisLabelPresent = true;
             }
+            if (!jarvisLabelPresent) continue;
 
             String subject = null;
             JSONArray headers = payload == null ? null : payload.optJSONArray("headers");
