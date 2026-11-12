@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 67
-        versionName '1.2.48'
-        // Jarvis 1.2.48: compact main menu and read-only EasySet status; technical tools in submenu.
+        versionCode 68
+        versionName '1.2.49'
+        // Jarvis 1.2.49: explicit one-shot named EasySet row gesture; no parameter changes.
         // Signed experimental release, must be verified on the Samsung.
     }
 
