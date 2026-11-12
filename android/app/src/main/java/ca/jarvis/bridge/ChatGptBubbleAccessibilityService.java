@@ -309,13 +309,17 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         for (AccessibilityNodeInfo.AccessibilityAction action : node.getActionList()) {
             int actionId = action.getId();
             String actionName;
+            if (actionId == AccessibilityNodeInfo.AccessibilityAction
+                    .ACTION_SET_PROGRESS.getId()) {
+                actionName = "SET_PROGRESS";
+                actions.add(actionName);
+                continue;
+            }
             switch (actionId) {
                 case AccessibilityNodeInfo.ACTION_CLICK: actionName = "CLICK"; break;
                 case AccessibilityNodeInfo.ACTION_LONG_CLICK: actionName = "LONG_CLICK"; break;
                 case AccessibilityNodeInfo.ACTION_FOCUS: actionName = "FOCUS"; break;
                 case AccessibilityNodeInfo.ACTION_SET_TEXT: actionName = "SET_TEXT"; break;
-                case android.R.id.accessibilityActionSetProgress:
-                    actionName = "SET_PROGRESS"; break;
                 case AccessibilityNodeInfo.ACTION_SCROLL_FORWARD:
                     actionName = "SCROLL_FORWARD"; break;
                 case AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD:
