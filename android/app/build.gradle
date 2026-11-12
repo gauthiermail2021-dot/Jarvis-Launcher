@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 75
-        versionName '1.2.56'
-        // Jarvis 1.2.56: consistent RGB test and trustworthy SVG/xTool status reporting.
+        versionCode 76
+        versionName '1.2.57'
+        // Jarvis 1.2.57: direct Gmail ID handoff after successful labeled SVG send.
         // Signed experimental release, must be verified on the Samsung.
     }
 
