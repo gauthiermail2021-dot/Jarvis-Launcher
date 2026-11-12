@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.46 EasySet control inspector preview APK
+
+on:
+  push:
+    branches: [feature/easyset-control-properties-1.2.46]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.46-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact tested and signed Jarvis 1.2.46 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 43148610668 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.46-control-inspector-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.46-Test.apk
+      - name: Verify APK format and checksum
+        run: |
+          unzip -t Jarvis-Bridge-1.2.46-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.46-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.46-Test.apk
+      - name: Publish direct APK on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.46-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.46-preview Jarvis-Bridge-1.2.46-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.46-preview Jarvis-Bridge-1.2.46-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target 8d30a85788e6e47d386edf06bebc0e724ba46832 \
+              --title 'Jarvis Bridge 1.2.46 - Inspecter les commandes EasySet' \
+              --notes 'APK signe de test, versionCode 65. Le menu de la bulle Jarvis propose Inspecter les commandes xTool. Affiche pour Volet EasySet, Puissance, Vitesse et Passer les proprietes Android className, isClickable, isEditable, isFocusable, positions a l ecran et noms des actions declarees, ainsi que les proprietes du parent immediat. Inspection locale ciblee des noeuds xTool, lecture seule, sans performAction ni gestes. Aucun parametre laser modifie, aucune commande machine. Les fonctions OCR, Gmail SVG et les animations 500ms restent disponibles. Compilation et tests reussis ; comportement Samsung encore a confirmer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.46-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
