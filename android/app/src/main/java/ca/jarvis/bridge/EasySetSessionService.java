@@ -55,6 +55,21 @@ public final class EasySetSessionService extends Service {
     // Only a screenshot that actually sees the three EasySet labels makes
     // this true. An unlabeled xTool click can rescan at most once per 8s.
     private static volatile boolean lastPanelWasRecognized;
+    // Only state metadata for diagnostics. Never retains screenshot or OCR text.
+    private static volatile String panelFlowStatus = "Aucune demande";
+    private static volatile long panelFlowAt;
+
+    private static void recordPanelFlow(String status) {
+        panelFlowStatus = status;
+        panelFlowAt = SystemClock.elapsedRealtime();
+    }
+
+    static String panelFlowDiagnostic() {
+        long at = panelFlowAt;
+        if (at == 0L) return "OCR automatique : aucune demande";
+        long age = Math.max(0L, (SystemClock.elapsedRealtime() - at) / 1000L);
+        return "OCR automatique : " + panelFlowStatus + " (" + age + " s)";
+    }
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private MediaProjection projection;
@@ -70,6 +85,8 @@ public final class EasySetSessionService extends Service {
     private int captureHeight;
     private Runnable scanTimeout;
     private Runnable autoScanTrigger;
+    private boolean panelScanScheduled;
+    private boolean panelRetryAfterActiveScan;
 
     static boolean isActive() {
         return sessionActive;
@@ -108,11 +125,18 @@ public final class EasySetSessionService extends Service {
      * The capture is restricted to an existing Android-consented session.
      */
     static void requestPanelTapScan(Context context) {
-        if (!isActive()) return;
+        if (!isActive()) {
+            recordPanelFlow("refusé : partage écran inactif");
+            return;
+        }
+        recordPanelFlow("demande transmise au service");
         Intent intent = new Intent(context, EasySetSessionService.class);
         intent.setAction(ACTION_PANEL_TAP);
         try { context.startService(intent); }
-        catch (RuntimeException ignored) { }
+        catch (RuntimeException error) {
+            recordPanelFlow("Android a refusé le service ("
+                    + error.getClass().getSimpleName() + ")");
+        }
     }
 
     static void requestStop(Context context) {
@@ -155,16 +179,25 @@ public final class EasySetSessionService extends Service {
             };
             handler.postDelayed(autoScanTrigger, 1500L);
         } else if (ACTION_PANEL_TAP.equals(action)) {
-            // xTool's custom EasySet row is not reliably a distinct Android
-            // window. Its click can happen without any preceding CLOSED OCR.
-            // Honor this user gesture even after a previous successful scan.
-            // Never interrupt a screenshot/OCR already in progress.
-            if (scanPending || analyzing || autoScanTrigger != null) return START_NOT_STICKY;
+            // Priority: xTool's EasySet headings have now been OBSERVED,
+            // so this request supersedes an older 1.5s foreground scan or
+            // 6.5s SVG handoff timer. Previously we discarded the request
+            // whenever autoScanTrigger != null, with no visible feedback.
+            if (scanPending || analyzing) {
+                panelRetryAfterActiveScan = true;
+                recordPanelFlow("autre lecture en cours : reprise mise en attente");
+                return START_NOT_STICKY;
+            }
+            cancelPendingAutoScan();
             autoRecognizedEasySet = false;
+            lastPanelWasRecognized = false;
             awaitingPanelOpen = false;
+            panelScanScheduled = true;
+            recordPanelFlow("capture programmée après ouverture du volet");
             autoScanTrigger = () -> {
                 autoScanTrigger = null;
                 if (sessionActive && !closing) beginScan(true);
+                else recordPanelFlow("annulée : session terminée");
             };
             handler.postDelayed(autoScanTrigger, 900L);
         } else if (ACTION_SVG_OPEN.equals(action)) {
@@ -229,7 +262,13 @@ public final class EasySetSessionService extends Service {
     }
 
     private void beginScan(boolean automatically) {
-        if (!sessionActive || virtualDisplay == null || scanPending || analyzing) return;
+        if (!sessionActive || virtualDisplay == null || scanPending || analyzing) {
+            if (panelScanScheduled)
+                recordPanelFlow("capture différée : scanner indisponible");
+            return;
+        }
+        if (panelScanScheduled)
+            recordPanelFlow("capture écran EasySet démarrée");
         scanPending = true;
         autoScan = automatically;
         JarvisBubbleService.prepareEasySetCapture();
@@ -263,6 +302,8 @@ public final class EasySetSessionService extends Service {
             if (SystemClock.elapsedRealtime() < scanReadyAt) return;
             scanPending = false;
             analyzing = true;
+            if (panelScanScheduled)
+                recordPanelFlow("image capturée ; OCR en cours");
             cancelScanTimeout();
             Image.Plane plane = image.getPlanes()[0];
             ByteBuffer buffer = plane.getBuffer();
@@ -305,6 +346,16 @@ public final class EasySetSessionService extends Service {
         boolean recognized = analyzed && summary != null
                 && (summary.startsWith("EasySet reconnu")
                     || summary.startsWith("EasySet probable"));
+        if (panelScanScheduled) {
+            recordPanelFlow(recognized ? "OCR terminé : trois valeurs reconnues"
+                    : closed ? "OCR terminé : volet fermé"
+                    : analyzed ? "OCR terminé : champs ou valeurs non reconnus"
+                    : "OCR échoué : " + (summary == null ? "raison inconnue"
+                    : summary.length() > 45 ? summary.substring(0, 45) : summary));
+            panelScanScheduled = false;
+        }
+        boolean retryAfterCurrent = panelRetryAfterActiveScan && !recognized;
+        panelRetryAfterActiveScan = false;
         if (closed) {
             // A previous successful scan must not block the next panel-open
             // scan. The user may have closed EasySet after reading it.
@@ -317,6 +368,19 @@ public final class EasySetSessionService extends Service {
             awaitingPanelOpen = false;
             lastPanelWasRecognized = true;
             autoRecognizedEasySet = true;
+        }
+
+        if (retryAfterCurrent && !closing && sessionActive) {
+            // One deferred follow-up, only when an overlapping scan did not
+            // successfully recognize EasySet. Do not start a polling loop.
+            cancelPendingAutoScan();
+            panelScanScheduled = true;
+            recordPanelFlow("reprise différée programmée");
+            autoScanTrigger = () -> {
+                autoScanTrigger = null;
+                if (sessionActive && !closing) beginScan(true);
+            };
+            handler.postDelayed(autoScanTrigger, 900L);
         }
 
         if (!closing && sessionActive) {
@@ -361,6 +425,9 @@ public final class EasySetSessionService extends Service {
         autoRecognizedEasySet = false;
         awaitingPanelOpen = false;
         lastPanelWasRecognized = false;
+        panelScanScheduled = false;
+        panelRetryAfterActiveScan = false;
+        recordPanelFlow("session de capture fermée");
         detachReader();
         if (virtualDisplay != null) {
             virtualDisplay.release();
