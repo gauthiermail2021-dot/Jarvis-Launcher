@@ -387,9 +387,9 @@ public final class EasySetSessionService extends Service {
         }
 
         if (!closing && sessionActive) {
-            // CLOSED is an actionable hint, not an OCR error.
-            // Unknown screens remain quiet on automatic scans.
-            if (!automatic || recognized || closed) {
+            // Automatic OCR remains silent; it must not cover xTool or the
+            // accessible EasySet row. Manual scans retain their full results.
+            if (!automatic) {
                 JarvisBubbleService.showEasySetResult(summary);
             } else {
                 JarvisBubbleService.restoreEasySetBubble();
