@@ -183,11 +183,15 @@ public final class EasySetSessionService extends Service {
             // so this request supersedes an older 1.5s foreground scan or
             // 6.5s SVG handoff timer. Previously we discarded the request
             // whenever autoScanTrigger != null, with no visible feedback.
-            if (scanPending || analyzing) {
+            EasySetScanHandoff.Decision handoff = EasySetScanHandoff.decide(
+                    scanPending, analyzing, autoScanTrigger != null);
+            if (handoff == EasySetScanHandoff.Decision.DEFER_UNTIL_CURRENT_FINISHES) {
                 panelRetryAfterActiveScan = true;
                 recordPanelFlow("autre lecture en cours : reprise mise en attente");
                 return START_NOT_STICKY;
             }
+            if (handoff == EasySetScanHandoff.Decision.REPLACE_EXISTING_TIMER)
+                recordPanelFlow("ancien minuteur OCR remplacé");
             cancelPendingAutoScan();
             autoRecognizedEasySet = false;
             lastPanelWasRecognized = false;
