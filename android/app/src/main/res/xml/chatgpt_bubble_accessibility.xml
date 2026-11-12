@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <accessibility-service
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
-    android:packageNames="com.openai.chatgpt"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged|typeWindowContentChanged|typeViewClicked"
+    android:packageNames="com.openai.chatgpt,com.makeblock.xcs"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="300"
-    android:canRetrieveWindowContent="false"
+    android:canRetrieveWindowContent="true"
     android:canPerformGestures="false"
     android:description="@string/chatgpt_accessibility_description" />

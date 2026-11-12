@@ -1,0 +1,46 @@
+name: Publish signed Jarvis 1.2.45 xTool accessible words preview APK
+
+on:
+  push:
+    branches: [feature/easyset-discovered-words-1.2.45]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.45-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download exact tested signed Jarvis 1.2.45 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 43138961993 --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.45-xtool-words-signed --dir artifact
+          test -s artifact/app-release.apk
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.45-Test.apk
+      - name: Verify APK integrity and print checksum
+        run: |
+          unzip -t Jarvis-Bridge-1.2.45-Test.apk | tail -n 2
+          test "$(wc -c < Jarvis-Bridge-1.2.45-Test.apk)" -gt 20000000
+          sha256sum Jarvis-Bridge-1.2.45-Test.apk
+      - name: Publish direct GitHub APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view jarvis-1.2.45-preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.45-preview Jarvis-Bridge-1.2.45-Test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.45-preview Jarvis-Bridge-1.2.45-Test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target dc8badd8109f6da74006c1f9faf52f584485c76c \
+              --title 'Jarvis Bridge 1.2.45 - Voir les mots detectes dans xTool' \
+              --notes 'APK signe de test, versionCode 64. Menu Jarvis: Voir les mots detectes (xTool). Affiche les textes et descriptions exposes par le service Accessibilite Android dans la fenetre xTool, sans filtre EasySet, avec provenance, doublons, nombre de noeuds et age du dernier relevé. Premiers 100 textes et 240 noeuds maximum, caracteres limites, sans stockage sur disque ni reseau. Conserve OCR, les cinq libelles EasySet, la bulle SVG et les animations 500ms. Aucun geste, aucun changement de parametres ni commande laser. Tests automatisees passes, verification Samsung a effectuer.' \
+              --prerelease
+          fi
+          gh release view jarvis-1.2.45-preview --repo "$GITHUB_REPOSITORY" --json tagName,url,assets
