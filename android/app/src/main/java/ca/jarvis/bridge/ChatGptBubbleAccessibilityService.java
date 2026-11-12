@@ -185,13 +185,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 EasySetAccessiblePanel.classify(labels);
         lastXtoolNodes = examined;
         lastEasySetHeadings = labels.size();
-        StringBuilder exact = new StringBuilder();
-        for (int i = 0; i < exactLabels.size(); i++) {
-            if (i > 0) exact.append('\n');
-            exact.append(i + 1).append(". ").append(exactLabels.get(i));
-        }
-        lastEasySetExactLabels = exact.length() == 0
-                ? "Aucun libellé relevé" : exact.toString();
+        lastEasySetExactLabels = EasySetDiagnosticHeadings.enumerate(exactLabels);
         lastXtoolTreeStatus = state == EasySetAccessiblePanel.State.OPEN
                 ? "EasySet ouvert visible" : state == EasySetAccessiblePanel.State.CLOSED
                 ? "Volet EasySet fermé visible" : "Champs EasySet non identifiés";
@@ -232,10 +226,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             // Prevent numeric setting values appearing in diagnostics.
             // Headings normally contain letters, symbols and measurement
             // units, not numeric values.
-            if (!original.matches(".*[0-9].*"))
-                exactResult.add(source + " : «" + original + "»");
-            else
-                exactResult.add(source + " : [libellé avec nombre masqué]");
+            exactResult.add(EasySetDiagnosticHeadings.one(source, original));
         }
     }
 
