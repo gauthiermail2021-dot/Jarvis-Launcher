@@ -78,7 +78,7 @@ final class EasySetOneShotClickTest {
                             handler.postDelayed(() -> {
                                 AccessibilityNodeInfo after = service.getRootInActiveWindow();
                                 try {
-                                    end("Rangée : trouvée\\nToucher Android : effectué\\n"
+                                    end("Rangée : trouvée\nToucher Android : effectué\n"
                                             + "Volet ouvert : "
                                             + (isXtool(after) && panelOpen(after)
                                                 ? "oui" : "non confirmé"), finished);
