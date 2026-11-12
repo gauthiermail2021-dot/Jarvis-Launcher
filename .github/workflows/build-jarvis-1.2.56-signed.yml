@@ -1,0 +1,95 @@
+name: Build and sign Jarvis 1.2.56 SVG workflow regression fixes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/verified-svg-flow-1.2.56]
+    paths:
+      - 'android/app/**'
+      - 'android/settings.gradle'
+      - '.github/workflows/build-jarvis-1.2.56-signed.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK 35
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify and stage original Jarvis xylophone WAVs
+        run: python3 tools/prepare_jarvis_wav.py
+      - name: Generate one-shot 250 ms refusal sound WAV
+        run: python3 tools/prepare_jarvis_refusal_wav.py
+      - name: Generate three original quiet UI interaction WAVs
+        run: python3 tools/prepare_jarvis_interactions_wav.py
+      - name: Bundle Tesseract English model for offline Android OCR
+        run: |
+          mkdir -p android/app/src/main/assets/tessdata
+          curl --fail --location --retry 3 \
+            --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata' \
+            --output android/app/src/main/assets/tessdata/eng.traineddata
+          test "$(wc -c < android/app/src/main/assets/tessdata/eng.traineddata)" -gt 100000
+      - name: Restore permanent signing key (GitHub Secrets only)
+        env:
+          JARVIS_KEYSTORE_BASE64: ${{ secrets.JARVIS_KEYSTORE_BASE64 }}
+          JARVIS_KEYSTORE_PASSWORD: ${{ secrets.JARVIS_KEYSTORE_PASSWORD }}
+          JARVIS_KEY_ALIAS: ${{ secrets.JARVIS_KEY_ALIAS }}
+          JARVIS_KEY_PASSWORD: ${{ secrets.JARVIS_KEY_PASSWORD }}
+        run: |
+          test -n "$JARVIS_KEYSTORE_BASE64" || { echo "Missing secret: JARVIS_KEYSTORE_BASE64"; exit 1; }
+          test -n "$JARVIS_KEYSTORE_PASSWORD" || { echo "Missing secret: JARVIS_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$JARVIS_KEY_ALIAS" || { echo "Missing secret: JARVIS_KEY_ALIAS"; exit 1; }
+          test -n "$JARVIS_KEY_PASSWORD" || { echo "Missing secret: JARVIS_KEY_PASSWORD"; exit 1; }
+          if ! printf '%s' "$JARVIS_KEYSTORE_BASE64" | base64 --decode > android/app/jarvis-release.jks; then
+            echo 'ERREUR: contenu Base64 du keystore invalide.'
+            exit 1
+          fi
+          chmod 600 android/app/jarvis-release.jks
+          echo "Taille du fichier JKS decode: $(wc -c < android/app/jarvis-release.jks) octets"
+          if ! keytool -list -keystore android/app/jarvis-release.jks -alias "$JARVIS_KEY_ALIAS" -storepass "$JARVIS_KEYSTORE_PASSWORD" >/dev/null 2>&1; then
+            echo 'ERREUR: impossible de lire la cle JKS (mot de passe, alias ou contenu incorrect).'
+            exit 1
+          fi
+          echo 'Cle JKS validee avec succes.'
+      - name: Run JVM security tests and build signed release APK
+        working-directory: android
+        env:
+          JARVIS_KEYSTORE_PATH: jarvis-release.jks
+          JARVIS_KEYSTORE_PASSWORD: ${{ secrets.JARVIS_KEYSTORE_PASSWORD }}
+          JARVIS_KEY_ALIAS: ${{ secrets.JARVIS_KEY_ALIAS }}
+          JARVIS_KEY_PASSWORD: ${{ secrets.JARVIS_KEY_PASSWORD }}
+        run: gradle --no-daemon testReleaseUnitTest assembleRelease
+      - name: Verify version and identity before publishing APK
+        run: |
+          grep -F "versionCode 75" android/app/build.gradle
+          grep -F "versionName '1.2.56'" android/app/build.gradle
+          grep -F "applicationId 'ca.jarvis.bridge'" android/app/build.gradle
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging \
+            android/app/build/outputs/apk/release/app-release.apk | head -n 5
+          unzip -l android/app/build/outputs/apk/release/app-release.apk | grep -E 'assets/tessdata/eng.traineddata'
+      - name: Verify APK signature
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs \
+            android/app/build/outputs/apk/release/app-release.apk
+      - name: Delete temporary signing key before artifact upload
+        if: always()
+        run: rm -f android/app/jarvis-release.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Jarvis-Bridge-1.2.56-verified-svg-flow-signed
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

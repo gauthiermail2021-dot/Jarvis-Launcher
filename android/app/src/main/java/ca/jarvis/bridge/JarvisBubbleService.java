@@ -460,20 +460,26 @@ public final class JarvisBubbleService extends Service {
                 opened ? "OUVERT" : "À VÉRIFIER");
     }
 
-    static void onUngroupAutoFinished(boolean touchSent, boolean confirmed) {
+    static void onUngroupAutoFinished(boolean touchSent, boolean verified) {
+        // "TOUCHER ENVOYÉ" is not a successful XCS ungroup confirmation.
         showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
-                !touchSent ? "TOUCHER ÉCHOUÉ"
-                        : confirmed ? "PROBABLEMENT OK" : "TOUCHER OK");
+                touchSent ? "TOUCHER ENVOYÉ" : "ÉCHEC TOUCHER");
     }
 
     static void onUngroupNotFound() {
-        showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER", "NON TROUVÉ");
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
+                "NON DISPONIBLE");
+    }
+
+    static void onUngroupServiceUnavailable() {
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
+                "ACCÈS INACTIF");
     }
 
     static void onSvgOpenRequested(boolean xToolTarget) {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.
-            showStageAfterObservedEvent(STATE_XTOOL, "xTool", "EN COURS");
+            showStageAfterObservedEvent(STATE_XTOOL, "xTool", "OUVERTURE");
         } else {
             showStageAfterObservedEvent(STATE_SUCCESS, "SVG", "ENVOYÉ");
         }

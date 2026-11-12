@@ -116,6 +116,8 @@ final class XtoolLayerInspector {
             result.append("\n").append(i + 1).append(". ").append(words.get(i));
         if (words.size() >= MAX_WORDS)
             result.append("\n(liste limitee a ").append(MAX_WORDS).append(" entrees)");
+        result.append("\n\nDégrouper : ")
+                .append(XtoolUngroupReadiness.inspect(root));
         result.append("\n\nUne etiquette de couleur ne prouve pas le type de traitement. ")
                 .append("Lecture seule, aucun reglage modifie.");
         return result.toString();

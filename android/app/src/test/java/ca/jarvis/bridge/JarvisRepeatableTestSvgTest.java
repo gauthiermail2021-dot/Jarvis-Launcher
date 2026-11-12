@@ -27,7 +27,14 @@ public final class JarvisRepeatableTestSvgTest {
                 MessageDigest.getInstance("SHA-256").digest(JarvisRepeatableTestSvg.bytes(1)),
                 MessageDigest.getInstance("SHA-256").digest(JarvisRepeatableTestSvg.bytes(2))));
         assertTrue(first.contains("width=\"44mm\" height=\"30mm\""));
-        assertTrue(first.contains("<circle cx=\"10\" cy=\"12\" r=\"2\""));
+        assertTrue(first.contains("<g id=\"jarvis-color-test\""));
+        assertTrue(first.contains("<rect x=\"3\" y=\"8\""));
+        assertTrue(first.contains("<circle cx=\"22\" cy=\"15\" r=\"6\""));
+        assertTrue(first.contains("stroke=\"#FF0000\""));
+        assertTrue(first.contains("stroke=\"#008000\""));
+        assertTrue(first.contains("stroke=\"#0000FF\""));
+        assertTrue(first.contains("<path d=\"M 35 22 L 41 22 L 38 8 Z\""));
+        assertEquals(1, first.split("<g ", -1).length - 1);
     }
 
     @Test public void allNumberedTemplatesAreValidSvgForXTool() throws Exception {

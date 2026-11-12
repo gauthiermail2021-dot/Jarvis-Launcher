@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 74
-        versionName '1.2.55'
-        // Jarvis 1.2.55: one-shot automatic xTool ungroup of SVG without laser settings.
+        versionCode 75
+        versionName '1.2.56'
+        // Jarvis 1.2.56: consistent RGB test and trustworthy SVG/xTool status reporting.
         // Signed experimental release, must be verified on the Samsung.
     }
 
