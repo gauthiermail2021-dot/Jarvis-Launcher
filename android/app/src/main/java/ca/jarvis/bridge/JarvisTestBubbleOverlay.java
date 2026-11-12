@@ -102,7 +102,7 @@ final class JarvisTestBubbleOverlay {
             case MotionEvent.ACTION_MOVE:
                 float dx = event.getRawX() - downRawX;
                 float dy = event.getRawY() - downRawY;
-                if (!moved && Math.hypot(dx, dy) > dp(9)) moved = true;
+                if (!moved && Math.hypot(dx, dy) > dp(14)) moved = true;
                 if (moved) {
                     layout.x = downLeft + Math.round(dx);
                     layout.y = downTop + Math.round(dy);
@@ -120,6 +120,12 @@ final class JarvisTestBubbleOverlay {
                             .apply();
                 } else if (SystemClock.elapsedRealtime() - lastTapElapsed > 1200L) {
                     lastTapElapsed = SystemClock.elapsedRealtime();
+                    // Immediate visual confirmation that Android accepted
+                    // this tap. Gmail success is still reported separately.
+                    target.setAlpha(0.65f);
+                    target.postDelayed(() -> {
+                        if (bubble == target) target.setAlpha(1f);
+                    }, 550L);
                     onTap.run();
                 }
                 moved = false;

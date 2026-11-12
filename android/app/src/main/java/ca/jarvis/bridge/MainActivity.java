@@ -1143,13 +1143,10 @@ public class MainActivity extends ComponentActivity {
         XtoolSessionManager.begin(this);
         GMAIL_RECHECK_REQUESTED.set(false);
         JarvisBubbleService.onSvgOpenRequested(true);
-        // One automatic attempt to open the named EasySet row in the xTool UI.
-        // No machine commands, setting edits, screenshots or blind coordinates.
-        ChatGptBubbleAccessibilityService.requestAutomaticEasySetAfterSvg();
-        // One automatic read-only EasySet inspection after the SVG handoff.
-        // If the EasySet panel is not shown yet, the user may rescan from the
-        // Jarvis bubble without granting a second MediaProjection permission.
-        EasySetSessionService.requestScan(this, true);
+        // The post-SVG flow no longer opens EasySet or requests a capture.
+        // xTool keeps the drawing in its normal canvas view for the human
+        // to inspect the objects, layers and processing settings.
+        // Existing accessibility diagnostics remain available in Jarvis.
         setStatus("xTool en cours : session protégée (" + route
                 + "). Appui long sur la bulle pour terminer.");
     }
