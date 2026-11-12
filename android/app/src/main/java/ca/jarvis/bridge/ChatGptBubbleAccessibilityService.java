@@ -32,7 +32,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ChatGptBubbleAccessibilityService svc = clickTestService;
         if (svc == null) {
             JarvisBubbleService.showEasySetResult(
-                    "TEST CLIC : activer le service « Jarvis Bridge — ChatGPT et xTool » dans Accessibilité.");
+                    "TEST TOUCHER : activer le service « Jarvis Bridge — xTool » dans Accessibilité.");
             return;
         }
         if (svc.clickTestPending) return;
