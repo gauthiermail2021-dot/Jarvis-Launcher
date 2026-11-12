@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="chatgpt_accessibility_description">Option facultative : afficher la bulle Jarvis à l’ouverture de ChatGPT. Observe uniquement le changement d’application au premier plan ; ne lit pas les conversations ni le contenu de l’écran.</string>
+    <string name="easyset_click_accessibility_description">Test ponctuel sur demande : identifie et clique seulement le bouton « Volet EasySet » dans xTool. Ne modifie aucune valeur et ne demarre aucun laser.</string>
 </resources>

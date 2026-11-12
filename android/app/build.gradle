@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 50
-        versionName '1.2.31'
-        // Jarvis 1.2.31: temporary read-only stage-by-stage Passer OCR diagnostics.
+        versionCode 51
+        versionName '1.2.32-rc1'
+        // Jarvis 1.2.32-rc1: explicit one-shot EasySet panel navigation test; no laser settings.
         // Build trigger: run diagnostics tests and verify signed 1.2.31 APK.
     }
 

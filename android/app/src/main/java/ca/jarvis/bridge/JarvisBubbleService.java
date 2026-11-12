@@ -575,6 +575,9 @@ public final class JarvisBubbleService extends Service {
             addMenuButton(menu, "Autoriser la capture pour la session", this::launchEasySetSessionConsent);
         }
 
+        addMenuButton(menu, "Tester clic Volet EasySet", () ->
+                EasySetPanelClickService.requestOnce(this));
+
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
             // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
