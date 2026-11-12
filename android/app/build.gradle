@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 69
-        versionName '1.2.50'
-        // Jarvis 1.2.50: auto-open named EasySet row after SVG handoff, one gesture only.
+        versionCode 70
+        versionName '1.2.51'
+        // Jarvis 1.2.51: passive xTool color/layer accessibility inspector.
         // Signed experimental release, must be verified on the Samsung.
     }
 
