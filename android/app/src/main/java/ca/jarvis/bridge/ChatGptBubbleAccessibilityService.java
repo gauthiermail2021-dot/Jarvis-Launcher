@@ -114,6 +114,54 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         });
     }
 
+    // Nouvelle phase : une seule action de degroupement apres chaque SVG.
+    // Les lectures sont bornées dans le temps et ne touchent aucun parametre.
+    private int ungroupTicket;
+    private boolean ungroupPending;
+    private final List<Runnable> ungroupChecks = new ArrayList<>();
+
+    static void requestAutomaticUngroupAfterSvg() {
+        ChatGptBubbleAccessibilityService instance = clickTestService;
+        if (instance != null) instance.armUngroupAfterSvg();
+    }
+
+    private void armUngroupAfterSvg() {
+        cancelUngroupAfterSvg();
+        ungroupPending = true;
+        final int ticket = ungroupTicket;
+        final long[] delays = {2900L, 5400L, 8500L, 12500L, 17500L};
+        for (long delay : delays) {
+            Runnable check = () -> {
+                if (!ungroupPending || ticket != ungroupTicket) return;
+                if (!XtoolSessionManager.isActive(this)
+                        || clickTestPending || redLayerTapPending) return;
+                boolean dispatched = XtoolUngroupOneShot.tryOnce(
+                        this, panelHandler, (touchSent, confirmed) -> {
+                            JarvisBubbleService.onUngroupAutoFinished(
+                                    touchSent, confirmed);
+                        });
+                if (dispatched) cancelUngroupAfterSvg();
+            };
+            ungroupChecks.add(check);
+            panelHandler.postDelayed(check, delay);
+        }
+        Runnable expiry = () -> {
+            if (ungroupPending && ticket == ungroupTicket) {
+                cancelUngroupAfterSvg();
+                JarvisBubbleService.onUngroupNotFound();
+            }
+        };
+        ungroupChecks.add(expiry);
+        panelHandler.postDelayed(expiry, 19200L);
+    }
+
+    private void cancelUngroupAfterSvg() {
+        ungroupTicket++;
+        ungroupPending = false;
+        for (Runnable check : ungroupChecks) panelHandler.removeCallbacks(check);
+        ungroupChecks.clear();
+    }
+
     /**
      * Lecture ponctuelle des noms et positions des calques xTool.
      * Aucune action sur XCS : ni clic, ni geste, ni reglage.
@@ -531,6 +579,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         clickTestPending = false;
         redLayerTapPending = false;
         cancelAutomaticEasySet();
+        cancelUngroupAfterSvg();
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
         lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
