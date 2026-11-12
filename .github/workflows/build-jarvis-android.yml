@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.47 EasySet panel opener click - signed APK
+name: Build and test Jarvis Bridge 1.2.48 compact menu - signed APK
 
 on:
   workflow_dispatch:
   # Only the feature branch; keep main unchanged.
   push:
-    branches: [feature/easyset-volet-click-1.2.47]
+    branches: [feature/jarvis-menu-compact-1.2.48]
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
@@ -74,6 +74,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.47-easyset-panel-click-signed
+          name: Jarvis-Bridge-1.2.48-compact-menu-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error

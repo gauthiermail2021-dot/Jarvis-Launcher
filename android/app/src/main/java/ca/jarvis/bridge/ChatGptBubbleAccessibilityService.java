@@ -66,6 +66,21 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             "Aucune inspection des commandes disponible.";
     private static volatile long lastControlInspectionAt;
 
+    /**
+     * Compact read-only status used by the main menu.
+     * Does not request screenshots, click controls, or change parameters.
+     */
+    static String easySetShortStatus() {
+        if (!accessibilityConnected)
+            return "EasySet\nAccessibilité Jarvis inactive.\n"
+                    + "Consulter Réglages et diagnostics pour vérifier la connexion.";
+        if (lastXtoolTreeAt == 0L)
+            return "EasySet\nAucun état xTool relevé.\n"
+                    + "Ouvrir xTool pour observer les libellés accessibles.";
+        return "EasySet\n" + lastXtoolTreeStatus
+                + "\nLecture Android uniquement : aucun réglage modifié.";
+    }
+
     static String easySetConnectionDiagnostic() {
         long now = SystemClock.elapsedRealtime();
         String event = lastXtoolEventAt == 0L ? "aucun"
