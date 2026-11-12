@@ -1,10 +1,10 @@
-name: Build and test Jarvis Bridge 1.2.49 EasySet named row gesture - signed APK
+name: Build and test Jarvis Bridge 1.2.50 automatic EasySet row on SVG handoff - signed APK
 
 on:
   workflow_dispatch:
   # Only the feature branch; keep main unchanged.
   push:
-    branches: [experiment/easyset-touch-row-1.2.49]
+    branches: [experiment/easyset-auto-after-svg-1.2.50]
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
@@ -74,6 +74,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.49-easyset-touch-row-signed
+          name: Jarvis-Bridge-1.2.50-auto-easyset-after-svg-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error

@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 68
-        versionName '1.2.49'
-        // Jarvis 1.2.49: explicit one-shot named EasySet row gesture; no parameter changes.
+        versionCode 69
+        versionName '1.2.50'
+        // Jarvis 1.2.50: auto-open named EasySet row after SVG handoff, one gesture only.
         // Signed experimental release, must be verified on the Samsung.
     }
 

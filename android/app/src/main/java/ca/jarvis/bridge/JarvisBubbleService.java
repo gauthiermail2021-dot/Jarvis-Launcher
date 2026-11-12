@@ -449,6 +449,12 @@ public final class JarvisBubbleService extends Service {
         showStageAfterObservedEvent(STATE_WORKING, "GMAIL", "RECHERCHE");
     }
 
+    /** Quiet UI-only confirmation. Never reports a machine state. */
+    static void onEasySetAutoOpenFinished(boolean opened) {
+        showStageAfterObservedEvent(STATE_XTOOL, "EASYSET",
+                opened ? "OUVERT" : "À VÉRIFIER");
+    }
+
     static void onSvgOpenRequested(boolean xToolTarget) {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.

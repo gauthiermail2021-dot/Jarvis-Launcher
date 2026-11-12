@@ -17,27 +17,61 @@ import java.util.List;
 final class EasySetOneShotClickTest {
     private EasySetOneShotClickTest() { }
 
+    interface Outcome {
+        void onComplete(boolean opened, String details);
+    }
+
     static void run(AccessibilityService service, Handler handler, Runnable finished) {
+        execute(service, handler, (opened, details) -> {
+            finished.run();
+            JarvisBubbleService.showEasySetResult("TEST TOUCHER EASYSET\n" + details
+                    + "\nAucun paramètre ou commande laser modifié.");
+        });
+    }
+
+    /** Silent one-shot after SVG handoff; no diagnostic overlay on top of xTool. */
+    static void runAutomatically(AccessibilityService service, Handler handler,
+                                 Outcome callback) {
+        execute(service, handler, callback);
+    }
+
+    /** Read-only preflight. No action or screenshot. */
+    static boolean isXtoolPanelReady(AccessibilityService service) {
+        AccessibilityNodeInfo root = service.getRootInActiveWindow();
+        try {
+            if (!isXtool(root)) return false;
+            if (panelOpen(root)) return true;
+            AccessibilityNodeInfo target = findExact(root, 0);
+            if (target == null) return false;
+            try { return target.isVisibleToUser(); }
+            finally { target.recycle(); }
+        } finally {
+            if (root != null) root.recycle();
+        }
+    }
+
+    private static void execute(AccessibilityService service, Handler handler,
+                                Outcome callback) {
         AccessibilityNodeInfo root = service.getRootInActiveWindow();
         try {
             // Must be the active xTool window, never Jarvis, Gmail or ChatGPT.
             if (!isXtool(root)) {
-                end("Fenêtre xTool non active ou non accessible.", finished);
+                end("Fenêtre xTool non active ou non accessible.", false, callback);
                 return;
             }
             if (panelOpen(root)) {
-                end("Volet déjà ouvert : aucun toucher envoyé.", finished);
+                end("Volet déjà ouvert : aucun toucher envoyé.", true, callback);
                 return;
             }
             AccessibilityNodeInfo target = findExact(root, 0);
             if (target == null) {
-                end("Rangée « Volet EasySet » introuvable.", finished);
+                end("Rangée « Volet EasySet » introuvable.", false, callback);
                 return;
             }
             Rect bounds = new Rect();
             try {
                 if (!target.isVisibleToUser()) {
-                    end("Rangée identifiée, mais non visible.", finished);
+                    end("Rangée identifiée, mais non visible.", false, callback);
                     return;
                 }
                 target.getBoundsInScreen(bounds);
@@ -51,7 +85,7 @@ final class EasySetOneShotClickTest {
             android.view.WindowManager wm = (android.view.WindowManager)
                     service.getSystemService(android.content.Context.WINDOW_SERVICE);
             if (wm == null) {
-                end("Dimensions de l'écran indisponibles.", finished);
+                end("Dimensions de l'écran indisponibles.", false, callback);
                 return;
             }
             wm.getDefaultDisplay().getRealSize(display);
@@ -61,7 +95,7 @@ final class EasySetOneShotClickTest {
                     || bounds.left < 0 || bounds.top < 0
                     || bounds.right > display.x || bounds.bottom > display.y
                     || x <= 0 || x >= display.x || y <= 0 || y >= display.y) {
-                end("Zone tactile non valide : aucun toucher envoyé.", finished);
+                end("Zone tactile non valide : aucun toucher envoyé.", false, callback);
                 return;
             }
             Path path = new Path();
@@ -81,30 +115,29 @@ final class EasySetOneShotClickTest {
                                     end("Rangée : trouvée\nToucher Android : effectué\n"
                                             + "Volet ouvert : "
                                             + (isXtool(after) && panelOpen(after)
-                                                ? "oui" : "non confirmé"), finished);
+                                                ? "oui" : "non confirmé"),
+                                            isXtool(after) && panelOpen(after), callback);
                                 } finally {
                                     if (after != null) after.recycle();
                                 }
                             }, 1000L);
                         }
                         @Override public void onCancelled(GestureDescription description) {
-                            end("Toucher annulé par Android.", finished);
+                            end("Toucher annulé par Android.", false, callback);
                         }
                     }, handler);
             if (!scheduled) {
-                end("Android a refusé d'envoyer le toucher.", finished);
+                end("Android a refusé d'envoyer le toucher.", false, callback);
             }
         } catch (RuntimeException error) {
-            end("Erreur Android : " + error.getClass().getSimpleName(), finished);
+            end("Erreur Android : " + error.getClass().getSimpleName(), false, callback);
         } finally {
             if (root != null) root.recycle();
         }
     }
 
-    private static void end(String details, Runnable finished) {
-        finished.run();
-        JarvisBubbleService.showEasySetResult("TEST TOUCHER EASYSET\n" + details
-                + "\nAucun paramètre ou commande laser modifié.");
+    private static void end(String details, boolean opened, Outcome callback) {
+        callback.onComplete(opened, details);
     }
 
     private static boolean isXtool(AccessibilityNodeInfo root) {
