@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 72
-        versionName '1.2.53'
-        // Jarvis 1.2.53: compact bubble menus; no changes to EasySet or layer navigation.
+        versionCode 73
+        versionName '1.2.54'
+        // Jarvis 1.2.54: reliable one-tap SVG mail search, no automatic EasySet opening.
         // Signed experimental release, must be verified on the Samsung.
     }
 
