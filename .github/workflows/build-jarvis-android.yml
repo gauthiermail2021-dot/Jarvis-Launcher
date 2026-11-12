@@ -1,12 +1,13 @@
-name: Build and test Jarvis Bridge 1.2.31 EasySet Passer OCR diagnosis - signed APK
+name: Build and test Jarvis Bridge 1.2.47 EasySet panel opener click - signed APK
 
 on:
   workflow_dispatch:
-  # Compilation d'essai limitée au prototype EasySet 1.2.31 diagnostic Passer temporaire.
+  # Only the feature branch; keep main unchanged.
   push:
-    branches: [experiment/easyset-diagnostic-1.2.31]
+    branches: [feature/easyset-volet-click-1.2.47]
     paths:
-      - 'android/app/build.gradle'
+      - 'android/**'
+      - '.github/workflows/build-jarvis-android.yml'
 
 permissions:
   contents: read
@@ -73,6 +74,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-1.2.31-easyset-diagnostic-signed
+          name: Jarvis-Bridge-1.2.47-easyset-panel-click-signed
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
