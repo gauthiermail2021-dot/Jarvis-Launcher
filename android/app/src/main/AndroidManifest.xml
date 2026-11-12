@@ -74,7 +74,7 @@
         <!-- Facultatif : l'utilisateur doit activer ce service dans Accessibilité. -->
         <service
             android:name=".ChatGptBubbleAccessibilityService"
-            android:label="Jarvis Bridge — ChatGPT et xTool"
+            android:label="Jarvis Bridge — xTool"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>

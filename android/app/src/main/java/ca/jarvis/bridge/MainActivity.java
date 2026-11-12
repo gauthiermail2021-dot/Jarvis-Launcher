@@ -267,17 +267,17 @@ public class MainActivity extends ComponentActivity {
 
         TextView chatgptAutoHelp = new TextView(this);
         chatgptAutoHelp.setText("Option facultative : activer l'accessibilité Jarvis "
-                + "pour détecter l'ouverture de ChatGPT et le retour au premier plan de xTool Creative Space. "
-                + "Autorisation facultative, désactivée par défaut. "
-                + "Jarvis ne lit pas le contenu des fenêtres avec ce service.");
+                + "pour diagnostiquer les éléments accessibles de xTool Creative Space. "
+                + "L'ouverture de ChatGPT ne déclenche plus la bulle Jarvis. "
+                + "La lecture xTool reste locale et limitée aux diagnostics EasySet.");
         layout.addView(chatgptAutoHelp);
         Button chatgptAuto = new Button(this);
-        chatgptAuto.setText("Configurer la bulle et l'analyse auto xTool");
+        chatgptAuto.setText("Configurer l'accessibilité xTool");
         layout.addView(chatgptAuto);
         chatgptAuto.setOnClickListener(v -> {
             Intent settings = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(settings);
-            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — ChatGPT et xTool. "
+            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — xTool. "
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 

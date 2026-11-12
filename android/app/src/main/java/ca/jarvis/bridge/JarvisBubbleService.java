@@ -133,8 +133,8 @@ public final class JarvisBubbleService extends Service {
             createNotification();
             try {
                 showBubble();
-                // If ChatGPT started this floating bubble, request the one
-                // Android consent for the Jarvis session once. A denied/blocked
+                // For a manually started Jarvis bubble, request the one
+                // Android consent for the session once. A denied/blocked
                 // start falls back to the existing bubble menu.
                 if (!consentAttemptedForThisBubble) {
                     consentAttemptedForThisBubble = true;
@@ -676,25 +676,18 @@ public final class JarvisBubbleService extends Service {
         }
     }
 
+    /**
+     * Menu principal concis. Les outils techniques restent disponibles dans
+     * un deuxieme niveau, mais aucun diagnostic ne s'ouvre tout seul ici.
+     */
     private void showMenu() {
         if (wm == null || bubble == null || menuView != null) return;
-        cancelCollapse();
+        LinearLayout menu = createMenuPanel("JARVIS · MENU");
 
-        LinearLayout menu = new LinearLayout(this);
-        menu.setOrientation(LinearLayout.VERTICAL);
-        menu.setPadding(dp(12), dp(10), dp(12), dp(12));
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(Color.rgb(19, 34, 53));
-        background.setCornerRadius(dp(16));
-        background.setStroke(dp(2), Color.rgb(57, 209, 255));
-        menu.setBackground(background);
-
-        TextView title = new TextView(this);
-        title.setText("JARVIS · Menu");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(17);
-        title.setPadding(dp(7), dp(4), dp(7), dp(8));
-        menu.addView(title);
+        addMenuButton(menu, "Envoyer SVG test (+1)", this::launchNumberedSvgTest);
+        addMenuButton(menu, "EasySet", () ->
+                showEasySetBanner(
+                        ChatGptBubbleAccessibilityService.easySetShortStatus()));
 
         if (XtoolSessionManager.isActive(this)) {
             addMenuButton(menu, "Terminer la session xTool", () -> {
@@ -707,20 +700,28 @@ public final class JarvisBubbleService extends Service {
             });
         }
 
-        // One-tap diagnostic showing exactly which Android prerequisite or
-        // accessible xTool heading detection failed, without recording app data.
+        addMenuButton(menu, "Réglages et diagnostics", this::showDiagnosticsMenu);
+        addMenuButton(menu, "Fermer la bulle", () -> {
+            EasySetSessionService.requestStop(this);
+            stopSelf();
+        });
+        attachMenu(menu, false);
+    }
+
+    /** Fonctions avancees accessibles sans surcharger le menu principal. */
+    private void showDiagnosticsMenu() {
+        if (wm == null || bubble == null || menuView != null) return;
+        LinearLayout menu = createMenuPanel("JARVIS · RÉGLAGES");
+
         addMenuButton(menu, "Diagnostic EasySet (connexion)", () ->
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.easySetConnectionDiagnostic()));
-
         addMenuButton(menu, "Voir les mots détectés (xTool)", () ->
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.xToolDiscoveredWordsDiagnostic()));
-
         addMenuButton(menu, "Inspecter les commandes xTool", () ->
                 showEasySetBanner(
                         ChatGptBubbleAccessibilityService.xToolControlsDiagnostic()));
-
         addMenuButton(menu, "Tester clic Volet EasySet", () ->
                 ChatGptBubbleAccessibilityService.requestEasySetPanelClickTest());
 
@@ -730,10 +731,10 @@ public final class JarvisBubbleService extends Service {
             addMenuButton(menu, "Arrêter le partage d'écran", () ->
                     EasySetSessionService.requestStop(this));
         } else {
-            addMenuButton(menu, "Autoriser la capture pour la session", this::launchEasySetSessionConsent);
+            addMenuButton(menu, "Autoriser la capture pour la session",
+                    this::launchEasySetSessionConsent);
         }
 
-        // Manual fallback and visibility control for the independent SVG bubble.
         boolean testBubbleEnabled = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getBoolean("test_svg_bubble_enabled", true);
         addMenuButton(menu, testBubbleEnabled
@@ -747,16 +748,13 @@ public final class JarvisBubbleService extends Service {
                 svgTestBubble = null;
             }
         });
-        addMenuButton(menu, "Envoyer SVG test (+1)", this::launchNumberedSvgTest);
-
         addMenuButton(menu, "Ouvrir Jarvis Bridge", () -> {
             Intent app = new Intent(this, MainActivity.class);
-            // Nouvelle fenêtre complète : ne pas réutiliser l'Activity
-            // transparente créée par le lancement compact de l'icône.
             app.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(app);
         });
-        addMenuButton(menu, animationsEnabled ? "Animations : activées" : "Animations : désactivées", () -> {
+        addMenuButton(menu,
+                animationsEnabled ? "Animations : activées" : "Animations : désactivées", () -> {
             animationsEnabled = !animationsEnabled;
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("animations", animationsEnabled).apply();
@@ -767,31 +765,63 @@ public final class JarvisBubbleService extends Service {
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putBoolean("sounds_enabled", soundsEnabled).apply();
         });
-        addMenuButton(menu, "Fermer la bulle", () -> {
-            EasySetSessionService.requestStop(this);
-            stopSelf();
-        });
-        addMenuButton(menu, "Annuler", () -> { });
+        addMenuButton(menu, "Retour au menu", this::showMenu);
+        attachMenu(menu, true);
+    }
 
-        int menuWidth = dp(228);
+    private LinearLayout createMenuPanel(String heading) {
+        cancelCollapse();
+        LinearLayout menu = new LinearLayout(this);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        menu.setPadding(dp(12), dp(10), dp(12), dp(12));
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(Color.rgb(19, 34, 53));
+        background.setCornerRadius(dp(16));
+        background.setStroke(dp(2), Color.rgb(57, 209, 255));
+        menu.setBackground(background);
+
+        TextView title = new TextView(this);
+        title.setText(heading);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(17);
+        title.setPadding(dp(7), dp(4), dp(7), dp(8));
+        menu.addView(title);
+        return menu;
+    }
+
+    private void attachMenu(LinearLayout content, boolean scrollable) {
+        if (menuView != null || wm == null || params == null) return;
+        int menuWidth = dp(240);
+        Point display = new Point();
+        wm.getDefaultDisplay().getRealSize(display);
+        final View panel;
+        if (scrollable) {
+            android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+            scroll.setFillViewport(false);
+            scroll.setVerticalScrollBarEnabled(true);
+            scroll.addView(content);
+            panel = scroll;
+        } else {
+            panel = content;
+        }
+        int maxHeight = Math.min(dp(scrollable ? 560 : 430),
+                Math.max(dp(180), display.y - dp(110)));
         WindowManager.LayoutParams options = new WindowManager.LayoutParams(
                 menuWidth,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                scrollable ? maxHeight : WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 PixelFormat.TRANSLUCENT);
         options.gravity = Gravity.TOP | Gravity.LEFT;
-        Point display = new Point();
-        wm.getDefaultDisplay().getRealSize(display);
         int left = params.x - menuWidth - dp(8);
         if (left < 0) left = params.x + params.width + dp(8);
         options.x = Math.max(0, Math.min(left, display.x - menuWidth));
-        options.y = Math.max(0, Math.min(params.y, display.y - dp(455)));
+        options.y = Math.max(0, Math.min(params.y, display.y - maxHeight - dp(12)));
 
-        menuView = menu;
+        menuView = panel;
         try {
-            wm.addView(menu, options);
+            wm.addView(panel, options);
         } catch (Exception error) {
             menuView = null;
             Toast.makeText(this, "Menu Jarvis indisponible : " + error.getMessage(),
