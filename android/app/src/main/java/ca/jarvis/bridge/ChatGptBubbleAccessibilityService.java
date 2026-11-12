@@ -35,6 +35,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     // preserving duplicates/source: never collect numeric control values.
     private static volatile String lastEasySetExactLabels = "Aucun libellé relevé";
     private static volatile long lastXtoolTreeAt;
+    // Last on-device xTool snapshot only; never persisted or uploaded.
+    // Includes all text/content descriptions exposed by Android, not just
+    // the 5 heading matches. Available only from a user-opened diagnostic.
+    private static volatile String lastDiscoveredXtoolWords =
+            "Aucune inspection xTool disponible.";
+    private static volatile long lastDiscoveredWordsAt;
 
     static String easySetConnectionDiagnostic() {
         long now = SystemClock.elapsedRealtime();
@@ -55,6 +61,20 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 + "\nAucun paramètre modifié.";
     }
 
+    static String xToolDiscoveredWordsDiagnostic() {
+        long since = lastDiscoveredWordsAt == 0L ? -1L
+                : Math.max(0L, (SystemClock.elapsedRealtime()
+                - lastDiscoveredWordsAt) / 1000L);
+        return "DIAGNOSTIC EASYSET — MOTS xTool\n"
+                + "Source : service d'accessibilité Android (xTool uniquement)\n"
+                + (since < 0 ? "Aucune lecture effectuée.\n"
+                : "Dernière lecture : " + since + " s.\n")
+                + "« Texte » = texte accessible ; « Description » = libellé "
+                + "d'accessibilité, parfois invisible à l'écran.\n\n"
+                + lastDiscoveredXtoolWords
+                + "\n\nLecture locale uniquement. Aucun paramètre modifié.";
+    }
+
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
@@ -63,6 +83,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         lastXtoolTreeAt = 0L;
         lastXtoolTreeStatus = "Aucune inspection";
         lastEasySetExactLabels = "Aucun libellé relevé";
+        lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
+        lastDiscoveredWordsAt = 0L;
     }
     private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
@@ -141,6 +163,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastXtoolNodes = 0;
             lastEasySetHeadings = 0;
             lastEasySetExactLabels = "Aucun libellé relevé";
+            lastDiscoveredXtoolWords = "Fenêtre Android indisponible.";
+            lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
             return;
         }
         if (!EasySetForegroundScanPolicy.XCS_PACKAGE
@@ -149,6 +173,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastXtoolNodes = 0;
             lastEasySetHeadings = 0;
             lastEasySetExactLabels = "Aucun libellé relevé";
+            lastDiscoveredXtoolWords = "Fenêtre active différente de xTool.";
+            lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
             return;
         }
 
@@ -157,6 +183,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ArrayDeque<NodeAtDepth> queue = new ArrayDeque<>();
         List<String> labels = new ArrayList<>(12);
         List<String> exactLabels = new ArrayList<>(12);
+        List<String> allAccessibleWords = new ArrayList<>(40);
         queue.add(new NodeAtDepth(root, 0));
         int examined = 0;
 
@@ -168,6 +195,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             if (pkg != null && !EasySetForegroundScanPolicy.XCS_PACKAGE
                     .contentEquals(pkg)) continue;
 
+            XtoolAccessibleWords.add(allAccessibleWords, node.getText(), "Texte");
+            XtoolAccessibleWords.add(allAccessibleWords,
+                    node.getContentDescription(), "Description");
             collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
             collectEasySetLabel(node.getContentDescription(), labels,
                     exactLabels, "Description");
@@ -185,6 +215,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 EasySetAccessiblePanel.classify(labels);
         lastXtoolNodes = examined;
         lastEasySetHeadings = labels.size();
+        lastDiscoveredXtoolWords =
+                XtoolAccessibleWords.format(allAccessibleWords, examined);
+        lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
         lastEasySetExactLabels = EasySetDiagnosticHeadings.enumerate(exactLabels);
         lastXtoolTreeStatus = state == EasySetAccessiblePanel.State.OPEN
                 ? "EasySet ouvert visible" : state == EasySetAccessiblePanel.State.CLOSED
@@ -242,6 +275,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     @Override
     public void onDestroy() {
         accessibilityConnected = false;
+        lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
+        lastDiscoveredWordsAt = 0L;
         if (pendingPanelRead != null)
             panelHandler.removeCallbacks(pendingPanelRead);
         pendingPanelRead = null;
