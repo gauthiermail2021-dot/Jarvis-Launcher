@@ -1,9 +1,7 @@
 package ca.jarvis.bridge;
 
 import android.accessibilityservice.AccessibilityService;
-import android.content.Intent;
 import android.graphics.Rect;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -16,14 +14,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Optional, explicitly enabled accessibility service.
+ * Optional accessibility service. Does not observe or open ChatGPT.
  * Optionally observes UI labels in the foreground xTool accessibility tree,
  * ONLY while the named xTool app is active. It never performs gestures or
  * changes an editable value. Read label snapshots are never persisted.
  * The existing Android screen capture requires separate consent.
  */
 public final class ChatGptBubbleAccessibilityService extends AccessibilityService {
-    private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
     // These diagnostics contain ONLY connection state, timings and counts,
     // never window text, numbers, screenshots or user-specific app contents.
     private static volatile boolean accessibilityConnected;
@@ -142,7 +139,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
         lastControlInspectionAt = 0L;
     }
-    private long lastOpenRequestMillis;
     private long lastXtoolScanRequestMillis = -EasySetForegroundScanPolicy.MIN_INTERVAL_MS;
     private long lastNamedPanelTapMs = -EasySetPanelTapPolicy.NAMED_TAP_COOLDOWN_MS;
     private long lastUnnamedPanelTapMs = -EasySetPanelTapPolicy.UNNAMED_TAP_COOLDOWN_MS;
@@ -163,9 +159,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         if (!foregroundTransition && !contentChanged && !clicked) return;
 
         CharSequence pkg = event.getPackageName();
-        if (CHATGPT_PACKAGE.contentEquals(pkg)) {
-            if (foregroundTransition) openChatGptBubbleIfNeeded();
-        } else if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
+        if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
             lastXtoolEventAt = SystemClock.elapsedRealtime();
             lastXtoolEventType = type;
             // xTool may implement "Volet EasySet" as a custom view whose tap
@@ -439,21 +433,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         // This bypasses the older "a previous screenshot must be CLOSED"
         // prerequisite and the prior-success block, but not Android consent.
         EasySetSessionService.requestPanelTapScan(this);
-    }
-
-    private void openChatGptBubbleIfNeeded() {
-        if (!Settings.canDrawOverlays(this) || JarvisBubbleService.isBubbleActive()) return;
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastOpenRequestMillis < 2500L) return;
-        lastOpenRequestMillis = now;
-        try {
-            Intent bubble = new Intent(this, JarvisBubbleService.class);
-            if (Build.VERSION.SDK_INT >= 26) startForegroundService(bubble);
-            else startService(bubble);
-        } catch (RuntimeException ignored) {
-            // Keep the manual button available on Android versions that
-            // prohibit background service launches.
-        }
     }
 
     private void inspectExistingXtoolDrawing(boolean panelContentChanged) {

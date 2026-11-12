@@ -133,8 +133,8 @@ public final class JarvisBubbleService extends Service {
             createNotification();
             try {
                 showBubble();
-                // If ChatGPT started this floating bubble, request the one
-                // Android consent for the Jarvis session once. A denied/blocked
+                // For a manually started Jarvis bubble, request the one
+                // Android consent for the session once. A denied/blocked
                 // start falls back to the existing bubble menu.
                 if (!consentAttemptedForThisBubble) {
                     consentAttemptedForThisBubble = true;
