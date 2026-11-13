@@ -6,7 +6,7 @@ name: Build canonical Jarvis Android APK (tests and signature)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, integration/main-jarvis-1.2.69-baseline]
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
