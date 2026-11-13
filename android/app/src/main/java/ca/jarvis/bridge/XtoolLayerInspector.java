@@ -27,6 +27,7 @@ final class XtoolLayerInspector {
         if (root.getPackageName() == null
                 || !EasySetForegroundScanPolicy.XCS_PACKAGE
                 .contentEquals(root.getPackageName())) {
+            root.recycle();
             return prefix + "La fenetre active n'est pas xTool Creative Space.\n"
                     + "Ouvrir le panneau Calque dans XCS avant la lecture.";
         }
@@ -39,9 +40,13 @@ final class XtoolLayerInspector {
         int matched = 0;
         boolean red = false, green = false, blue = false, layer = false;
 
+        // The root must remain valid through the final Conception/Dégrouper
+        // inspection. Every child, parent and the root itself is released.
+        try {
         while (!queue.isEmpty() && examined < MAX_NODES) {
             NodeDepth item = queue.removeFirst();
             AccessibilityNodeInfo node = item.node;
+            try {
             examined++;
             if (node.getPackageName() != null
                     && !EasySetForegroundScanPolicy.XCS_PACKAGE
@@ -73,15 +78,21 @@ final class XtoolLayerInspector {
                 if (node.getClassName() != null)
                     matches.append("; type=").append(node.getClassName());
                 AccessibilityNodeInfo parent = node.getParent();
-                for (int depth = 0; parent != null && depth < 3; depth++) {
-                    if (parent.isClickable()) {
-                        Rect parentArea = new Rect();
-                        parent.getBoundsInScreen(parentArea);
-                        matches.append("\n   parent cliquable : ")
-                                .append(rectText(parentArea));
-                        break;
+                try {
+                    for (int depth = 0; parent != null && depth < 3; depth++) {
+                        if (parent.isClickable()) {
+                            Rect parentArea = new Rect();
+                            parent.getBoundsInScreen(parentArea);
+                            matches.append("\n   parent cliquable : ")
+                                    .append(rectText(parentArea));
+                            break;
+                        }
+                        AccessibilityNodeInfo next = parent.getParent();
+                        parent.recycle();
+                        parent = next;
                     }
-                    parent = parent.getParent();
+                } finally {
+                    if (parent != null) parent.recycle();
                 }
             }
 
@@ -91,6 +102,9 @@ final class XtoolLayerInspector {
                 AccessibilityNodeInfo child = node.getChild(i);
                 if (child != null)
                     queue.addLast(new NodeDepth(child, item.depth + 1));
+            }
+            } finally {
+                if (node != root) node.recycle();
             }
         }
 
@@ -127,6 +141,14 @@ final class XtoolLayerInspector {
         result.append("\n\nUne etiquette de couleur ne prouve pas le type de traitement. ")
                 .append("Lecture seule, aucun reglage modifie.");
         return result.toString();
+        } finally {
+            // The MAX_NODES cap can leave obtained child nodes queued.
+            while (!queue.isEmpty()) {
+                NodeDepth leftover = queue.removeFirst();
+                if (leftover.node != root) leftover.node.recycle();
+            }
+            root.recycle();
+        }
     }
 
     private static String clean(CharSequence raw) {
