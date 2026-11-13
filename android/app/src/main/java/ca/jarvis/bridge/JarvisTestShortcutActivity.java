@@ -245,6 +245,11 @@ public class JarvisTestShortcutActivity extends ComponentActivity {
                         // a second copy of these same bytes.
                         JarvisTestSvgLocalHandoff.saveAndOpen(this, filename, svg);
                         JarvisBubbleService.onSvgOpenRequested(true);
+                        // The bubble's local fast path must arm the SAME
+                        // Conception -> Dégrouper one-shot as Gmail import.
+                        // Without this, SVG opens but never ungroups.
+                        ChatGptBubbleAccessibilityService
+                                .requestAutomaticUngroupAfterSvg();
                         finishSend("SVG envoyé et ouverture xTool demandée !\n"
                                 + filename);
                         // The transparent sender should never remain as an
