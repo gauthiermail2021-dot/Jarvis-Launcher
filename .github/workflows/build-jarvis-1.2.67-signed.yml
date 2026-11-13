@@ -75,7 +75,7 @@ jobs:
         run: gradle --no-daemon testReleaseUnitTest assembleRelease
       - name: Verify version and identity before publishing APK
         run: |
-          grep -F "versionCode 84" android/app/build.gradle
+          grep -F "versionCode 86" android/app/build.gradle
           grep -F "versionName '1.2.67'" android/app/build.gradle
           grep -F "applicationId 'ca.jarvis.bridge'" android/app/build.gradle
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging \
