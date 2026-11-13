@@ -646,14 +646,14 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     // No gestures, clicks or value changes: inspect only named
                     // EasySet nodes and the immediately associated parent.
                     appendEasySetControl(node, easySetControls);
-        
+
                     if (item.depth >= maxDepth) continue;
                     int count = Math.min(40, node.getChildCount());
                     for (int i = 0; i < count && queue.size() < maxNodes; i++) {
                         AccessibilityNodeInfo child = node.getChild(i);
                         if (child != null) queue.addLast(
                                 new NodeAtDepth(child, item.depth + 1));
-            }
+                    }
                 } finally {
                     node.recycle();
                 }
