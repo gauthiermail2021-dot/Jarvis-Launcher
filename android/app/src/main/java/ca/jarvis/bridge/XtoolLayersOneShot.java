@@ -131,6 +131,148 @@ final class XtoolLayersOneShot {
         }
     }
 
+    /**
+     * Close the contextual menu only while the exact Dégrouper action
+     * is exposed. First use Android's own ACTION_DISMISS if available.
+     * Otherwise one user-requested touch in the clear top-right corner
+     * of the drawing canvas. Never use a screen-global Back or fixed pixels.
+     *
+     * Callback is always deferred so the caller can mark the stage in-flight.
+     */
+    static boolean dismissUngroupMenu(AccessibilityService service,
+                                      Handler handler, Outcome callback) {
+        if (dismissUngroupPopupIfExposed(service)) {
+            handler.post(() -> callback.finished(true));
+            return true;
+        }
+        return touchClearCanvasCorner(service, handler, callback);
+    }
+
+    private static boolean touchClearCanvasCorner(AccessibilityService service,
+                                                   Handler handler,
+                                                   Outcome callback) {
+        AccessibilityNodeInfo root = null, ungroup = null, tab = null;
+        try {
+            root = service.getRootInActiveWindow();
+            if (!isXtool(root)) return false;
+            Point screen = screen(service);
+            if (screen == null) return false;
+
+            // Don't tap any canvas corner unless the active xTool screen
+            // actually contains the known Dégrouper menu and selected
+            // Conception tab. This is not a general-purpose global click.
+            ungroup = findUngroup(root, 0);
+            if (ungroup == null) return false;
+            tab = findSelectedConception(root, 0);
+            if (tab == null) return false;
+
+            Rect tabArea = new Rect();
+            tab.getBoundsInScreen(tabArea);
+            int x = screen.x * 94 / 100;
+            int y = tabArea.top * 38 / 100;
+            if (!XtoolLayersPolicy.validBlankCanvasCorner(
+                    x, y, screen.x, screen.y, tabArea.top)) return false;
+
+            Rect menuBox = new Rect();
+            ungroup.getBoundsInScreen(menuBox);
+            if (menuBox.contains(x, y)) return false;
+
+            // A visible button/label at this point means it may not
+            // be blank. Avoid the touch rather than hit another command.
+            if (containsSmallAccessibleControl(root, x, y,
+                    screen.x, screen.y, 0)) return false;
+
+            Path path = new Path();
+            path.moveTo(x, y);
+            GestureDescription gesture = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(
+                            path, 0L, 95L)).build();
+            boolean accepted = service.dispatchGesture(gesture,
+                    new AccessibilityService.GestureResultCallback() {
+                        @Override public void onCompleted(
+                                GestureDescription description) {
+                            lastAttempt = "Coin libre touché pour fermer le menu; "
+                                    + "fermeture visuelle à vérifier.";
+                            callback.finished(true);
+                        }
+                        @Override public void onCancelled(
+                                GestureDescription description) {
+                            lastAttempt = "Toucher du coin libre annulé par Android.";
+                            callback.finished(false);
+                        }
+                    }, handler);
+            if (!accepted) {
+                lastAttempt = "Android a refusé le toucher du coin libre.";
+                handler.post(() -> callback.finished(false));
+            }
+            return true;
+        } catch (RuntimeException e) {
+            lastAttempt = "Zone libre introuvable : "
+                    + e.getClass().getSimpleName();
+            return false;
+        } finally {
+            if (tab != null) tab.recycle();
+            if (ungroup != null) ungroup.recycle();
+            if (root != null) root.recycle();
+        }
+    }
+
+    private static boolean containsSmallAccessibleControl(
+            AccessibilityNodeInfo node, int x, int y, int sw, int sh, int depth) {
+        if (!isXtool(node) || depth > 14) return false;
+        Rect b = new Rect();
+        node.getBoundsInScreen(b);
+        if (node.isVisibleToUser() && b.contains(x, y)
+                && b.width() > 0 && b.height() > 0
+                && b.width() < sw * 65L / 100
+                && b.height() < sh * 50L / 100
+                && (node.isClickable()
+                    || textPresent(node.getText())
+                    || textPresent(node.getContentDescription()))) {
+            return true;
+        }
+        int n = Math.min(40, node.getChildCount());
+        for (int i = 0; i < n; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try {
+                if (containsSmallAccessibleControl(child, x, y,
+                        sw, sh, depth + 1)) return true;
+            } finally {
+                child.recycle();
+            }
+        }
+        return false;
+    }
+
+    private static boolean textPresent(CharSequence text) {
+        return text != null && text.length() > 0;
+    }
+
+    private static AccessibilityNodeInfo findSelectedConception(
+            AccessibilityNodeInfo node, int depth) {
+        if (!isXtool(node) || depth > 14) return null;
+        if (node.isVisibleToUser() && node.isSelected()
+                && (XtoolConceptionTabPolicy.isConception(node.getText())
+                    || XtoolConceptionTabPolicy.isConception(
+                        node.getContentDescription()))) {
+            return AccessibilityNodeInfo.obtain(node);
+        }
+        int n = Math.min(40, node.getChildCount());
+        for (int i = 0; i < n; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try {
+                AccessibilityNodeInfo found =
+                        findSelectedConception(child, depth + 1);
+                if (found != null) return found;
+            } finally {
+                child.recycle();
+            }
+        }
+        return null;
+    }
+
     private static void tap(AccessibilityService service, Handler handler,
                             Rect box, Outcome callback) {
         Path path = new Path();

@@ -29,6 +29,17 @@ public class XtoolLayersPolicyTest {
                 30, 2700, 80, 2725, 1440, 3088));
     }
 
+    @Test public void blankCornerOnlyInsideKnownDesignCanvas() {
+        assertTrue(XtoolLayersPolicy.validBlankCanvasCorner(
+                1353, 620, 1440, 3088, 1633));
+        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
+                1353, 120, 1440, 3088, 1633));
+        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
+                800, 620, 1440, 3088, 1633));
+        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
+                1353, 620, 1440, 3088, 200));
+    }
+
     @Test public void onlyPopupSizedMenuMayBeDismissed() {
         assertTrue(XtoolLayersPolicy.validMenuToDismiss(
                 30, 1450, 700, 2200, 1440, 3088));

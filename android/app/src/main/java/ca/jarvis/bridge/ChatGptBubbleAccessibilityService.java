@@ -131,6 +131,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private boolean layersPending;
     private boolean layersDispatched;
     private boolean layersDismissAttempted;
+    private boolean layersDismissInFlight;
     private Runnable layersEventCheck;
     private final List<Runnable> layersChecks = new ArrayList<>();
     private static volatile String lastLayersSequence =
@@ -221,21 +222,24 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 lastUngroupSequence = "Conception confirmé; tentative Dégrouper.";
                 boolean found = XtoolUngroupOneShot.tryOnce(
                         this, panelHandler, (touchSent, confirmed) -> {
+                            // dispatchGesture() calls back asynchronously.
+                            // Do not invalidate the ticket while Android
+                            // is still completing the Dégrouper gesture.
+                            if (!ungroupPending || ticket != ungroupTicket) return;
                             lastUngroupSequence = touchSent
                                     ? "Toucher Dégrouper envoyé; séparation non vérifiée."
                                     : "Contrôle Dégrouper non activé; voir Dernière tentative.";
                             JarvisBubbleService.onUngroupAutoFinished(
                                     touchSent, confirmed);
-                            // This is the same path for Gmail SVGs and the
-                            // local SVG bubble. Only an accepted action starts
-                            // the read-only/menu/Calques stage.
-                            if (touchSent && ungroupPending
-                                    && ticket == ungroupTicket)
-                                armLayersAfterUngroup();
+                            cancelUngroupAfterSvg();
+                            if (touchSent) armLayersAfterUngroup();
                         });
                 if (found) {
-                    ungroupDispatched = true;
-                    cancelUngroupAfterSvg();
+                    // Keep the ticket until the actual result arrives.
+                    // For synchronous ACTION_CLICK callbacks, it may
+                    // already have been consumed by the callback.
+                    if (ungroupPending && ticket == ungroupTicket)
+                        ungroupDispatched = true;
                 } else {
                     lastUngroupSequence =
                             "Conception confirmé; contrôle Dégrouper non encore exposé.";
@@ -247,9 +251,11 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         Runnable expiry = () -> {
             if (ungroupPending && ticket == ungroupTicket) {
                 boolean selected = conceptionTouched;
+                boolean awaitingTouch = ungroupDispatched;
                 cancelUngroupAfterSvg();
-                lastUngroupSequence = selected
-                        ? "Délai atteint : Dégrouper non trouvé."
+                lastUngroupSequence = awaitingTouch
+                        ? "Délai Android atteint : toucher Dégrouper non confirmé."
+                        : selected ? "Délai atteint : Dégrouper non trouvé."
                         : "Délai atteint : Conception non confirmé sélectionné.";
                 if (selected) JarvisBubbleService.onUngroupNotFound();
                 else JarvisBubbleService.onConceptionTabNotFound();
@@ -304,7 +310,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     }
 
     private void attemptLayersButton(int ticket) {
-        if (!layersPending || ticket != layersTicket || layersDispatched) return;
+        if (!layersPending || ticket != layersTicket
+                || layersDispatched || layersDismissInFlight) return;
         if (!XtoolSessionManager.isActive(this)) {
             lastLayersSequence = "Session Jarvis terminée; Calques non touché.";
             cancelLayersAfterSvg();
@@ -312,6 +319,27 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }
         if (clickTestPending || redLayerTapPending) return;
 
+        // Close the contextual Dégrouper menu first. Otherwise Android
+        // may expose Calques underneath it but send the tap to the menu.
+        if (!layersDismissAttempted) {
+            layersDismissAttempted = true;
+            boolean started = XtoolLayersOneShot.dismissUngroupMenu(
+                    this, panelHandler, delivered -> {
+                        if (!layersPending || ticket != layersTicket) return;
+                        layersDismissInFlight = false;
+                        lastLayersSequence = delivered
+                                ? "Toucher de fermeture de menu envoyé; recherche Calques."
+                                : "Menu non fermé; recherche Calques si accessible.";
+                        panelHandler.postDelayed(
+                                () -> attemptLayersButton(ticket), 550L);
+                    });
+            if (started) {
+                layersDismissInFlight = true;
+                return;
+            }
+            lastLayersSequence = "Aucun menu Dégrouper identifié; "
+                    + "recherche du bouton Calques.";
+        }
         boolean found = XtoolLayersOneShot.tryOnce(
                 this, panelHandler, touched -> {
                     if (!layersPending || ticket != layersTicket) return;
@@ -321,19 +349,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     cancelLayersAfterSvg();
                     JarvisBubbleService.onLayersAutoFinished(touched);
                 });
-        if (found) {
-            layersDispatched = true;
-            return;
-        }
-        if (!layersDismissAttempted) {
-            layersDismissAttempted = true;
-            boolean dismissed = XtoolLayersOneShot
-                    .dismissUngroupPopupIfExposed(this);
-            lastLayersSequence = dismissed
-                    ? "Menu Dégrouper fermé; recherche Calques."
-                    : "Menu non refermable par l'accessibilité; "
-                        + "recherche de Calques si visible.";
-        }
+        if (found) layersDispatched = true;
     }
 
     private void cancelLayersAfterSvg() {
@@ -341,6 +357,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         layersPending = false;
         layersDispatched = false;
         layersDismissAttempted = false;
+        layersDismissInFlight = false;
         for (Runnable check : layersChecks) panelHandler.removeCallbacks(check);
         layersChecks.clear();
         if (layersEventCheck != null)

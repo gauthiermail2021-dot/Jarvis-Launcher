@@ -30,6 +30,23 @@ final class XtoolLayersPolicy {
                 && right - left >= 55 && bottom - top >= 50;
     }
 
+    /**
+     * The user-approved empty top-right drawing corner, derived from the
+     * currently selected Conception tab rather than hardcoded pixels.
+     * If xTool's layout cannot be trusted, refuse the gesture.
+     */
+    static boolean validBlankCanvasCorner(int x, int y, int screenWidth,
+                                          int screenHeight, int tabTop) {
+        return screenWidth > 0 && screenHeight > 0
+                && tabTop > screenHeight * 30L / 100
+                && tabTop < screenHeight * 95L / 100
+                && x >= screenWidth * 88L / 100
+                && x <= screenWidth * 97L / 100
+                && y >= screenHeight * 10L / 100
+                && y >= tabTop * 25L / 100
+                && y <= tabTop * 52L / 100;
+    }
+
     /** Dismiss a nearby contextual popup, not a full-screen editor surface. */
     static boolean validMenuToDismiss(int left, int top, int right, int bottom,
                                       int screenWidth, int screenHeight) {
