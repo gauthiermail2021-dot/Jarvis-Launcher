@@ -99,6 +99,18 @@ final class XtoolUngroupOneShot {
                 dispatchTap(service, handler, touch, "tuile icône+texte", callback);
                 return true;
             }
+            // Observed XCS accessibility text is often the *full button*
+            // area, e.g. [28,2004–301,2263] (273x259 px) on Samsung.
+            // It has the exact name but isClickable=false. Tap that same
+            // bounded named tile once rather than an unrelated guess.
+            if (XtoolUngroupPolicy.isNamedUngroupTile(
+                    labelBounds.left, labelBounds.top,
+                    labelBounds.right, labelBounds.bottom,
+                    screen.x, screen.y)) {
+                dispatchTap(service, handler, labelBounds,
+                        "zone exacte « Dégrouper »", callback);
+                return true;
+            }
             lastAttempt = "Libellé Dégrouper trouvé; aucun contrôle cliquable "
                     + "ou tuile compacte identifié. Aucun toucher envoyé.";
             callback.onComplete(false, false);

@@ -24,6 +24,8 @@ final class XtoolUngroupReadiness {
                 + ", sélection Android=" + yes(state.selected)
                 + ", rectangle=" + state.bounds
                 + ". Le bouton ne prouve pas que les objets sont séparés."
+                + "\nSéquence automatique : "
+                + ChatGptBubbleAccessibilityService.automaticUngroupStatus()
                 + "\nDernière tentative : " + XtoolUngroupOneShot.lastAttempt();
     }
 

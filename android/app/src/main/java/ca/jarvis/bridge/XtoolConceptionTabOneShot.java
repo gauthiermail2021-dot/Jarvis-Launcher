@@ -71,6 +71,21 @@ final class XtoolConceptionTabOneShot {
         }
     }
 
+    /**
+     * Only a real Android selected flag on the exact named Conception tab
+     * confirms this prerequisite; dispatchGesture success alone does not.
+     */
+    static boolean isSelected(AccessibilityNodeInfo root) {
+        if (!isXtool(root)) return false;
+        AccessibilityNodeInfo tab = findTab(root, 0);
+        if (tab == null) return false;
+        try {
+            return tab.isSelected();
+        } finally {
+            tab.recycle();
+        }
+    }
+
     static String inspect(AccessibilityNodeInfo root) {
         if (!isXtool(root)) return "fenêtre XCS absente";
         AccessibilityNodeInfo tab = findTab(root, 0);
