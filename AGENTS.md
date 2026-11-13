@@ -1,24 +1,28 @@
-# Instructions de développement — Jarvis (SOURCE CANONIQUE)
+# Instructions pour toute intervention dans Jarvis
 
-IMPORTANT : ce dépôt **Jarvis-Launcher**, branche **main**, est la **seule base** du Jarvis Android actuel. Au 2026-11-10, `main` contient Jarvis 1.2.31, versionCode 50, package `ca.jarvis.bridge`. Le dépôt **Jarvis-Bridge-Android** est une **archive 0.7 obsolète** et ne doit jamais servir de base à une version Jarvis moderne.
+## Source unique et identité
 
-## Pré-vol avant tout changement
+- Dépôt **unique et officiel** : `gauthiermail2021-dot/Jarvis-Launcher`.
+- Application Android : **Jarvis Bridge** ; son `applicationId` reste **`ca.jarvis.bridge`**. Ne pas le renommer sans migration Android explicite.
+- L'autre dépôt, `gauthiermail2021-dot/Jarvis-Bridge-Android`, est un **prototype historique interdit de build**. Ne jamais y créer ni y chercher la version actuelle de l'APK.
+- Le nom `Jarvis-Launcher` désigne le **dépôt GitHub** et le lanceur Web associé, pas une autre application Android.
 
-- Lire le README racine, `docs/SOURCE_OF_TRUTH.md` et `android/app/build.gradle`.
-- Vérifier la branche et le SHA GitHub courant ; ne pas inférer la version à partir du nom du dépôt ou de l'APK.
-- Comparer la dernière branche connue, les tests et les workflows avant de créer une branche basée sur `main`.
-- Travailler sur une branche `feature/` ou `experiment/` depuis `main`, puis ouvrir une PR. Ne pas fusionner sans vérification.
-- Préserver toutes les fonctionnalités cumulées (Gmail → SVG → xTool, notification, bulle, sons, session de capture, validation SVG, OAuth) ; éviter une régression par code partiel.
-- Ne pas modifier le package Android, la signature release permanente, les scopes Gmail ou `targetSdk` sans nécessité documentée.
-- Ne jamais inclure de clé privée, jeton OAuth ni mot de passe dans le dépôt, les logs ou les réponses.
-- Pour EasySet : OCR de **lecture seule**, valeurs non lues si ambiguës. Aucun réglage xTool modifié et **aucune commande laser**.
-- Faire tests JVM + compilation de la bonne variante + signature release + essai réel de l'APK avant d'annoncer que la fonctionnalité fonctionne.
-- Ne pas diffuser de ZIP technique quand l'utilisateur demande un APK ; ne pas nommer un artefact de staging « nouvelle version installable ».
-- Préserver et citer le commit, `versionCode`, lien du build, APK signé durable et procédure de retour arrière.
-- La compilation d'un outil Tesseract expérimental **sans intégration à EasySet** n'est pas une correction OCR livrée.
+## État au 13 novembre 2026 : vérifier avant toute modification
 
-## Historique protégé
+- `main` : source Android **1.2.31**, donc **non actuelle**, conservée en attendant la consolidation.
+- `fix/layers-dismiss-after-ungroup-1.2.69` : dernière base **fonctionnellement testée** sur le Samsung. Conception et Dégrouper OK ; Calques reste inachevé.
+- `fix/audit-stability-1.2.70` : maintenance basée sur 1.2.69, CI réussie ; **non validée sur téléphone** au moment de cette note.
+- Les versions et statuts sont des instantanés, pas des vérités permanentes. Vérifier **branche, SHA, `versionName`, `versionCode`, résultats CI et test téléphone** avant d'agir.
 
-- Base source 1.2.31 : `snapshot/jarvis-1.2.31-build-verified` à `6c7a3fd3767e134cefb2d2598895d963edc78810`.
-- Ancien main du lanceur Web : `archive/pre-canonical-main-2026-11-10`.
-- Essai OCR sur la vraie base : `experiment/easyset-tesseract-1.2.32-preparation` (ne pas fusionner avant validation).
+## Procédure obligatoire
+
+1. Consulter `README.md`, `docs/SOURCE_OF_TRUTH.md`, le `build.gradle` et le commit de la **branche de travail**, pas seulement de `main`.
+2. Pour une évolution du comportement, créer une branche depuis la dernière base **confirmée sur l'appareil**. Ne jamais redémarrer depuis `main` tant qu'il demeure sur 1.2.31. Les ajustements documentaires peuvent être proposés séparément sur `main`.
+3. Préserver les fonctions Gmail → SVG → xTool, la bulle, les animations et sons, la validation SVG et EasySet. Toute régression exige un retour arrière facile.
+4. Ne pas toucher à la signature permanente, aux secrets GitHub ou au client OAuth sans nécessité validée. Ne publier aucun secret.
+5. Les gestes d'interface (Conception, Dégrouper, Calques) ne prouvent pas à eux seuls que xTool a appliqué l'action. Donner un état réel ou « non confirmé ».
+6. Ne pas automatiser le déclenchement du laser ni ses paramètres. OCR EasySet en lecture seule.
+7. Ouvrir une PR, comparer les fichiers, exécuter tests + build release signé, vérifier `apksigner`, puis faire un **essai sur Samsung** avant de déclarer une version stable.
+8. Ne jamais supprimer l'ancien historique ou les branches de restauration sans sauvegarde. Un APK GitHub Actions peut expirer.
+
+Voir `docs/SOURCE_OF_TRUTH.md` pour l'état détaillé et les références de récupération.
