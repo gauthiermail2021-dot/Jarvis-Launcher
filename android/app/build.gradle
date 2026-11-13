@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 82
-        versionName '1.2.63'
-        // Jarvis 1.2.63: only repair accessible Dégrouper targeting; SVG and Gmail unchanged.
+        versionCode 83
+        versionName '1.2.64'
+        // Jarvis 1.2.64: explicit bubble close releases Jarvis xTool session; SVG, Gmail and Conception unchanged.
         // Signed experimental release, must be verified on the Samsung.
     }
 
