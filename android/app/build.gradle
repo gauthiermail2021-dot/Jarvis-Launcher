@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 80
-        versionName '1.2.61'
-        // Jarvis 1.2.61 recovery: exact source of last user-confirmed SVG/XCS baseline 1.2.58.
+        versionCode 81
+        versionName '1.2.62'
+        // Jarvis 1.2.62: test bubble opens its confirmed sent SVG directly, no extra Gmail windows.
         // Signed experimental release, must be verified on the Samsung.
     }
 
