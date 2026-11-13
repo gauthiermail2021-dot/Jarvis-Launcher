@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 77
-        versionName '1.2.58'
-        // Jarvis 1.2.58: navigate named Conception tab before named ungroup; no laser settings.
+        versionCode 80
+        versionName '1.2.61'
+        // Jarvis 1.2.61 recovery: exact source of last user-confirmed SVG/XCS baseline 1.2.58.
         // Signed experimental release, must be verified on the Samsung.
     }
 
