@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 84
-        versionName '1.2.65'
-        // Jarvis 1.2.65: Conception selection verification and safe Dégrouper target bounds.
+        versionCode 85
+        versionName '1.2.66'
+        // Jarvis 1.2.66: conservative xTool process-close observation; preserve confirmed SVG and Dégrouper.
         // Signed experimental release, must be verified on the Samsung.
     }
 

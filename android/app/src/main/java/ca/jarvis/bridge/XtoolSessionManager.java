@@ -24,6 +24,26 @@ final class XtoolSessionManager {
                 .getBoolean(SESSION_ACTIVE, false);
     }
 
+    /** Token of the current protected handoff. A stale watcher must not
+     * close a newer SVG session. Zero means no current session token. */
+    static long startedAt(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (!prefs.getBoolean(SESSION_ACTIVE, false)) return 0L;
+        return prefs.getLong(SESSION_STARTED_AT, 0L);
+    }
+
+    /** Close only the exact observed session; a newer SVG is never affected. */
+    static boolean finishIfStartedAt(Context context, long expectedStart) {
+        synchronized (LOCK) {
+            SharedPreferences prefs =
+                    context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+            if (expectedStart <= 0L || !prefs.getBoolean(SESSION_ACTIVE, false)
+                    || prefs.getLong(SESSION_STARTED_AT, 0L) != expectedStart)
+                return false;
+            return finish(context);
+        }
+    }
+
     static void begin(Context context) {
         synchronized (LOCK) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()

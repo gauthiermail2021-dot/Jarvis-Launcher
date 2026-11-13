@@ -71,6 +71,13 @@ public final class JarvisBubbleService extends Service {
     private float downX, downY;
     private int startX, startY;
     private final Handler gestureHandler = new Handler(Looper.getMainLooper());
+    // Local, no-permission process observation; never infer closure from
+    // leaving the foreground or from unknown process-list visibility.
+    private static final long XTOOL_PRESENCE_POLL_MS = 5000L;
+    private Runnable xtoolPresenceWatch;
+    private long watchedXtoolSessionStart;
+    private boolean xtoolProcessSeen;
+    private int xtoolAbsentSamples;
     private Runnable pendingLongPress;
     private boolean fingerDown = false;
     private boolean longPressHandled = false;
@@ -212,7 +219,81 @@ public final class JarvisBubbleService extends Service {
             visualTitle = "xTool";
             visualDetail = "EN COURS";
             bubble.invalidate();
+            startXtoolPresenceWatch();
         }
+    }
+
+    /**
+     * Best-effort safe auto-release of a Jarvis xTool session.
+     *
+     * The process must first be observed ALIVE during this exact handoff
+     * and later absent in THREE consecutive local checks (5s apart).
+     * Switching apps, leaving xTool in the background, unknown process
+     * visibility or one missed sample must never unlock the session.
+     *
+     * Android may hide other apps' processes; when that happens this
+     * deliberately does nothing and manual "Terminer session" still works.
+     */
+    private void startXtoolPresenceWatch() {
+        if (xtoolPresenceWatch != null || bubble == null
+                || !XtoolSessionManager.isActive(this)) return;
+        watchedXtoolSessionStart = 0L;
+        xtoolProcessSeen = false;
+        xtoolAbsentSamples = 0;
+        xtoolPresenceWatch = new Runnable() {
+            @Override public void run() {
+                if (bubble == null || !XtoolSessionManager.isActive(
+                        JarvisBubbleService.this)) {
+                    stopXtoolPresenceWatch();
+                    return;
+                }
+                long start = XtoolSessionManager.startedAt(
+                        JarvisBubbleService.this);
+                if (start <= 0L) {
+                    stopXtoolPresenceWatch();
+                    return;
+                }
+                if (watchedXtoolSessionStart != start) {
+                    watchedXtoolSessionStart = start;
+                    xtoolProcessSeen = false;
+                    xtoolAbsentSamples = 0;
+                }
+                Boolean present = XtoolProcessPresence.running(
+                        JarvisBubbleService.this);
+                if (Boolean.TRUE.equals(present))
+                    xtoolProcessSeen = true;
+                xtoolAbsentSamples = XtoolCloseDetectionPolicy.nextAbsences(
+                        xtoolProcessSeen, xtoolAbsentSamples, present);
+
+                if (XtoolCloseDetectionPolicy.shouldFinish(
+                        xtoolProcessSeen, xtoolAbsentSamples)
+                        && XtoolSessionManager.finishIfStartedAt(
+                                JarvisBubbleService.this, start)) {
+                    // This updates only the Jarvis bubble and the Gmail
+                    // session gate; it never closes xTool or affects a file.
+                    stopXtoolPresenceWatch();
+                    clearVisualStages();
+                    visualState = STATE_READY;
+                    visualTitle = "JARVIS";
+                    visualDetail = "PRÊT";
+                    visualUntil = 0L;
+                    bubble.invalidate();
+                    return;
+                }
+                gestureHandler.postDelayed(this, XTOOL_PRESENCE_POLL_MS);
+            }
+        };
+        gestureHandler.postDelayed(xtoolPresenceWatch, XTOOL_PRESENCE_POLL_MS);
+    }
+
+    private void stopXtoolPresenceWatch() {
+        if (xtoolPresenceWatch != null) {
+            gestureHandler.removeCallbacks(xtoolPresenceWatch);
+            xtoolPresenceWatch = null;
+        }
+        watchedXtoolSessionStart = 0L;
+        xtoolProcessSeen = false;
+        xtoolAbsentSamples = 0;
     }
 
     private void clampPosition() {
@@ -492,6 +573,9 @@ public final class JarvisBubbleService extends Service {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.
             showStageAfterObservedEvent(STATE_XTOOL, "xTool", "OUVERTURE");
+            JarvisBubbleService current = activeService;
+            if (current != null)
+                current.gestureHandler.post(current::startXtoolPresenceWatch);
         } else {
             showStageAfterObservedEvent(STATE_SUCCESS, "SVG", "ENVOYÉ");
         }
@@ -981,6 +1065,7 @@ public final class JarvisBubbleService extends Service {
     }
 
     @Override public void onDestroy() {
+        stopXtoolPresenceWatch();
         EasySetSessionService.requestStop(this);
         if (activeService == this) activeService = null;
         if (openingAnimator != null) {
