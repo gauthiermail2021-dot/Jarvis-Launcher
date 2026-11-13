@@ -23,7 +23,8 @@ final class XtoolUngroupReadiness {
                 + ", cliquable=" + yes(state.clickable)
                 + ", sélection Android=" + yes(state.selected)
                 + ", rectangle=" + state.bounds
-                + ". Le bouton ne prouve pas que les objets sont séparés.";
+                + ". Le bouton ne prouve pas que les objets sont séparés."
+                + "\nDernière tentative : " + XtoolUngroupOneShot.lastAttempt();
     }
 
     private static String yes(boolean b) { return b ? "oui" : "non"; }
