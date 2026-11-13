@@ -59,6 +59,25 @@ public final class EasySetPassesRegionTest {
         assertTrue(result.contains("Passages : 1"));
     }
 
+    @Test public void numericFieldIsTightAndAnchoredToPasserLabel() {
+        // Coordinates modeled after the November 10 xTool screenshot.
+        var lines = Arrays.asList(
+                at("Volet EasySet", 35, 20, 280, 62),
+                at("Puissance", 77, 166, 307, 206),
+                at("Vitesse", 77, 365, 332, 403),
+                at("Passer", 77, 571, 209, 607));
+        EasySetPassesRegion row = EasySetPassesRegion.find(lines, 869, 1536);
+        assertNotNull(row);
+        EasySetPassesRegion numeric = row.numberField(869, 1536);
+        assertNotNull(numeric);
+        assertTrue("Number field lies to the right of label", numeric.left > 209);
+        assertTrue("Number field must be narrow", numeric.width() < 100);
+        assertTrue("Digit column near 790 px", numeric.left <= 791 && numeric.right >= 799);
+        assertTrue("Digit row near 585 px", numeric.top <= 572 && numeric.bottom >= 600);
+        assertTrue("Must not overlap previous Vitesse row", numeric.top > 500);
+        assertTrue("Must not include next section", numeric.bottom < 680);
+    }
+
     @Test public void neverGuessesOneFromLetterOrArrow() {
         var base = Arrays.asList(
                 at("Volet EasySet", 20, 30, 300, 70),

@@ -33,6 +33,26 @@
                 <data android:scheme="jarvisbridge" android:host="open" />
             </intent-filter>
         </activity>
+        <!-- Second launcher icon: one tap sends the next numbered SVG test
+             through the account explicitly authorized with Google OAuth. -->
+        <activity
+            android:name=".JarvisTestShortcutActivity"
+            android:label="TEST SVG JARVIS"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- A hidden, consent-aware entry point ONLY for an explicit tap on
+             the floating SVG test bubble. Never shows the sender screen. -->
+        <activity
+            android:name=".JarvisSilentSvgSendActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:windowSoftInputMode="stateAlwaysHidden" />
         <service android:name=".JarvisBubbleService" android:exported="false" />
         <activity android:name=".EasySetVisionActivity" android:exported="false" />
         <!-- Transparent, isolated task for a one-time system capture permission.
@@ -54,7 +74,7 @@
         <!-- Facultatif : l'utilisateur doit activer ce service dans Accessibilité. -->
         <service
             android:name=".ChatGptBubbleAccessibilityService"
-            android:label="Jarvis Bridge — ouverture ChatGPT"
+            android:label="Jarvis Bridge — xTool"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>

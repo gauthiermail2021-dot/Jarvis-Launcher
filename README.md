@@ -1,38 +1,33 @@
-# JARVIS — projet officiel
+# JARVIS — dépôt Android officiel
 
-> **Un seul dépôt pour le développement Android : [Jarvis-Launcher](https://github.com/gauthiermail2021-dot/Jarvis-Launcher).**
-> Le logiciel installé sur le téléphone s'appelle **Jarvis Bridge** et conserve volontairement l'identifiant Android `ca.jarvis.bridge`. Le nom du dépôt et celui de l'application sont différents, mais il ne s'agit pas de deux applications concurrentes.
+**Dépôt de développement unique :** [Jarvis-Launcher](https://github.com/gauthiermail2021-dot/Jarvis-Launcher). L'application installée se nomme **Jarvis Bridge** et conserve son identifiant Android **`ca.jarvis.bridge`** ; le nom de l'application et celui du dépôt ne désignent pas deux applications différentes.
 
-## État vérifié le 13 novembre 2026
+## Référence de travail — 13 novembre 2026
 
-| Élément | Référence | État |
+| Élément | Emplacement | Niveau de validation |
 | --- | --- | --- |
-| Dépôt officiel | `Jarvis-Launcher` | **Seul emplacement pour les nouvelles modifications** |
-| Base fonctionnelle testée sur Samsung | [`fix/layers-dismiss-after-ungroup-1.2.69`](../../tree/fix/layers-dismiss-after-ungroup-1.2.69) | **1.2.69**, versionCode **88** ; SVG, Conception et Dégrouper fonctionnent ; **Calques non automatique** |
-| Maintenance issue de cette base | [`fix/audit-stability-1.2.70`](../../tree/fix/audit-stability-1.2.70) | **1.2.70**, versionCode **89** ; nettoyage des ressources d'accessibilité ; compilation/test/signature réussis, **essai sur téléphone non confirmé** |
-| Branche GitHub par défaut | `main` | **Code Android 1.2.31, versionCode 50 : EN RETARD**, à ne pas choisir pour construire une nouvelle version actuelle |
-| Ancien dépôt | [`Jarvis-Bridge-Android`](https://github.com/gauthiermail2021-dot/Jarvis-Bridge-Android) | **Historique seulement. Ne pas y modifier ou compiler Jarvis.** |
+| Code Android de référence | **`main/android/` — Jarvis 1.2.69** (`versionCode 88`) | **Testé sur le Samsung** : ouverture SVG, Conception et Dégrouper opérationnels |
+| Fonction à terminer | Calques après Dégrouper | **Non fonctionnelle automatiquement**, ne pas annoncer le contraire |
+| Maintenance séparée | [`fix/audit-stability-1.2.70`](../../tree/fix/audit-stability-1.2.70) | **1.2.70**, `versionCode 89`, tests/compilation/signature GitHub réussis ; validation sur téléphone à effectuer |
+| Dépôt ancien | [Jarvis-Bridge-Android](https://github.com/gauthiermail2021-dot/Jarvis-Bridge-Android) | **Archivé, lecture seule. Ne pas compiler son prototype.** |
 
-**Attention :** `main` désigne encore la branche par défaut de GitHub ; cela ne garantit pas qu'elle contienne le dernier code Android. En attendant une intégration explicitement validée, toujours utiliser le nom exact de la branche fonctionnelle, son commit et sa version. Ne pas fusionner aveuglément un ancien `main` vers une branche récente.
+**Règle :** la version validée sur téléphone constitue la référence fonctionnelle. Une CI réussie valide la compilation et les tests automatisés, **pas** le comportement xTool sur l'appareil.
 
-## Règles pour chaque développement
+## Procédure de développement
 
-1. Travailler **uniquement dans ce dépôt**. Lire `docs/SOURCE_OF_TRUTH.md` et `android/app/build.gradle` sur **la branche ciblée**.
-2. Partir de la dernière version **validée sur le Samsung** pour toute modification fonctionnelle. La base reconnue est actuellement **1.2.69** ; les corrections 1.2.70 peuvent servir de base de maintenance après revue.
-3. Conserver `applicationId 'ca.jarvis.bridge'`, le certificat de signature release et les autorisations Google Gmail ; ne pas créer une deuxième application pour résoudre une confusion de noms.
-4. Ne pas réactiver les workflows ni reconstruire les anciennes versions de l'autre dépôt. Leurs fichiers subsistent uniquement pour la traçabilité.
-5. Exécuter les tests, compiler la bonne variante, vérifier la signature et **faire confirmer le comportement sur le téléphone** avant d'appeler une version « stable ».
-6. Préserver Gmail → SVG → xTool, la bulle, les sons, la validation SVG, les sessions et l'OCR. Aucun départ automatique du laser.
+1. Lire `AGENTS.md`, `docs/SOURCE_OF_TRUTH.md`, `android/app/build.gradle` et vérifier la branche/SHA courants.
+2. Partir de `main` pour une évolution fonctionnelle après avoir vérifié qu'il pointe toujours vers la dernière **base approuvée sur appareil** ; ne pas réintroduire un ancien prototype.
+3. Créer une branche de correction isolée. Faire une PR avec un diff ciblé, des tests automatisés et un build signé avant la validation manuelle Android.
+4. Préserver l'identifiant `ca.jarvis.bridge`, la signature Android, la configuration Gmail, les accès Android, la bulle, les animations/sons et les garde-fous SVG.
+5. Ne pas automatiser le déclenchement du laser ni modifier les paramètres du traitement ; OCR EasySet en lecture seule.
 
-## Organisation
+## Structure du dépôt
 
-- `android/` : application **Jarvis Bridge** pour Android.
-- `android/app/build.gradle` : nom et numéro de version de la branche.
+- `android/` : **application Jarvis Bridge** Android.
 - `android/app/src/test/` : tests JVM.
-- `.github/workflows/` : anciens et nouveaux workflows **spécifiques à leur branche/version**. Utiliser seulement le workflow correspondant à la branche en cours.
-- `index.html` : lanceur Web historique, **distinct** de l'APK Android.
-- `docs/SOURCE_OF_TRUTH.md` : politique de branchement, sauvegarde et validation.
+- `android/app/build.gradle` : identité et version Android.
+- `.github/workflows/build-jarvis-android.yml` : compilation de contrôle de `main`, tests et signature, **sans publication automatique comme version stable**.
+- `index.html` : lanceur Web préservé, distinct de l'APK.
+- `docs/SOURCE_OF_TRUTH.md` : suivi des états, procédures et sauvegardes.
 
-## Historique
-
-Le développement avait commencé dans un autre dépôt avec un prototype **0.7**, désormais abandonné pour tout développement. Le détail de la série 1.2.31 et des versions plus anciennes est conservé dans l'historique Git, sans l'afficher comme l'état actuel du projet.
+L'ancien prototype, les versions antérieures et leurs workflows restent consultables dans l'historique Git et dans les branches spécifiques, mais ne sont plus proposés comme chemin de développement actif.
