@@ -1,0 +1,49 @@
+name: Publish Jarvis 1.2.70 verified test APK (direct download)
+
+on:
+  push:
+    branches: [release/publish-1.2.70-direct-apk]
+    paths:
+      - '.github/workflows/publish-jarvis-1.2.70-test.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-verified-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK from successful signed test workflow (no rebuild)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 43430743525 \
+            --repo "$GITHUB_REPOSITORY" \
+            --name Jarvis-Bridge-1.2.70-clean-maintenance-signed \
+            --dir artifact
+          test -s artifact/app-release.apk
+          # Cross-check exact binary against locally inspected signed APK.
+          echo "96481f4e9fa85e87657161860bcb426a536fed4468757d9758fb153df9cd87dc  artifact/app-release.apk" | sha256sum --check
+          test "$(wc -c < artifact/app-release.apk)" -eq 77121264
+          cp artifact/app-release.apk Jarvis-Bridge-1.2.70-test.apk
+
+      - name: Create GitHub pre-release with direct APK asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view jarvis-1.2.70-audit-test --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload jarvis-1.2.70-audit-test \
+              Jarvis-Bridge-1.2.70-test.apk \
+              --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create jarvis-1.2.70-audit-test Jarvis-Bridge-1.2.70-test.apk \
+              --repo "$GITHUB_REPOSITORY" \
+              --target e5b06652b5c101b71e7c2443b691b4cfd3e64a4d \
+              --title "Jarvis Bridge 1.2.70 — maintenance TEST Samsung" \
+              --notes "APK Android signé de test, construit depuis fix/audit-stability-1.2.70-clean, workflow #43430743525. Corrections de nettoyage mémoire uniquement. Conception et Dégrouper inchangés. Calques non confirmé / non corrigé. Version de référence testée sur Samsung : 1.2.69. Aucune commande laser automatisée. SHA-256 APK : 96481f4e9fa85e87657161860bcb426a536fed4468757d9758fb153df9cd87dc." \
+              --prerelease
+          fi
