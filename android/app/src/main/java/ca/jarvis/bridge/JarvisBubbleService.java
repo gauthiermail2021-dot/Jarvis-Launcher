@@ -738,6 +738,12 @@ public final class JarvisBubbleService extends Service {
 
         addMenuButton(menu, "Réglages", this::showDiagnosticsMenu);
         addMenuButton(menu, "Fermer la bulle", () -> {
+            // Explicitly closing Jarvis also ends its logical xTool session.
+            // Do not reset from onDestroy(): Android may restart this service
+            // while the user is still working with a drawing.
+            // finish() also advances Gmail's cutoff so older SVG messages
+            // cannot unexpectedly reopen xTool when Jarvis is restarted.
+            XtoolSessionManager.finish(this);
             EasySetSessionService.requestStop(this);
             stopSelf();
         });
