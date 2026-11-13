@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 84
-        versionName '1.2.65'
-        // Jarvis 1.2.65: Conception selection verification and safe Dégrouper target bounds.
+        versionCode 86
+        versionName '1.2.67'
+        // Jarvis 1.2.67: arm the existing automatic ungroup after the SVG bubble opens xTool.
         // Signed experimental release, must be verified on the Samsung.
     }
 
