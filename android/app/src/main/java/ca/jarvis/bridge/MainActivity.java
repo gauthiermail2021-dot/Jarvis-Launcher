@@ -88,6 +88,7 @@ public class MainActivity extends ComponentActivity {
     // Toute notification arrivant pendant la lecture Gmail déclenche une
     // nouvelle vérification à la fin, au lieu d'être silencieusement perdue.
     private static final AtomicBoolean GMAIL_RECHECK_REQUESTED = new AtomicBoolean(false);
+    private static volatile String pendingExactGmailMessageId;
     private static final String HANDLED_GMAIL_IDS = "handled_gmail_ids";
     private static final String GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
     private static final String LABEL_NAME = "Jarvis SVG";
@@ -438,8 +439,19 @@ public class MainActivity extends ComponentActivity {
         // doit remettre la fenêtre Jarvis au premier plan.
         if (XtoolSessionManager.isActive(this)) {
             GMAIL_RECHECK_REQUESTED.set(false);
+            pendingExactGmailMessageId = null;
         }
         if (GMAIL_RECHECK_REQUESTED.getAndSet(false)) {
+            String pendingId = pendingExactGmailMessageId;
+            pendingExactGmailMessageId = null;
+            if (pendingId != null) {
+                Intent queued = new Intent(this, MainActivity.class);
+                queued.setAction(ACTION_CHECK_GMAIL);
+                queued.putExtra(EXTRA_FORCE_SILENT_GMAIL_CHECK, true);
+                queued.putExtra(EXTRA_GMAIL_TEST_MESSAGE_ID, pendingId);
+                setIntent(queued);
+                silentAutoCheck = true;
+            }
             new android.os.Handler(android.os.Looper.getMainLooper())
                     .postDelayed(this::requestGmailAndOpen, 800L);
         } else if (silentAutoCheck || compactLauncher) {
@@ -459,6 +471,14 @@ public class MainActivity extends ComponentActivity {
             return;
         }
         if (isBusy || !GMAIL_CHECK_IN_PROGRESS.compareAndSet(false, true)) {
+            // Preserve the exact ID if a Gmail notification is already being
+            // checked. A generic recheck might miss this new labelled mail.
+            Intent requested = getIntent();
+            if (requested != null) {
+                String id = JarvisGmailTargetPolicy.validMessageId(
+                        requested.getStringExtra(EXTRA_GMAIL_TEST_MESSAGE_ID));
+                if (id != null) pendingExactGmailMessageId = id;
+            }
             GMAIL_RECHECK_REQUESTED.set(true);
             return;
         }
@@ -656,8 +676,11 @@ public class MainActivity extends ComponentActivity {
                 if (exactMessageCheck) return;
                 break;
             }
-            JSONObject message = getJson(API + "/messages/"
-                    + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
+            JSONObject message = exactMessageCheck
+                    ? getExactLabeledMessage(id, token, labelId)
+                    : getJson(API + "/messages/"
+                            + URLEncoder.encode(id, "UTF-8")
+                            + "?format=full", token);
             long timestamp;
             try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
             catch (NumberFormatException ignored) { continue; }
@@ -705,6 +728,12 @@ public class MainActivity extends ComponentActivity {
         }
 
         if (newestMessage == null) {
+            if (exactMessageCheck) {
+                // Do not silently report success when a pressed bubble
+                // produced a valid Gmail message that could not be opened.
+                throw new Exception("SVG Gmail ciblé non récupéré : "
+                        + "vérifier le libellé et la session Jarvis.");
+            }
             if (!silentAutoCheck) runOnUiThread(() ->
                     setStatus("Aucun nouveau dessin SVG à ouvrir"));
             return;
@@ -778,6 +807,39 @@ public class MainActivity extends ComponentActivity {
             }
             // La fermeture automatique est centralisée dans completeGmailCheck().
         });
+    }
+
+    /**
+     * Gmail's send/label calls may succeed before the full message response
+     * exposes its label. Retry in the SAME background reader, without creating
+     * additional Android activities or black-screen flashes.
+     */
+    private JSONObject getExactLabeledMessage(
+            String messageId, String token, String expectedLabel) throws Exception {
+        Exception lastError = null;
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                JSONObject message = getJson(API + "/messages/"
+                        + URLEncoder.encode(messageId, "UTF-8")
+                        + "?format=full", token);
+                JSONArray labels = message.optJSONArray("labelIds");
+                if (labels != null) for (int i = 0; i < labels.length(); i++) {
+                    if (expectedLabel.equals(labels.optString(i)))
+                        return message;
+                }
+            } catch (Exception error) {
+                lastError = error;
+            }
+            if (attempt < 2) {
+                try { Thread.sleep(850L); }
+                catch (InterruptedException error) {
+                    Thread.currentThread().interrupt();
+                    throw new Exception("Lecture Gmail interrompue", error);
+                }
+            }
+        }
+        if (lastError != null) throw lastError;
+        throw new Exception("SVG envoyé mais libellé Gmail non confirmé à la lecture");
     }
 
     private void rememberHandledGmail(SharedPreferences prefs, Set<String> processed,
