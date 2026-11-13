@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 77
-        versionName '1.2.58'
-        // Jarvis 1.2.58: navigate named Conception tab before named ungroup; no laser settings.
+        versionCode 78
+        versionName '1.2.59'
+        // Jarvis 1.2.59: click the accessible Dégrouper action container; stable Gmail.
         // Signed experimental release, must be verified on the Samsung.
     }
 
