@@ -27,6 +27,7 @@ final class XtoolLayerInspector {
         if (root.getPackageName() == null
                 || !EasySetForegroundScanPolicy.XCS_PACKAGE
                 .contentEquals(root.getPackageName())) {
+            root.recycle();
             return prefix + "La fenetre active n'est pas xTool Creative Space.\n"
                     + "Ouvrir le panneau Calque dans XCS avant la lecture.";
         }
@@ -39,94 +40,115 @@ final class XtoolLayerInspector {
         int matched = 0;
         boolean red = false, green = false, blue = false, layer = false;
 
-        while (!queue.isEmpty() && examined < MAX_NODES) {
-            NodeDepth item = queue.removeFirst();
-            AccessibilityNodeInfo node = item.node;
-            examined++;
-            if (node.getPackageName() != null
-                    && !EasySetForegroundScanPolicy.XCS_PACKAGE
-                    .contentEquals(node.getPackageName())) continue;
+        // The root must remain valid through the final Conception/Dégrouper
+        // inspection. Every child, parent and the root itself is released.
+        try {
+            while (!queue.isEmpty() && examined < MAX_NODES) {
+                NodeDepth item = queue.removeFirst();
+                AccessibilityNodeInfo node = item.node;
+                try {
+                    examined++;
+                    if (node.getPackageName() != null
+                            && !EasySetForegroundScanPolicy.XCS_PACKAGE
+                            .contentEquals(node.getPackageName())) continue;
 
-            CharSequence[] labels = {node.getText(), node.getContentDescription()};
-            String[] sources = {"Texte", "Description"};
-            for (int i = 0; i < labels.length; i++) {
-                String word = clean(labels[i]);
-                if (word.isEmpty()) continue;
-                if (words.size() < MAX_WORDS)
-                    words.add(sources[i] + " : «" + word + "»");
+                    CharSequence[] labels = {node.getText(), node.getContentDescription()};
+                    String[] sources = {"Texte", "Description"};
+                    for (int i = 0; i < labels.length; i++) {
+                        String word = clean(labels[i]);
+                        if (word.isEmpty()) continue;
+                        if (words.size() < MAX_WORDS)
+                            words.add(sources[i] + " : «" + word + "»");
 
-                String kind = XtoolLayerNames.classify(word);
-                if ("AUCUN".equals(kind)) continue;
-                if ("ROUGE".equals(kind)) red = true;
-                if ("VERT".equals(kind)) green = true;
-                if ("BLEU".equals(kind)) blue = true;
-                if ("CALQUE".equals(kind)) layer = true;
-                if (matched++ >= MAX_MATCHES) continue;
+                        String kind = XtoolLayerNames.classify(word);
+                        if ("AUCUN".equals(kind)) continue;
+                        if ("ROUGE".equals(kind)) red = true;
+                        if ("VERT".equals(kind)) green = true;
+                        if ("BLEU".equals(kind)) blue = true;
+                        if ("CALQUE".equals(kind)) layer = true;
+                        if (matched++ >= MAX_MATCHES) continue;
 
-                Rect area = new Rect();
-                node.getBoundsInScreen(area);
-                matches.append("\n").append(matched).append(". ")
-                        .append(kind).append(" / ").append(sources[i])
-                        .append(" : «").append(word).append("»")
-                        .append("\n   rectangle ").append(rectText(area))
-                        .append("; cliquable=").append(node.isClickable());
-                if (node.getClassName() != null)
-                    matches.append("; type=").append(node.getClassName());
-                AccessibilityNodeInfo parent = node.getParent();
-                for (int depth = 0; parent != null && depth < 3; depth++) {
-                    if (parent.isClickable()) {
-                        Rect parentArea = new Rect();
-                        parent.getBoundsInScreen(parentArea);
-                        matches.append("\n   parent cliquable : ")
-                                .append(rectText(parentArea));
-                        break;
+                        Rect area = new Rect();
+                        node.getBoundsInScreen(area);
+                        matches.append("\n").append(matched).append(". ")
+                                .append(kind).append(" / ").append(sources[i])
+                                .append(" : «").append(word).append("»")
+                                .append("\n   rectangle ").append(rectText(area))
+                                .append("; cliquable=").append(node.isClickable());
+                        if (node.getClassName() != null)
+                            matches.append("; type=").append(node.getClassName());
+                        AccessibilityNodeInfo parent = node.getParent();
+                        try {
+                            for (int depth = 0; parent != null && depth < 3; depth++) {
+                                if (parent.isClickable()) {
+                                    Rect parentArea = new Rect();
+                                    parent.getBoundsInScreen(parentArea);
+                                    matches.append("\n   parent cliquable : ")
+                                            .append(rectText(parentArea));
+                                    break;
+                                }
+                                AccessibilityNodeInfo next = parent.getParent();
+                                parent.recycle();
+                                parent = next;
+                            }
+                        } finally {
+                            if (parent != null) parent.recycle();
+                        }
                     }
-                    parent = parent.getParent();
+
+                    if (item.depth >= MAX_DEPTH) continue;
+                    int children = Math.min(node.getChildCount(), 40);
+                    for (int i = 0; i < children && queue.size() < MAX_NODES; i++) {
+                        AccessibilityNodeInfo child = node.getChild(i);
+                        if (child != null)
+                            queue.addLast(new NodeDepth(child, item.depth + 1));
+                    }
+                } finally {
+                    if (node != root) node.recycle();
                 }
             }
 
-            if (item.depth >= MAX_DEPTH) continue;
-            int children = Math.min(node.getChildCount(), 40);
-            for (int i = 0; i < children && queue.size() < MAX_NODES; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null)
-                    queue.addLast(new NodeDepth(child, item.depth + 1));
+            StringBuilder result = new StringBuilder(prefix);
+            result.append("Lecture locale : ").append(examined).append(" noeuds Android.\n")
+                    .append("Libelles presents : Calque=").append(layer ? "oui" : "non")
+                    .append(", Rouge=").append(red ? "oui" : "non")
+                    .append(", Vert=").append(green ? "oui" : "non")
+                    .append(", Bleu=").append(blue ? "oui" : "non")
+                    .append(".\n");
+            if (matched == 0) {
+                result.append("Aucun libelle de calque/couleur expose. Les pastilles colorees ")
+                        .append("peuvent etre des dessins sans description Android.\n");
+            } else {
+                result.append("Libelles candidats et zones :").append(matches);
+                if (matched > MAX_MATCHES)
+                    result.append("\n(Affichage limite a ")
+                            .append(MAX_MATCHES).append(" correspondances.)");
             }
+            result.append("\n\nAutres textes accessibles (pour reperer les entrees voisines) :");
+            if (words.isEmpty()) result.append("\nAucun texte expose.");
+            for (int i = 0; i < words.size(); i++)
+                result.append("\n").append(i + 1).append(". ").append(words.get(i));
+            if (words.size() >= MAX_WORDS)
+                result.append("\n(liste limitee a ").append(MAX_WORDS).append(" entrees)");
+            result.append("\n\nConception : ")
+                    .append(XtoolConceptionTabOneShot.inspect(root));
+            result.append("\nDégrouper : ")
+                    .append(XtoolUngroupReadiness.inspect(root));
+            result.append("\n\nSéquence Calques : ")
+                    .append(ChatGptBubbleAccessibilityService.automaticLayersStatus())
+                    .append("\nDernière tentative Calques : ")
+                    .append(XtoolLayersOneShot.lastAttempt());
+            result.append("\n\nUne etiquette de couleur ne prouve pas le type de traitement. ")
+                    .append("Lecture seule, aucun reglage modifie.");
+            return result.toString();
+        } finally {
+            // The MAX_NODES cap can leave obtained child nodes queued.
+            while (!queue.isEmpty()) {
+                NodeDepth leftover = queue.removeFirst();
+                if (leftover.node != root) leftover.node.recycle();
+            }
+            root.recycle();
         }
-
-        StringBuilder result = new StringBuilder(prefix);
-        result.append("Lecture locale : ").append(examined).append(" noeuds Android.\n")
-                .append("Libelles presents : Calque=").append(layer ? "oui" : "non")
-                .append(", Rouge=").append(red ? "oui" : "non")
-                .append(", Vert=").append(green ? "oui" : "non")
-                .append(", Bleu=").append(blue ? "oui" : "non")
-                .append(".\n");
-        if (matched == 0) {
-            result.append("Aucun libelle de calque/couleur expose. Les pastilles colorees ")
-                    .append("peuvent etre des dessins sans description Android.\n");
-        } else {
-            result.append("Libelles candidats et zones :").append(matches);
-            if (matched > MAX_MATCHES)
-                result.append("\n(Affichage limite a ")
-                        .append(MAX_MATCHES).append(" correspondances.)");
-        }
-        result.append("\n\nAutres textes accessibles (pour reperer les entrees voisines) :");
-        if (words.isEmpty()) result.append("\nAucun texte expose.");
-        for (int i = 0; i < words.size(); i++)
-            result.append("\n").append(i + 1).append(". ").append(words.get(i));
-        if (words.size() >= MAX_WORDS)
-            result.append("\n(liste limitee a ").append(MAX_WORDS).append(" entrees)");
-        result.append("\n\nConception : ")
-                .append(XtoolConceptionTabOneShot.inspect(root));
-        result.append("\nDégrouper : ")
-                .append(XtoolUngroupReadiness.inspect(root));
-        result.append("\n\nSéquence Calques : ")
-                .append(ChatGptBubbleAccessibilityService.automaticLayersStatus())
-                .append("\nDernière tentative Calques : ")
-                .append(XtoolLayersOneShot.lastAttempt());
-        result.append("\n\nUne etiquette de couleur ne prouve pas le type de traitement. ")
-                .append("Lecture seule, aucun reglage modifie.");
-        return result.toString();
     }
 
     private static String clean(CharSequence raw) {

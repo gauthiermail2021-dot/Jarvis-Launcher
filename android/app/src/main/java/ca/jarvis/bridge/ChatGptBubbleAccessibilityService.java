@@ -15,10 +15,10 @@ import java.util.List;
 
 /**
  * Optional accessibility service. Does not observe or open ChatGPT.
- * Optionally observes UI labels in the foreground xTool accessibility tree,
- * ONLY while the named xTool app is active. It never performs gestures or
- * changes an editable value. Read label snapshots are never persisted.
- * The existing Android screen capture requires separate consent.
+ * Inspects the foreground xTool accessibility tree only while xTool is active.
+ * After an SVG handoff, explicitly armed one-shot navigation may tap named
+ * design controls; it never starts a laser or changes a machine parameter.
+ * Read label snapshots are never persisted. Screen capture needs consent.
  */
 public final class ChatGptBubbleAccessibilityService extends AccessibilityService {
     // These diagnostics contain ONLY connection state, timings and counts,
@@ -597,6 +597,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
             lastEasySetControlProperties = "Fenêtre Android indisponible.";
             lastControlInspectionAt = SystemClock.elapsedRealtime();
+            if (root != null) root.recycle();
             return;
         }
         if (!EasySetForegroundScanPolicy.XCS_PACKAGE
@@ -609,6 +610,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             lastDiscoveredWordsAt = SystemClock.elapsedRealtime();
             lastEasySetControlProperties = "Fenêtre active différente de xTool.";
             lastControlInspectionAt = SystemClock.elapsedRealtime();
+            root.recycle();
             return;
         }
 
@@ -622,30 +624,44 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         queue.add(new NodeAtDepth(root, 0));
         int examined = 0;
 
-        while (!queue.isEmpty() && examined++ < maxNodes) {
-            NodeAtDepth item = queue.removeFirst();
-            AccessibilityNodeInfo node = item.node;
-            if (node == null) continue;
-            CharSequence pkg = node.getPackageName();
-            if (pkg != null && !EasySetForegroundScanPolicy.XCS_PACKAGE
-                    .contentEquals(pkg)) continue;
+        // AccessibilityNodeInfo objects returned by getChild() / getParent()
+        // are owned by this inspection. Recycle visited and queued objects even
+        // when the bounded traversal stops early or throws.
+        try {
+            while (!queue.isEmpty() && examined++ < maxNodes) {
+                NodeAtDepth item = queue.removeFirst();
+                AccessibilityNodeInfo node = item.node;
+                if (node == null) continue;
+                try {
+                    CharSequence pkg = node.getPackageName();
+                    if (pkg != null && !EasySetForegroundScanPolicy.XCS_PACKAGE
+                            .contentEquals(pkg)) continue;
 
-            XtoolAccessibleWords.add(allAccessibleWords, node.getText(), "Texte");
-            XtoolAccessibleWords.add(allAccessibleWords,
-                    node.getContentDescription(), "Description");
-            collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
-            collectEasySetLabel(node.getContentDescription(), labels,
-                    exactLabels, "Description");
-            // No gestures, clicks or value changes: inspect only named
-            // EasySet nodes and the immediately associated parent.
-            appendEasySetControl(node, easySetControls);
+                    XtoolAccessibleWords.add(allAccessibleWords, node.getText(), "Texte");
+                    XtoolAccessibleWords.add(allAccessibleWords,
+                            node.getContentDescription(), "Description");
+                    collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
+                    collectEasySetLabel(node.getContentDescription(), labels,
+                            exactLabels, "Description");
+                    // No gestures, clicks or value changes: inspect only named
+                    // EasySet nodes and the immediately associated parent.
+                    appendEasySetControl(node, easySetControls);
 
-            if (item.depth >= maxDepth) continue;
-            int count = Math.min(40, node.getChildCount());
-            for (int i = 0; i < count && queue.size() < maxNodes; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null) queue.addLast(
-                        new NodeAtDepth(child, item.depth + 1));
+                    if (item.depth >= maxDepth) continue;
+                    int count = Math.min(40, node.getChildCount());
+                    for (int i = 0; i < count && queue.size() < maxNodes; i++) {
+                        AccessibilityNodeInfo child = node.getChild(i);
+                        if (child != null) queue.addLast(
+                                new NodeAtDepth(child, item.depth + 1));
+                    }
+                } finally {
+                    node.recycle();
+                }
+            }
+        } finally {
+            while (!queue.isEmpty()) {
+                NodeAtDepth leftover = queue.removeFirst();
+                if (leftover.node != null) leftover.node.recycle();
             }
         }
 
@@ -700,10 +716,14 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         item.append(source).append(" : «").append(heading).append("»\n");
         item.append("Élément :\n").append(describeNode(node));
         AccessibilityNodeInfo parent = node.getParent();
-        if (parent != null && parent.getPackageName() != null
-                && EasySetForegroundScanPolicy.XCS_PACKAGE
-                        .contentEquals(parent.getPackageName())) {
-            item.append("\nParent :\n").append(describeNode(parent));
+        try {
+            if (parent != null && parent.getPackageName() != null
+                    && EasySetForegroundScanPolicy.XCS_PACKAGE
+                            .contentEquals(parent.getPackageName())) {
+                item.append("\nParent :\n").append(describeNode(parent));
+            }
+        } finally {
+            if (parent != null) parent.recycle();
         }
         controls.add(item.toString());
     }
