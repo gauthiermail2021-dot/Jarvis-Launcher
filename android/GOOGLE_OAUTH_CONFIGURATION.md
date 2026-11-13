@@ -1,11 +1,11 @@
-# Jarvis Bridge — configuration OAuth Gmail et signature Android
+# Jarvis Bridge — Connexion Google Gmail et signature permanentes
 
-> **Identité active :** dépôt `Jarvis-Launcher`, application Android `ca.jarvis.bridge`. Cette fiche conserve des détails d'authentification établis dans les premières versions ; elle **ne doit pas être lue comme une description de la dernière version de Jarvis**. Pour la bonne branche de compilation, consulter [SOURCE_OF_TRUTH.md](../docs/SOURCE_OF_TRUTH.md).
+**Statut :** la version 1.2.8 a été testée avec succès sur le Samsung, bulle seule visible. La 1.2.9 de stabilisation reste à valider. L'ancienne base v0.7 est conservée sous `android/baseline-v0.7/`.
 
 ## Identité Android stable
 
 - ApplicationId officiel : `ca.jarvis.bridge`, sans suffixes `previewNNN`.
-- Lire la version courante dans `android/app/build.gradle` **sur la branche active** ; les anciens numéros de cette fiche ne sont pas une cible de compilation.
+- Version préparée : `1.2.9` (versionCode 28).
 - Seule la variante `release` destinée au téléphone porte le certificat permanent.
 - Les build `debug` restent réservés au développement sous `ca.jarvis.bridge.dev` et ne sont pas utilisés pour tester OAuth.
 - Le certificat doit être réutilisé **sans changement** pour toutes les prochaines mises à jour officielles.
@@ -42,7 +42,7 @@ Dans **Settings → Secrets and variables → Actions** du dépôt `gauthiermail
 - `JARVIS_KEY_ALIAS` : `jarvisbridge`.
 - `JARVIS_KEY_PASSWORD` : le mot de passe de la clé dans `CONFIGURATION_PRIVEE.txt`.
 
-Chaque workflow de build signé doit refuser de compiler si un secret manque. Ne lancer que le workflow correspondant à la branche et à la version en cours. Après compilation et vérification de signature, le `.jks` temporaire est effacé avant le dépôt d'artefacts. Aucune publication GitHub Releases n'est tentée.
+Le workflow refuse de compiler si un secret est absent. Il se déclenche manuellement ou lors du changement de `android/app/build.gradle` sur la branche dédiée 1.2.9. Après compilation et vérification de signature, le `.jks` temporaire est effacé avant le dépôt d'artefacts. Aucune publication GitHub Releases n'est tentée.
 
 **Sauvegarde :** conserver l'archive privée hors du dépôt GitHub, dans un emplacement fiable. Si la clé privée est perdue, on ne peut pas signer les mises à jour de la même application avec un nouveau certificat.
 
@@ -55,7 +55,7 @@ Chaque workflow de build signé doit refuser de compiler si un secret manque. Ne
 - Bulle inchangée : petite heure, grande sans heure, appui long de 1 s, réduction après 5 s.
 - L'ouverture sans toucher a été validée pour 1.2.8 sur un Samsung Android 13 avec la bulle visible. Elle reste dépendante des autorisations et notifications Gmail/Android.
 
-**Ce que cela ne garantit pas :** la connexion Gmail peut échouer après révocation du consentement OAuth ou en absence de notification Android. La toute nouvelle version doit être validée sur le téléphone avec un nouveau SVG après sa compilation.
+**Ce que cela ne garantit pas :** la connexion Gmail peut échouer après révocation du consentement OAuth ou en absence de notification Android. La 1.2.9 doit être validée sur le téléphone avec un nouveau SVG après sa compilation.
 
 ## Vérifications techniques avant chaque future compilation
 
@@ -64,4 +64,4 @@ Chaque workflow de build signé doit refuser de compiler si un secret manque. Ne
 - `assembleRelease` et non `assembleDebug`.
 - Vérifier l'empreinte du certificat de l'APK contre celle ci-dessus.
 - Ne jamais publier le keystore, ses mots de passe, ni un jeton OAuth.
-- Ne pas compiler d'ancienne branche par défaut : confirmer la branche et le numéro de version avant toute publication.
+- Compiler uniquement lorsque l'utilisateur demande explicitement « Compile ».

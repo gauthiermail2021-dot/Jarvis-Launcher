@@ -64,6 +64,12 @@ public class MainActivity extends ComponentActivity {
     private static final int PICK_SVG = 1001;
     private static final int NOTIFICATION_PERMISSION = 1003;
     public static final String ACTION_CHECK_GMAIL = "ca.jarvis.bridge.ACTION_CHECK_GMAIL";
+    // Explicit floating SVG test requests do not depend on the regular
+    // autonomous Gmail notification setting; never show Jarvis settings.
+    public static final String EXTRA_FORCE_SILENT_GMAIL_CHECK =
+            "ca.jarvis.bridge.EXTRA_FORCE_SILENT_GMAIL_CHECK";
+    public static final String EXTRA_GMAIL_TEST_MESSAGE_ID =
+            "ca.jarvis.bridge.EXTRA_GMAIL_TEST_MESSAGE_ID";
     private static volatile MainActivity foregroundActivity;
     private static final int MAX_SVG_BYTES = 5000000;
     private static final String PREFS = "jarvis_bridge";
@@ -102,8 +108,10 @@ public class MainActivity extends ComponentActivity {
         Intent launchIntent = getIntent();
         silentAutoCheck = launchIntent != null
                 && ACTION_CHECK_GMAIL.equals(launchIntent.getAction())
-                && getSharedPreferences(PREFS, MODE_PRIVATE)
-                        .getBoolean(AUTO_OPEN_ENABLED, false);
+                && (launchIntent.getBooleanExtra(
+                            EXTRA_FORCE_SILENT_GMAIL_CHECK, false)
+                        || getSharedPreferences(PREFS, MODE_PRIVATE)
+                                .getBoolean(AUTO_OPEN_ENABLED, false));
         compactLauncher = launchIntent != null
                 && Intent.ACTION_MAIN.equals(launchIntent.getAction())
                 && getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -260,27 +268,28 @@ public class MainActivity extends ComponentActivity {
         });
 
         TextView chatgptAutoHelp = new TextView(this);
-        chatgptAutoHelp.setText("Option ChatGPT : activer le service d'accessibilité Jarvis "
-                + "pour détecter uniquement l'ouverture de ChatGPT. "
-                + "Autorisation facultative, désactivée par défaut. "
-                + "Jarvis ne lit pas le contenu de vos conversations.");
+        chatgptAutoHelp.setText("Option facultative : activer l'accessibilité Jarvis "
+                + "pour diagnostiquer les éléments accessibles de xTool Creative Space. "
+                + "L'ouverture de ChatGPT ne déclenche plus la bulle Jarvis. "
+                + "La lecture xTool reste locale et limitée aux diagnostics EasySet.");
         layout.addView(chatgptAutoHelp);
         Button chatgptAuto = new Button(this);
-        chatgptAuto.setText("Configurer la bulle à l'ouverture de ChatGPT");
+        chatgptAuto.setText("Configurer l'accessibilité xTool");
         layout.addView(chatgptAuto);
         chatgptAuto.setOnClickListener(v -> {
             Intent settings = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             startActivity(settings);
-            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — ChatGPT. "
+            setStatus("Dans Accessibilité > Applications installées, autorise Jarvis Bridge — xTool. "
                     + "Autorise aussi l'affichage par-dessus les applications.");
         });
 
         TextView easysetVisionHelp = new TextView(this);
-        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.31 : au lancement de la bulle "
+        easysetVisionHelp.setText("EXPÉRIMENTAL 1.2.33 : au lancement de la bulle "
                 + "Jarvis, autorise une seule session de capture Android. Après l'ouverture "
-                + "d'un SVG dans xTool, une analyse de lecture seule est tentée automatiquement. "
-                + "La bulle affiche temporairement ce que l'OCR reconnaît près du "
-                + "champ Passer à chaque étape, puis si l'association est acceptée "
+                + "d'un SVG dans xTool, ou au retour vers un dessin xTool déjà ouvert, une analyse de lecture seule est tentée automatiquement. "
+                + "La bulle affiche temporairement les valeurs OCR. Si ML Kit ne voit pas le "
+                + "chiffre Passer, Tesseract tente de lire uniquement la case numérique. "
+                + "Le diagnostic indique si la lecture est acceptée "
                 + "ou refusée. Les lectures incertaines restent non lues. "
                 + "Le partage s'arrête lorsque la bulle est fermée ou sur commande.");
         layout.addView(easysetVisionHelp);
@@ -573,13 +582,28 @@ public class MainActivity extends ComponentActivity {
         }
         if (labelId == null) throw new Exception("Libellé Jarvis SVG introuvable");
 
-        // Gmail renvoie les messages du plus récent au plus ancien.
-        // Le serveur filtre déjà les sujets Jarvis envoyés depuis ce compte.
-        String query = API + "/messages?labelIds="
-                + URLEncoder.encode(labelId, "UTF-8")
-                + "&q=" + URLEncoder.encode("subject:JARVIS-SVG-AUTO in:sent", "UTF-8")
-                + "&maxResults=50";
-        JSONArray messages = getJson(query, token).optJSONArray("messages");
+        // For the bubble's own new message, fetch the exact Gmail ID
+        // returned by POST /messages/send. This avoids races with indexed
+        // label/subject search visibility after a successful send+modify.
+        // The SAME sent-subject-label/content checks below still apply.
+        Intent requestIntent = getIntent();
+        String exactId = requestIntent != null
+                && ACTION_CHECK_GMAIL.equals(requestIntent.getAction())
+                ? requestIntent.getStringExtra(EXTRA_GMAIL_TEST_MESSAGE_ID) : null;
+        exactId = JarvisGmailTargetPolicy.validMessageId(exactId);
+        final boolean exactMessageCheck = exactId != null;
+
+        JSONArray messages;
+        if (exactMessageCheck) {
+            messages = new JSONArray().put(new JSONObject().put("id", exactId));
+        } else {
+            String query = API + "/messages?labelIds="
+                    + URLEncoder.encode(labelId, "UTF-8")
+                    + "&q=" + URLEncoder.encode(
+                            "subject:JARVIS-SVG-AUTO in:sent", "UTF-8")
+                    + "&maxResults=50";
+            messages = getJson(query, token).optJSONArray("messages");
+        }
         if (messages == null || messages.length() == 0) {
             if (!silentAutoCheck) runOnUiThread(() ->
                     setStatus("Aucun courriel sous Jarvis SVG"));
@@ -628,19 +652,28 @@ public class MainActivity extends ComponentActivity {
             String id = messages.getJSONObject(i).getString("id");
             // Ne pas recharger une pièce jointe d'un message déjà réglé :
             // Gmail peut notifier plusieurs fois le même courriel.
-            if (JarvisMailLedger.wasLastMessage(id, previous)) break;
+            if (JarvisMailLedger.wasLastMessage(id, previous)) {
+                if (exactMessageCheck) return;
+                break;
+            }
             JSONObject message = getJson(API + "/messages/"
                     + URLEncoder.encode(id, "UTF-8") + "?format=full", token);
             long timestamp;
             try { timestamp = Long.parseLong(message.optString("internalDate", "0")); }
             catch (NumberFormatException ignored) { continue; }
-            if (timestamp <= lastProcessedTime) break;
+            if (timestamp <= lastProcessedTime) {
+                if (exactMessageCheck) return;
+                break;
+            }
             JSONObject payload = message.optJSONObject("payload");
             JSONArray labelIds = message.optJSONArray("labelIds");
             boolean selfSent = false;
+            boolean jarvisLabelPresent = false;
             if (labelIds != null) for (int k = 0; k < labelIds.length(); k++) {
                 if ("SENT".equals(labelIds.optString(k))) selfSent = true;
+                if (labelId.equals(labelIds.optString(k))) jarvisLabelPresent = true;
             }
+            if (!jarvisLabelPresent) continue;
 
             String subject = null;
             JSONArray headers = payload == null ? null : payload.optJSONArray("headers");
@@ -805,8 +838,11 @@ public class MainActivity extends ComponentActivity {
         // Si Android réutilise l'Activity compacte pour une notification,
         // sa vérification Gmail reste temporaire et doit se fermer à la fin.
         if (intent != null && ACTION_CHECK_GMAIL.equals(intent.getAction())
-                && compactLauncher && getSharedPreferences(PREFS, MODE_PRIVATE)
-                        .getBoolean(AUTO_OPEN_ENABLED, false)) {
+                && (intent.getBooleanExtra(
+                            EXTRA_FORCE_SILENT_GMAIL_CHECK, false)
+                        || compactLauncher
+                                && getSharedPreferences(PREFS, MODE_PRIVATE)
+                                        .getBoolean(AUTO_OPEN_ENABLED, false))) {
             silentAutoCheck = true;
         }
         handleIncomingIntent(intent);
@@ -1133,12 +1169,15 @@ public class MainActivity extends ComponentActivity {
         XtoolSessionManager.begin(this);
         GMAIL_RECHECK_REQUESTED.set(false);
         JarvisBubbleService.onSvgOpenRequested(true);
-        // One automatic read-only EasySet inspection after the SVG handoff.
-        // If the EasySet panel is not shown yet, the user may rescan from the
-        // Jarvis bubble without granting a second MediaProjection permission.
-        EasySetSessionService.requestScan(this, true);
-        setStatus("xTool en cours : session protégée (" + route
-                + "). Appui long sur la bulle pour terminer.");
+        // The post-SVG flow no longer opens EasySet or requests a capture.
+        // xTool keeps the drawing in its normal canvas view for the human
+        // to inspect the objects, layers and processing settings.
+        // Existing accessibility diagnostics remain available in Jarvis.
+        // Premiere action graphique uniquement : chercher le bouton nomme
+        // "Degrouper" dans XCS et le toucher une seule fois si disponible.
+        ChatGptBubbleAccessibilityService.requestAutomaticUngroupAfterSvg();
+        setStatus("SVG transmis à Android (" + route
+                + "). Import xTool et dégroupement non confirmés.");
     }
 
     private boolean blockWhileXtoolActive() {
