@@ -1,28 +1,27 @@
-# Instructions pour toute intervention dans Jarvis
+# Jarvis — exigences qualité pour toute modification
 
-## Source unique et identité
+## Dépôt et application
 
-- Dépôt **unique et officiel** : `gauthiermail2021-dot/Jarvis-Launcher`.
-- Application Android : **Jarvis Bridge** ; son `applicationId` reste **`ca.jarvis.bridge`**. Ne pas le renommer sans migration Android explicite.
-- L'autre dépôt, `gauthiermail2021-dot/Jarvis-Bridge-Android`, est un **prototype historique interdit de build**. Ne jamais y créer ni y chercher la version actuelle de l'APK.
-- Le nom `Jarvis-Launcher` désigne le **dépôt GitHub** et le lanceur Web associé, pas une autre application Android.
+- **Seul dépôt de développement :** `gauthiermail2021-dot/Jarvis-Launcher`.
+- **Application Android :** `ca.jarvis.bridge` (Jarvis Bridge). L'identifiant Android n'est **pas** remplacé par le nom du dépôt.
+- Le dépôt `gauthiermail2021-dot/Jarvis-Bridge-Android` est une archive GitHub en lecture seule ; ne jamais y compiler ni copier son ancien code comme base courante.
+- Le lanceur Web `index.html` est préservé ; il n'est pas l'application Android.
 
-## État au 13 novembre 2026 : vérifier avant toute modification
+## Référence de qualité au 2026-11-13
 
-- `main` : source Android **1.2.31**, donc **non actuelle**, conservée en attendant la consolidation.
-- `fix/layers-dismiss-after-ungroup-1.2.69` : dernière base **fonctionnellement testée** sur le Samsung. Conception et Dégrouper OK ; Calques reste inachevé.
-- `fix/audit-stability-1.2.70` : maintenance basée sur 1.2.69, CI réussie ; **non validée sur téléphone** au moment de cette note.
-- Les versions et statuts sont des instantanés, pas des vérités permanentes. Vérifier **branche, SHA, `versionName`, `versionCode`, résultats CI et test téléphone** avant d'agir.
+- Branche `main` : **1.2.69**, `versionCode 88`, référence fonctionnelle **testée sur Samsung** pour Gmail/SVG, Conception, Dégrouper. **Calques reste non automatique.**
+- Branche `fix/audit-stability-1.2.70` : nettoyage ressources d'accessibilité + modèle OCR épinglé, tests/compilation/signature réussis, **pas encore confirmée sur téléphone**.
+- Ces indications sont des instantanés : toujours vérifier version, commit, branches, résultats CI et tests réels avant de prendre une décision.
 
 ## Procédure obligatoire
 
-1. Consulter `README.md`, `docs/SOURCE_OF_TRUTH.md`, le `build.gradle` et le commit de la **branche de travail**, pas seulement de `main`.
-2. Pour une évolution du comportement, créer une branche depuis la dernière base **confirmée sur l'appareil**. Ne jamais redémarrer depuis `main` tant qu'il demeure sur 1.2.31. Les ajustements documentaires peuvent être proposés séparément sur `main`.
-3. Préserver les fonctions Gmail → SVG → xTool, la bulle, les animations et sons, la validation SVG et EasySet. Toute régression exige un retour arrière facile.
-4. Ne pas toucher à la signature permanente, aux secrets GitHub ou au client OAuth sans nécessité validée. Ne publier aucun secret.
-5. Les gestes d'interface (Conception, Dégrouper, Calques) ne prouvent pas à eux seuls que xTool a appliqué l'action. Donner un état réel ou « non confirmé ».
-6. Ne pas automatiser le déclenchement du laser ni ses paramètres. OCR EasySet en lecture seule.
-7. Ouvrir une PR, comparer les fichiers, exécuter tests + build release signé, vérifier `apksigner`, puis faire un **essai sur Samsung** avant de déclarer une version stable.
-8. Ne jamais supprimer l'ancien historique ou les branches de restauration sans sauvegarde. Un APK GitHub Actions peut expirer.
+1. Vérifier `main` et les branches de maintenance ; lire `README.md`, `docs/SOURCE_OF_TRUTH.md`, `android/app/build.gradle` et les services affectés.
+2. Isoler les corrections sur une branche. Faire une PR avec liste des fichiers touchés et un changement de comportement clairement identifié.
+3. Ne modifier ni signature release, `applicationId`, ni scopes Gmail sans nécessité et tests de migration documentés. Ne publier aucun secret.
+4. Exécuter les tests JVM, compiler `assembleRelease`, vérifier `apksigner` et l'APK produit. Prévoir des cas de régression pour SVG Gmail, SVG bulle, session xTool, EasySet, notifications et animations.
+5. La réussite de `dispatchGesture()` ou `ACTION_CLICK` n'établit **pas** que le dégroupement ou le panneau Calques a effectivement changé d'état. Afficher « non confirmé » si aucun état probant n'est disponible.
+6. Les gestes automatiques doivent cibler uniquement des contrôles xTool identifiés, autorisés et visibles ; pas de positions devinées quand la fenêtre est incertaine. Une action ne doit pas être répétée à cause d'un événement Android.
+7. Aucun déclenchement laser ni changement de paramètres machine. OCR EasySet en lecture seule, captures seulement avec autorisation Android.
+8. Tester sur Samsung avant toute déclaration « stable » ou promotion d'une nouvelle version dans `main` ; conserver sauvegardes et possibilité de retour arrière.
 
-Voir `docs/SOURCE_OF_TRUTH.md` pour l'état détaillé et les références de récupération.
+La CI de `main` produit des **artefacts de contrôle**, non une publication automatique.
