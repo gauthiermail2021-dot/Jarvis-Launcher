@@ -122,52 +122,99 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private boolean conceptionTouched;
     private boolean ungroupDispatched;
     private final List<Runnable> ungroupChecks = new ArrayList<>();
+    private static volatile String lastUngroupSequence =
+            "Aucune demande automatique depuis le démarrage.";
+
+    static String automaticUngroupStatus() {
+        return lastUngroupSequence;
+    }
 
     static void requestAutomaticUngroupAfterSvg() {
         ChatGptBubbleAccessibilityService instance = clickTestService;
         if (instance == null) {
+            lastUngroupSequence = "Service d'accessibilité inactif : aucun essai.";
             JarvisBubbleService.onUngroupServiceUnavailable();
             return;
         }
         instance.armUngroupAfterSvg();
     }
 
+    /** Read and recycle the root acquired for this one Conception check. */
+    private boolean isConceptionReallySelected() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        try {
+            return XtoolConceptionTabOneShot.isSelected(root);
+        } finally {
+            if (root != null) root.recycle();
+        }
+    }
+
     private void armUngroupAfterSvg() {
         cancelUngroupAfterSvg();
         ungroupPending = true;
+        lastUngroupSequence = "Demande reçue après transfert SVG; recherche xTool prévue.";
         final int ticket = ungroupTicket;
         final long[] delays = {3000L, 5600L, 8100L, 11300L, 15100L, 18400L};
         for (long delay : delays) {
             Runnable check = () -> {
-                if (!ungroupPending || ticket != ungroupTicket
-                        || !XtoolSessionManager.isActive(this)
-                        || clickTestPending || redLayerTapPending) return;
-
-                if (!conceptionTouched) {
-                    if (conceptionDispatched) return;
-                    boolean tabFound = XtoolConceptionTabOneShot.tryOnce(
-                            this, panelHandler, touched -> {
-                                if (!ungroupPending || ticket != ungroupTicket) return;
-                                if (touched) {
-                                    conceptionTouched = true;
-                                    JarvisBubbleService.onConceptionTabTouched();
-                                } else {
-                                    cancelUngroupAfterSvg();
-                                    JarvisBubbleService.onConceptionTabFailed();
-                                }
-                            });
-                    if (tabFound) conceptionDispatched = true;
+                if (!ungroupPending || ticket != ungroupTicket) return;
+                if (!XtoolSessionManager.isActive(this)) {
+                    lastUngroupSequence = "Session Jarvis fermée avant Dégrouper.";
+                    cancelUngroupAfterSvg();
                     return;
                 }
-                // Only one ungroup gesture, and never before the named tab touch.
+                if (clickTestPending || redLayerTapPending) return;
+
+                if (!conceptionTouched) {
+                    // The screenshot confirms xTool exposes "Conception"
+                    // with isSelected=true. Don't require us to be the one
+                    // who clicked the tab; verify the current UI state.
+                    if (isConceptionReallySelected()) {
+                        conceptionTouched = true;
+                        lastUngroupSequence =
+                                "Conception sélectionné dans Android; recherche Dégrouper.";
+                    } else {
+                        if (conceptionDispatched) {
+                            lastUngroupSequence =
+                                    "Toucher Conception envoyé; sélection non confirmée.";
+                            return;
+                        }
+                        boolean tabFound = XtoolConceptionTabOneShot.tryOnce(
+                                this, panelHandler, touched -> {
+                                    if (!ungroupPending
+                                            || ticket != ungroupTicket) return;
+                                    if (touched) {
+                                        lastUngroupSequence =
+                                                "Toucher Conception envoyé; vérification en cours.";
+                                        JarvisBubbleService.onConceptionTabTouched();
+                                    } else {
+                                        lastUngroupSequence =
+                                                "Échec du toucher Conception.";
+                                        cancelUngroupAfterSvg();
+                                        JarvisBubbleService.onConceptionTabFailed();
+                                    }
+                                });
+                        if (tabFound) conceptionDispatched = true;
+                        return;
+                    }
+                }
+                // One action only, after the tab's actual Android selected state.
                 if (ungroupDispatched) return;
+                lastUngroupSequence = "Conception confirmé; tentative Dégrouper.";
                 boolean found = XtoolUngroupOneShot.tryOnce(
-                        this, panelHandler, (touchSent, confirmed) ->
-                                JarvisBubbleService.onUngroupAutoFinished(
-                                        touchSent, confirmed));
+                        this, panelHandler, (touchSent, confirmed) -> {
+                            lastUngroupSequence = touchSent
+                                    ? "Toucher Dégrouper envoyé; séparation non vérifiée."
+                                    : "Contrôle Dégrouper non activé; voir Dernière tentative.";
+                            JarvisBubbleService.onUngroupAutoFinished(
+                                    touchSent, confirmed);
+                        });
                 if (found) {
                     ungroupDispatched = true;
                     cancelUngroupAfterSvg();
+                } else {
+                    lastUngroupSequence =
+                            "Conception confirmé; contrôle Dégrouper non encore exposé.";
                 }
             };
             ungroupChecks.add(check);
@@ -175,9 +222,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }
         Runnable expiry = () -> {
             if (ungroupPending && ticket == ungroupTicket) {
-                boolean tabTouched = conceptionTouched;
+                boolean selected = conceptionTouched;
                 cancelUngroupAfterSvg();
-                if (tabTouched) JarvisBubbleService.onUngroupNotFound();
+                lastUngroupSequence = selected
+                        ? "Délai atteint : Dégrouper non trouvé."
+                        : "Délai atteint : Conception non confirmé sélectionné.";
+                if (selected) JarvisBubbleService.onUngroupNotFound();
                 else JarvisBubbleService.onConceptionTabNotFound();
             }
         };

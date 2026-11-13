@@ -28,6 +28,15 @@ public class XtoolUngroupControlTest {
                 50, 1900, 240, 3260, 1440, 3088));
     }
 
+    @Test public void namedExactButtonAreaRequiresIconSizedBounds() {
+        assertTrue(XtoolUngroupPolicy.isNamedUngroupTile(
+                28, 2004, 301, 2263, 1080, 2400));
+        assertFalse(XtoolUngroupPolicy.isNamedUngroupTile(
+                28, 2100, 120, 2130, 1080, 2400));
+        assertFalse(XtoolUngroupPolicy.isNamedUngroupTile(
+                28, 2004, 700, 2263, 1080, 2400));
+    }
+
     @Test public void acceptsOnlyCompactIconAboveItsOwnText() {
         assertTrue(XtoolUngroupPolicy.isCompactIconTile(
                 70, 2050, 200, 2080,

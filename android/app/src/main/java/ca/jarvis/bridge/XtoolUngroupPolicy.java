@@ -20,8 +20,10 @@ final class XtoolUngroupPolicy {
         return screenWidth > 0 && screenHeight > 0
                 && left >= 0 && top >= 0
                 && right <= screenWidth && bottom <= screenHeight
-                && width >= 35 && width <= 650
-                && height >= 20 && height <= 180;
+                // The named XCS button is a whole icon+label tile
+                // (observed 273x259 px), not merely a short text label.
+                && width >= 35 && width <= 430
+                && height >= 20 && height <= 330;
     }
 
     static boolean validControlBounds(
@@ -33,6 +35,16 @@ final class XtoolUngroupPolicy {
                 && right <= screenWidth && bottom <= screenHeight
                 && width >= 35 && width <= 430
                 && height >= 20 && height <= 330;
+    }
+
+    /**
+     * Safe fallback for a named (exact "Dégrouper") accessible node that
+     * already encompasses its own icon+label tile. No arbitrary coordinates.
+     */
+    static boolean isNamedUngroupTile(int left, int top, int right, int bottom,
+                                      int screenWidth, int screenHeight) {
+        return validControlBounds(left, top, right, bottom, screenWidth, screenHeight)
+                && right - left >= 85 && bottom - top >= 100;
     }
 
     /** Only use an icon+label tile whose accessible bounds contain the label. */
