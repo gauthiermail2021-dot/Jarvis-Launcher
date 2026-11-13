@@ -1,64 +1,42 @@
-# Source officielle et protection contre les régressions — Jarvis
+# Jarvis — source unique et protection contre les régressions
 
-Date de réorganisation : **2026-11-10**.
+Mise à jour : **13 novembre 2026**. Ce document remplace les indications devenues fausses qui désignaient systématiquement `main` 1.2.31 comme la dernière version de Jarvis.
 
-## 1. Dépôts, sans ambiguïté
+## Identité : dépôt, application, versions
 
-| Dépôt | Fonction | Ce qu'il ne faut pas faire |
+- **Dépôt Android officiel :** `gauthiermail2021-dot/Jarvis-Launcher` — et **aucun autre**.
+- **Application installée :** Jarvis Bridge, identifiant Android **`ca.jarvis.bridge`**. Le changement de nom du dépôt ne nécessite pas de changer l'application, ses données ou son certificat.
+- **Lanceur Web :** `index.html` dans le dépôt officiel, indépendant de l'APK.
+- **Dépôt précédent :** `gauthiermail2021-dot/Jarvis-Bridge-Android`, réservé à l'histoire du projet. Sa CI ne produit aucun APK ; il ne doit jamais redevenir une source de développement.
+
+## Référence précise et état de validation
+
+| Branche / référence | Code | Preuve et limites |
 | --- | --- | --- |
-| **Jarvis-Launcher** → `main` | **Seule source canonique du Jarvis Android actuel** (base 1.2.31 ; l'index.html du lanceur Web est préservé) | Ne pas travailler sur un ancien prototype comme base d'une nouvelle version |
-| **Jarvis-Bridge-Android** | Archive historique v0.7, puis essais Tesseract non intégrés | Ne plus compiler/distribuer d'APK à partir de ce dépôt |
-| `snapshot/jarvis-1.2.31-build-verified` | Instantané immuable par convention du commit source qui a passé la CI | Ne pas déplacer ni réécrire cette référence |
-| `archive/pre-canonical-main-2026-11-10` | Ancien main du lanceur Web avant réorganisation | Ne pas supprimer |
-| `feature/jarvis-rollback-stable-1.2.7` | Ancienne branche ayant servi au retour au fonctionnement fiable | Ne pas supprimer |
-| `experiment/easyset-diagnostic-1.2.31` | Code original du test diagnostique 1.2.31 | Ne pas réécrire ; snapshot conservé |
+| `main` | 1.2.31, versionCode 50 | Branche GitHub par défaut **en retard** ; non utilisable comme point de départ pour une évolution moderne |
+| `fix/layers-dismiss-after-ungroup-1.2.69` | 1.2.69, versionCode 88 | Baseline testée sur le Samsung : SVG, Conception et Dégrouper fonctionnent ; **Calques pas encore automatique** |
+| `fix/audit-stability-1.2.70` | 1.2.70, versionCode 89 | Basée sur 1.2.69 ; libération d'objets d'accessibilité et workflow OCR épinglé ; CI/test/signature OK ; **validation téléphone à faire** |
+| `snapshot/jarvis-1.2.31-build-verified` | 1.2.31 historique | Préserver pour restauration ancienne, **ne pas utiliser pour la prochaine mise à jour** |
+| `feature/jarvis-rollback-stable-1.2.7` | 1.2.7 historique | Branche de retour arrière antérieure, ne pas supprimer |
 
-## 2. État actuel exact
+Une compilation réussie, même signée, n'est **pas** une confirmation du dégroupement, des calques ni d'EasySet sur le téléphone.
 
-- Base Android **1.2.31**, `versionCode 50`, package `ca.jarvis.bridge`, `minSdk 26`, `targetSdk 28`.
-- Compilation signée 1.2.31 et tests automatisés réussis dans **GitHub Actions #42800834402**, commit `6c7a3fd3767e134cefb2d2598895d963edc78810`.
-- L'APK de ce workflow est un artefact GitHub Actions **expirable**, pas une version archivée à vie.
-- ML Kit lit des paramètres EasySet mais la valeur du champ **Passer** reste non lue dans un test réel : **ne pas inventer la valeur 1**.
-- 1.2.32 = version **future**, pas livrée ; toute compilation expérimentale sur une nouvelle branche ne constitue pas la release officielle.
+## Développement — choix de la base
 
-## 3. Démarrage obligatoire de chaque tâche
+1. Chercher uniquement dans **Jarvis-Launcher**. Identifier **branche, SHA et version** avant toute lecture ou modification de code.
+2. Pour corriger la fonction sur le téléphone : repartir de la dernière **base validée sur le Samsung** (actuellement 1.2.69). Conserver et examiner les changements isolés de maintenance 1.2.70 avant d'y ajouter d'autres fonctions.
+3. Pour les documents de gouvernance : possibilité de corriger `main` sans mettre à jour son code Android, en indiquant honnêtement que sa version reste 1.2.31.
+4. Ne pas copier de fichiers de l'archive vers l'app Android actuelle. Ne pas supposer que `main` est plus récent qu'une branche nommée.
+5. Réaliser les changements sur une branche dédiée, relire le diff, ouvrir une PR ; ne fusionner la vraie version fonctionnelle vers `main` qu'après décision et validation des régressions.
 
-1. Lister les dépôts accessibles. Vérifier que l'on travaille dans **Jarvis-Launcher**.
-2. Inspecter `main`, ses derniers commits et `android/app/build.gradle` pour l'identité et la version.
-3. Lire l'implémentation actuelle, les services Android, le manifeste, les tests et le workflow.
-4. Créer une branche d'essai à partir de **main**, à SHA précisé. Ne jamais remplacer `main` par un ancien code.
-5. Pour un changement OCR, revoir en particulier `EasySetVisionAnalyzer.java`, `EasySetPassesDiagnostic.java`, `EasySetPassesRegion.java`, `EasySetValues.java`, `EasySetSessionService.java`.
-6. Soumettre les changements sous forme de PR ; vérifier la différence de fichiers, les tests et le workflow.
-7. Identifier honnêtement les limites testées/les limites non testées : **compilation OK ≠ OCR fiable sur le téléphone**.
+## Sécurité, compilation et sauvegardes
 
-## 4. Contrôles avant publication d'un APK
+- Préserver le package `ca.jarvis.bridge`, le certificat Android de release, les secrets hors GitHub et les autorisations Google Gmail.
+- Utiliser le workflow **de la branche/version ciblée** et un `versionCode` croissant ; vérifier les tests JVM, le build release, le certificat `apksigner` et les fichiers réellement présents dans l'APK.
+- Tester sur appareil réel : ouverture d'un SVG Gmail et depuis la bulle, affichage de Conception, dégroupement, Calques, effets/sons, notifications, absence de doublons, EasySet et fermeture de session.
+- Les paramètres laser et le déclenchement de la machine restent sous contrôle humain ; l'OCR d'EasySet est en lecture seule.
+- Garder un commit précis, le résultat CI, le numéro de version, un APK signé sauvegardé durablement et une procédure de retour arrière. Les artefacts GitHub Actions expirent.
 
-- Code actuel de la bonne branche + versionCode supérieur au dernier code installé.
-- Signature Android de **release** réutilisant le certificat officiel.
-- OAuth Gmail et libellé **Jarvis SVG** non modifiés sans nécessité.
-- Régression Gmail → SVG → xTool, bulle flottante, notifications, sons, session EasySet et sécurité SVG.
-- Captures écran seulement après consentement Android ; OCR passif. Aucune modification des paramètres laser, aucun déclenchement du laser.
-- Nouveau test OCR sur **capture xTool réelle**, comparé aux valeurs visibles ; échecs = « non lus » plutôt que chiffres présumés.
-- Archiver durablement le **code exact**, **APK signé**, résultats des tests, fichier CHANGELOG, SHA de signature **public** et notes de restauration ; conserver la **clé privée ailleurs**, jamais dans le repo.
+## Historique documentaire
 
-## 5. Numérotation et statut
-
-- 1.2.31 / versionCode **50** : référence pour poursuivre le développement, diagnostics EasySet **expérimentaux**.
-- 1.2.32 / versionCode **51** : prochaine release **possible**, après intégration et vérifications. Ne pas numéroter d'APK 1.2.32 tant que cela n'est pas prêt.
-- Le succès des tests GitHub ne signifie ni validation réelle, ni installation réussie.
-- Le prototype 0.7 n'est jamais une base de restauration de la série 1.2.x.
-
-## 6. Sauvegardes et restauration
-
-Ne jamais supprimer les branches historiques sans sauvegarde confirmée hors GitHub. Les ZIP privés contenant des clés doivent rester **hors du dépôt public**. Les artefacts Actions expirent ; archiver un APK officiel sous une Release GitHub ou une autre sauvegarde pérenne. En cas de panne, restaurer depuis un snapshot connu et vérifier le certificat, sans réinitialiser silencieusement les données locales ni supprimer l'application utilisateur.
-
-## 7. Journal des erreurs corrigées
-
-- **2026-11-10** : découverte que le vrai code Android 1.2.31 est stocké dans *Jarvis-Launcher* sur la branche `experiment/easyset-diagnostic-1.2.31`, et non dans *Jarvis-Bridge-Android*.
-- **2026-11-10** : `main` de *Jarvis-Launcher* avancé sans réécrire l'historique à partir de l'ancien `main` vers le commit confirmé de 1.2.31.
-- **2026-11-10** : préservation de l'ancien `main` et d'un snapshot exact 1.2.31.
-- Le prototype historique et les essais Tesseract de l'ancien dépôt ne doivent pas être fusionnés dans `main` par inadvertance.
-
-## 8. Limites et vérifications humaines restantes
-
-La présence de code et la réussite CI ne prouvent pas que la reconnaissance du petit chiffre de « Passer » fonctionne sur le Samsung. Il faut la capture et le test d'intégration. Le responsable de l'app vérifie la version installée et le comportement réel après livraison ; aucune commande de découpe n'est automatisée.
+La réorganisation initiale date du **10 novembre 2026**. L'archive contient le prototype **0.7** ; les anciennes notes 1.2.31 restent consultables dans l'historique Git, mais n'indiquent plus l'état actuel. Ni l'ancien dépôt, ni son numéro de version, ni le `main` en retard ne doivent se substituer à une référence de branche précise.
