@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 88
-        versionName '1.2.69'
-        // Jarvis 1.2.68: after Dégrouper, safely target Calques bottom panel.
-        // Signed experimental release, must be verified on the Samsung.
+        versionCode 89
+        versionName '1.2.70'
+        // Jarvis 1.2.70: non-functional accessibility resource cleanup on
+        // top of 1.2.69. Conception, Dégrouper and Calques behavior unchanged.
     }
 
     signingConfigs {
