@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Code Android de référence | **`main/android/` — Jarvis 1.2.69** (`versionCode 88`) | **Testé sur le Samsung** : ouverture SVG, Conception et Dégrouper opérationnels |
 | Fonction à terminer | Calques après Dégrouper | **Non fonctionnelle automatiquement**, ne pas annoncer le contraire |
-| Maintenance séparée | [`fix/audit-stability-1.2.70`](../../tree/fix/audit-stability-1.2.70) | **1.2.70**, `versionCode 89`, tests/compilation/signature GitHub réussis ; validation sur téléphone à effectuer |
+| Maintenance séparée | [`fix/audit-stability-1.2.70-clean`](../../tree/fix/audit-stability-1.2.70-clean) | **1.2.70**, `versionCode 89`, candidate rebâtie sur `main` ; compilation de contrôle en cours ; validation sur téléphone à effectuer |
 | Dépôt ancien | [Jarvis-Bridge-Android](https://github.com/gauthiermail2021-dot/Jarvis-Bridge-Android) | **Archivé, lecture seule. Ne pas compiler son prototype.** |
 
 **Règle :** la version validée sur téléphone constitue la référence fonctionnelle. Une CI réussie valide la compilation et les tests automatisés, **pas** le comportement xTool sur l'appareil.
