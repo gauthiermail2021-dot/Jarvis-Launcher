@@ -51,7 +51,7 @@ final class XtoolLayerInspector {
                     if (node.getPackageName() != null
                             && !EasySetForegroundScanPolicy.XCS_PACKAGE
                             .contentEquals(node.getPackageName())) continue;
-        
+
                     CharSequence[] labels = {node.getText(), node.getContentDescription()};
                     String[] sources = {"Texte", "Description"};
                     for (int i = 0; i < labels.length; i++) {
@@ -59,7 +59,7 @@ final class XtoolLayerInspector {
                         if (word.isEmpty()) continue;
                         if (words.size() < MAX_WORDS)
                             words.add(sources[i] + " : «" + word + "»");
-        
+
                         String kind = XtoolLayerNames.classify(word);
                         if ("AUCUN".equals(kind)) continue;
                         if ("ROUGE".equals(kind)) red = true;
@@ -67,7 +67,7 @@ final class XtoolLayerInspector {
                         if ("BLEU".equals(kind)) blue = true;
                         if ("CALQUE".equals(kind)) layer = true;
                         if (matched++ >= MAX_MATCHES) continue;
-        
+
                         Rect area = new Rect();
                         node.getBoundsInScreen(area);
                         matches.append("\n").append(matched).append(". ")
@@ -95,7 +95,7 @@ final class XtoolLayerInspector {
                             if (parent != null) parent.recycle();
                         }
                     }
-        
+
                     if (item.depth >= MAX_DEPTH) continue;
                     int children = Math.min(node.getChildCount(), 40);
                     for (int i = 0; i < children && queue.size() < MAX_NODES; i++) {
@@ -107,7 +107,7 @@ final class XtoolLayerInspector {
                     if (node != root) node.recycle();
                 }
             }
-    
+
             StringBuilder result = new StringBuilder(prefix);
             result.append("Lecture locale : ").append(examined).append(" noeuds Android.\n")
                     .append("Libelles presents : Calque=").append(layer ? "oui" : "non")
