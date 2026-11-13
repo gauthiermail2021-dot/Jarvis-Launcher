@@ -10,7 +10,7 @@
 ## Référence de qualité au 2026-11-13
 
 - Branche `main` : **1.2.69**, `versionCode 88`, référence fonctionnelle **testée sur Samsung** pour Gmail/SVG, Conception, Dégrouper. **Calques reste non automatique.**
-- Branche `fix/audit-stability-1.2.70` : nettoyage ressources d'accessibilité + modèle OCR épinglé, tests/compilation/signature réussis, **pas encore confirmée sur téléphone**.
+- Branche `fix/audit-stability-1.2.70-clean` : nettoyage ressources d'accessibilité + modèle OCR épinglé, compilation à reconfirmer sur la branche propre, **pas encore confirmée sur téléphone**.
 - Ces indications sont des instantanés : toujours vérifier version, commit, branches, résultats CI et tests réels avant de prendre une décision.
 
 ## Procédure obligatoire
