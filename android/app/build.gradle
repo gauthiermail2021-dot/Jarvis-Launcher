@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 86
-        versionName '1.2.67'
-        // Jarvis 1.2.67: arm the existing automatic ungroup after the SVG bubble opens xTool.
+        versionCode 87
+        versionName '1.2.68'
+        // Jarvis 1.2.68: after Dégrouper, safely target Calques bottom panel.
         // Signed experimental release, must be verified on the Samsung.
     }
 

@@ -488,6 +488,15 @@ public final class JarvisBubbleService extends Service {
                 "ACCÈS INACTIF");
     }
 
+    static void onLayersAutoFinished(boolean touchSent) {
+        showStageAfterObservedEvent(STATE_XTOOL, "CALQUES",
+                touchSent ? "TOUCHER ENVOYÉ" : "ÉCHEC TOUCHER");
+    }
+
+    static void onLayersAutoUnavailable() {
+        showStageAfterObservedEvent(STATE_XTOOL, "CALQUES", "À VÉRIFIER");
+    }
+
     static void onSvgOpenRequested(boolean xToolTarget) {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.

@@ -125,6 +125,21 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private static volatile String lastUngroupSequence =
             "Aucune demande automatique depuis le démarrage.";
 
+    // Short, event-aware window after the validated one-shot Dégrouper touch.
+    // No continuous surveillance of xTool or its process.
+    private int layersTicket;
+    private boolean layersPending;
+    private boolean layersDispatched;
+    private boolean layersDismissAttempted;
+    private Runnable layersEventCheck;
+    private final List<Runnable> layersChecks = new ArrayList<>();
+    private static volatile String lastLayersSequence =
+            "Aucune demande Calques depuis le démarrage.";
+
+    static String automaticLayersStatus() {
+        return lastLayersSequence;
+    }
+
     static String automaticUngroupStatus() {
         return lastUngroupSequence;
     }
@@ -150,8 +165,11 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     }
 
     private void armUngroupAfterSvg() {
+        // A new SVG supersedes every incomplete Calques attempt.
+        cancelLayersAfterSvg();
         cancelUngroupAfterSvg();
         ungroupPending = true;
+        lastLayersSequence = "En attente de Dégrouper.";
         lastUngroupSequence = "Demande reçue après transfert SVG; recherche xTool prévue.";
         final int ticket = ungroupTicket;
         final long[] delays = {3000L, 5600L, 8100L, 11300L, 15100L, 18400L};
@@ -208,6 +226,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                     : "Contrôle Dégrouper non activé; voir Dernière tentative.";
                             JarvisBubbleService.onUngroupAutoFinished(
                                     touchSent, confirmed);
+                            // This is the same path for Gmail SVGs and the
+                            // local SVG bubble. Only an accepted action starts
+                            // the read-only/menu/Calques stage.
+                            if (touchSent && ungroupPending
+                                    && ticket == ungroupTicket)
+                                armLayersAfterUngroup();
                         });
                 if (found) {
                     ungroupDispatched = true;
@@ -243,6 +267,85 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ungroupDispatched = false;
         for (Runnable check : ungroupChecks) panelHandler.removeCallbacks(check);
         ungroupChecks.clear();
+    }
+
+    private void armLayersAfterUngroup() {
+        cancelLayersAfterSvg();
+        layersPending = true;
+        lastLayersSequence = "Dégrouper touché; recherche du bouton Calques.";
+        final int ticket = layersTicket;
+        // Only a bounded 7-second post-action window; not repeated background
+        // checks for xTool closure or anything related to laser operation.
+        final long[] delays = {800L, 1600L, 3100L, 4800L};
+        for (long delay : delays) {
+            Runnable check = () -> attemptLayersButton(ticket);
+            layersChecks.add(check);
+            panelHandler.postDelayed(check, delay);
+        }
+        Runnable end = () -> {
+            if (!layersPending || ticket != layersTicket) return;
+            lastLayersSequence = "Calques non trouvé dans le bas de xTool. "
+                    + "Menu à fermer manuellement, puis vérifier le diagnostic.";
+            cancelLayersAfterSvg();
+            JarvisBubbleService.onLayersAutoUnavailable();
+        };
+        layersChecks.add(end);
+        panelHandler.postDelayed(end, 7000L);
+    }
+
+    private void scheduleLayersEventCheck() {
+        if (!layersPending || layersDispatched || layersEventCheck != null) return;
+        final int ticket = layersTicket;
+        layersEventCheck = () -> {
+            layersEventCheck = null;
+            attemptLayersButton(ticket);
+        };
+        panelHandler.postDelayed(layersEventCheck, 250L);
+    }
+
+    private void attemptLayersButton(int ticket) {
+        if (!layersPending || ticket != layersTicket || layersDispatched) return;
+        if (!XtoolSessionManager.isActive(this)) {
+            lastLayersSequence = "Session Jarvis terminée; Calques non touché.";
+            cancelLayersAfterSvg();
+            return;
+        }
+        if (clickTestPending || redLayerTapPending) return;
+
+        boolean found = XtoolLayersOneShot.tryOnce(
+                this, panelHandler, touched -> {
+                    if (!layersPending || ticket != layersTicket) return;
+                    lastLayersSequence = touched
+                            ? "Bouton Calques touché; panneau à vérifier."
+                            : "Bouton Calques trouvé mais toucher non effectué.";
+                    cancelLayersAfterSvg();
+                    JarvisBubbleService.onLayersAutoFinished(touched);
+                });
+        if (found) {
+            layersDispatched = true;
+            return;
+        }
+        if (!layersDismissAttempted) {
+            layersDismissAttempted = true;
+            boolean dismissed = XtoolLayersOneShot
+                    .dismissUngroupPopupIfExposed(this);
+            lastLayersSequence = dismissed
+                    ? "Menu Dégrouper fermé; recherche Calques."
+                    : "Menu non refermable par l'accessibilité; "
+                        + "recherche de Calques si visible.";
+        }
+    }
+
+    private void cancelLayersAfterSvg() {
+        layersTicket++;
+        layersPending = false;
+        layersDispatched = false;
+        layersDismissAttempted = false;
+        for (Runnable check : layersChecks) panelHandler.removeCallbacks(check);
+        layersChecks.clear();
+        if (layersEventCheck != null)
+            panelHandler.removeCallbacks(layersEventCheck);
+        layersEventCheck = null;
     }
 
     /**
@@ -416,6 +519,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
         CharSequence pkg = event.getPackageName();
         if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
+            if (layersPending)
+                scheduleLayersEventCheck();
             lastXtoolEventAt = SystemClock.elapsedRealtime();
             lastXtoolEventType = type;
             if (foregroundTransition || contentChanged)
@@ -663,6 +768,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         redLayerTapPending = false;
         cancelAutomaticEasySet();
         cancelUngroupAfterSvg();
+        cancelLayersAfterSvg();
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
         lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
