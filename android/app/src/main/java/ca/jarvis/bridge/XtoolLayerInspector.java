@@ -120,6 +120,10 @@ final class XtoolLayerInspector {
                 .append(XtoolConceptionTabOneShot.inspect(root));
         result.append("\nDégrouper : ")
                 .append(XtoolUngroupReadiness.inspect(root));
+        result.append("\n\nSéquence Calques : ")
+                .append(ChatGptBubbleAccessibilityService.automaticLayersStatus())
+                .append("\nDernière tentative Calques : ")
+                .append(XtoolLayersOneShot.lastAttempt());
         result.append("\n\nUne etiquette de couleur ne prouve pas le type de traitement. ")
                 .append("Lecture seule, aucun reglage modifie.");
         return result.toString();
