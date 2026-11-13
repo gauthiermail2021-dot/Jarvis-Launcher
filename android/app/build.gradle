@@ -11,8 +11,8 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 87
-        versionName '1.2.68'
+        versionCode 88
+        versionName '1.2.69'
         // Jarvis 1.2.68: after Dégrouper, safely target Calques bottom panel.
         // Signed experimental release, must be verified on the Samsung.
     }
