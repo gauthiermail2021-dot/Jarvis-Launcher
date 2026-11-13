@@ -114,10 +114,13 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         });
     }
 
-    // Nouvelle phase : une seule action de degroupement apres chaque SVG.
-    // Les lectures sont bornées dans le temps et ne touchent aucun parametre.
+    // Two-stage, one-shot XCS design action: Conception, then Dégrouper.
+    // Never touch controls without accessible labels; no laser settings.
     private int ungroupTicket;
     private boolean ungroupPending;
+    private boolean conceptionDispatched;
+    private boolean conceptionTouched;
+    private boolean ungroupDispatched;
     private final List<Runnable> ungroupChecks = new ArrayList<>();
 
     static void requestAutomaticUngroupAfterSvg() {
@@ -133,35 +136,61 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         cancelUngroupAfterSvg();
         ungroupPending = true;
         final int ticket = ungroupTicket;
-        final long[] delays = {2900L, 5400L, 8500L, 12500L, 17500L};
+        final long[] delays = {3000L, 5600L, 8100L, 11300L, 15100L, 18400L};
         for (long delay : delays) {
             Runnable check = () -> {
-                if (!ungroupPending || ticket != ungroupTicket) return;
-                if (!XtoolSessionManager.isActive(this)
+                if (!ungroupPending || ticket != ungroupTicket
+                        || !XtoolSessionManager.isActive(this)
                         || clickTestPending || redLayerTapPending) return;
-                boolean dispatched = XtoolUngroupOneShot.tryOnce(
-                        this, panelHandler, (touchSent, confirmed) -> {
-                            JarvisBubbleService.onUngroupAutoFinished(
-                                    touchSent, confirmed);
-                        });
-                if (dispatched) cancelUngroupAfterSvg();
+
+                if (!conceptionTouched) {
+                    if (conceptionDispatched) return;
+                    boolean tabFound = XtoolConceptionTabOneShot.tryOnce(
+                            this, panelHandler, touched -> {
+                                if (!ungroupPending || ticket != ungroupTicket) return;
+                                if (touched) {
+                                    conceptionTouched = true;
+                                    JarvisBubbleService.onConceptionTabTouched();
+                                } else {
+                                    cancelUngroupAfterSvg();
+                                    JarvisBubbleService.onConceptionTabFailed();
+                                }
+                            });
+                    if (tabFound) conceptionDispatched = true;
+                    return;
+                }
+                // Only one ungroup gesture, and never before the named tab touch.
+                if (ungroupDispatched) return;
+                boolean found = XtoolUngroupOneShot.tryOnce(
+                        this, panelHandler, (touchSent, confirmed) ->
+                                JarvisBubbleService.onUngroupAutoFinished(
+                                        touchSent, confirmed));
+                if (found) {
+                    ungroupDispatched = true;
+                    cancelUngroupAfterSvg();
+                }
             };
             ungroupChecks.add(check);
             panelHandler.postDelayed(check, delay);
         }
         Runnable expiry = () -> {
             if (ungroupPending && ticket == ungroupTicket) {
+                boolean tabTouched = conceptionTouched;
                 cancelUngroupAfterSvg();
-                JarvisBubbleService.onUngroupNotFound();
+                if (tabTouched) JarvisBubbleService.onUngroupNotFound();
+                else JarvisBubbleService.onConceptionTabNotFound();
             }
         };
         ungroupChecks.add(expiry);
-        panelHandler.postDelayed(expiry, 19200L);
+        panelHandler.postDelayed(expiry, 20200L);
     }
 
     private void cancelUngroupAfterSvg() {
         ungroupTicket++;
         ungroupPending = false;
+        conceptionDispatched = false;
+        conceptionTouched = false;
+        ungroupDispatched = false;
         for (Runnable check : ungroupChecks) panelHandler.removeCallbacks(check);
         ungroupChecks.clear();
     }

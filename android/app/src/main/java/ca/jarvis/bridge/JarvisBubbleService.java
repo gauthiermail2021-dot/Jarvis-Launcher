@@ -460,6 +460,18 @@ public final class JarvisBubbleService extends Service {
                 opened ? "OUVERT" : "À VÉRIFIER");
     }
 
+    static void onConceptionTabTouched() {
+        showStageAfterObservedEvent(STATE_XTOOL, "CONCEPTION", "TOUCHER ENVOYÉ");
+    }
+
+    static void onConceptionTabNotFound() {
+        showStageAfterObservedEvent(STATE_XTOOL, "CONCEPTION", "NON TROUVÉ");
+    }
+
+    static void onConceptionTabFailed() {
+        showStageAfterObservedEvent(STATE_XTOOL, "CONCEPTION", "ÉCHEC TOUCHER");
+    }
+
     static void onUngroupAutoFinished(boolean touchSent, boolean verified) {
         // "TOUCHER ENVOYÉ" is not a successful XCS ungroup confirmation.
         showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
