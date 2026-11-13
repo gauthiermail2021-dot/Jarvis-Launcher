@@ -29,5 +29,6 @@
 - `.github/workflows/build-jarvis-android.yml` : compilation de contrôle de `main`, tests et signature, **sans publication automatique comme version stable**.
 - `index.html` : lanceur Web préservé, distinct de l'APK.
 - `docs/SOURCE_OF_TRUTH.md` : suivi des états, procédures et sauvegardes.
+- `docs/RELEASE_CHECKLIST.md` : exigences de qualité avant une nouvelle version.
 
 L'ancien prototype, les versions antérieures et leurs workflows restent consultables dans l'historique Git et dans les branches spécifiques, mais ne sont plus proposés comme chemin de développement actif.
