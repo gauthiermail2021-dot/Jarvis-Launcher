@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | **`main`** | **1.2.69**, `versionCode 88` | **Référence fonctionnelle testée sur Samsung** ; Gmail/SVG, Conception et Dégrouper fonctionnent ; Calques reste à corriger |
 | [`fix/layers-dismiss-after-ungroup-1.2.69`](../../tree/fix/layers-dismiss-after-ungroup-1.2.69) | 1.2.69 | Branche historique précise du code promu vers `main`, à conserver comme sauvegarde |
-| [`fix/audit-stability-1.2.70-clean`](../../tree/fix/audit-stability-1.2.70-clean) | 1.2.70, `versionCode 89` | Ressources d'accessibilité nettoyées, modèle OCR épinglé. Tests et signature à reconfirmer sur la branche propre. **Test téléphone non confirmé** |
+| [`fix/audit-stability-1.2.70-clean`](../../tree/fix/audit-stability-1.2.70-clean) | 1.2.70, `versionCode 89` | Ressources d'accessibilité nettoyées, modèle OCR épinglé. Tests JVM, compilation et signature réussis sur la branche propre. **Test téléphone non confirmé** |
 | `snapshot/jarvis-1.2.31-build-verified` | 1.2.31 | Archive historique de restauration, non utilisable comme nouvelle base |
 
 La branche `main` conserve l'histoire du lanceur et des versions précédentes. La source Android actuelle a été remplacée intégralement par l'arbre exact de 1.2.69, sans copier d'anciennes classes isolées.
