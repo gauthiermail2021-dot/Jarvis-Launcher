@@ -637,22 +637,22 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     if (pkg != null && !EasySetForegroundScanPolicy.XCS_PACKAGE
                             .contentEquals(pkg)) continue;
 
-            XtoolAccessibleWords.add(allAccessibleWords, node.getText(), "Texte");
-            XtoolAccessibleWords.add(allAccessibleWords,
-                    node.getContentDescription(), "Description");
-            collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
-            collectEasySetLabel(node.getContentDescription(), labels,
-                    exactLabels, "Description");
-            // No gestures, clicks or value changes: inspect only named
-            // EasySet nodes and the immediately associated parent.
-            appendEasySetControl(node, easySetControls);
-
-            if (item.depth >= maxDepth) continue;
-            int count = Math.min(40, node.getChildCount());
-            for (int i = 0; i < count && queue.size() < maxNodes; i++) {
-                AccessibilityNodeInfo child = node.getChild(i);
-                if (child != null) queue.addLast(
-                        new NodeAtDepth(child, item.depth + 1));
+                    XtoolAccessibleWords.add(allAccessibleWords, node.getText(), "Texte");
+                    XtoolAccessibleWords.add(allAccessibleWords,
+                            node.getContentDescription(), "Description");
+                    collectEasySetLabel(node.getText(), labels, exactLabels, "Texte");
+                    collectEasySetLabel(node.getContentDescription(), labels,
+                            exactLabels, "Description");
+                    // No gestures, clicks or value changes: inspect only named
+                    // EasySet nodes and the immediately associated parent.
+                    appendEasySetControl(node, easySetControls);
+        
+                    if (item.depth >= maxDepth) continue;
+                    int count = Math.min(40, node.getChildCount());
+                    for (int i = 0; i < count && queue.size() < maxNodes; i++) {
+                        AccessibilityNodeInfo child = node.getChild(i);
+                        if (child != null) queue.addLast(
+                                new NodeAtDepth(child, item.depth + 1));
             }
                 } finally {
                     node.recycle();
