@@ -28,6 +28,16 @@ final class XtoolLayerStripPolicy {
                 && bottom <= screenHeight * 97L / 100;
     }
 
+    static boolean validToolbarAnchor(int left, int top, int right, int bottom,
+                                      int screenWidth, int screenHeight) {
+        return XtoolLayersPolicy.validBottomButton(
+                left, top, right, bottom, screenWidth, screenHeight)
+                && left >= screenWidth * 8L / 100
+                && right <= screenWidth * 92L / 100
+                && top >= screenHeight * 72L / 100
+                && bottom <= screenHeight * 97L / 100;
+    }
+
     static boolean safeSwipe(int startX, int endX, int y,
                              int screenWidth, int screenHeight,
                              int labelTop, int labelBottom) {
