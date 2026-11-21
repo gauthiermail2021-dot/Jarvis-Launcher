@@ -1,5 +1,13 @@
 # Jarvis — source officielle et protocole de validation
 
+## Mise à jour du 21 novembre 2026 — sélection des calques
+
+**Constat de test communiqué par l'utilisateur :** après « Dégrouper » dans xTool Creative Space, toutes les formes restent sélectionnées. Le dégroupement fonctionne; cette sélection globale empêche de cibler sans ambiguïté les paramètres d'une seule couleur.
+
+**Séquence de prochaine implémentation (non validée / non codée à ce stade) :** désélectionner les formes par une zone vide sûre du canevas; afficher Calques; sélectionner une couleur précise (ex. rouge); ouvrir « Paramètres » pour cette couleur; permettre la modification des valeurs de cette couleur et confirmer l'effet à l'écran. Répéter la sélection de couleur seulement pour les calques présents. Éviter toute modification de tous les objets par erreur.
+
+**Critères de validation Android :** vérifier après le clic de désélection que la sélection globale est réellement annulée; vérifier que le panneau Calques est visible; confirmer que seule la couleur visée est active avant d'accéder à ses paramètres; vérifier la prise en compte des réglages et l'absence de clics multiples. Ne pas considérer qu'un `dispatchGesture()` réussi confirme un changement d'état. Les paramètres de traitement et le lancement du laser restent sous contrôle humain.
+
 État établi : **13 novembre 2026**.
 
 ## Point de reprise interconversations — 21 novembre 2026
