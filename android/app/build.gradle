@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 103
-        versionName '1.2.84'
-        // Jarvis 1.2.84 TEST: start horizontal swipe inside moving toolbar,
-        // not on the fixed right-hand réglage control.
+        versionCode 104
+        versionName '1.2.85'
+        // Jarvis 1.2.85 TEST: exported TEST SVG launch requires confirmation;
+        // Calques prefers ACTION_CLICK and reads resulting color labels.
     }
 
     signingConfigs {
