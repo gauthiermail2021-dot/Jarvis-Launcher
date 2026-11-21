@@ -1,5 +1,15 @@
 # Jarvis — source officielle et protocole de validation
 
+## Candidate 1.2.82 — barre inférieure xTool (21 novembre 2026)
+
+- Base : branche `feature/1.2.81-calques-named-tap` (version candidate 1.2.81), non promue à `main`.
+- Vidéo Samsung 9,5 s : après désélection manuelle, le panneau « Conception » se ferme; la barre d'outils inférieure défile horizontalement vers la gauche, dévoilant « Calque », qui ouvre ensuite la liste bleu/vert/rouge.
+- Nouvelle action ponctuelle dans la bulle : « Défiler et ouvrir Calque (1 fois) ». La séquence post-SVG tente également la navigation automatiquement pendant une fenêtre finie, **uniquement quand le volet Conception a disparu**.
+- Un glissement part d'un libellé visible et identifié de la barre inférieure (« Forme », « Graffiti », « Toile », « Image » ou « Texte ») ou d'un « Calque » partiellement visible à droite. Deux glissements maximum, puis toucher du seul libellé Calque entièrement visible. Arrêt sur anomalie.
+- **Limite actuelle :** la désélection automatique des formes n'est PAS implémentée; ACTION_CLEAR_SELECTION sur la racine a été refusée sur Samsung et les touches aveugles ont déjà causé une régression. Si le dessin reste sélectionné, Jarvis attend que l'utilisateur le désélectionne lui-même.
+- Aucune écriture EasySet, aucun déclenchement du laser. Envoi d'un geste Android ≠ confirmation du panneau ouvert. Test réel avec un nouvel APK signé requis. `main` inchangée.
+
+
 État établi : **13 novembre 2026**.
 
 ## Dépôt unique et application stable
