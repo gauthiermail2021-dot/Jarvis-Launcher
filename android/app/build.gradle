@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 97
-        versionName '1.2.78'
-        // Jarvis 1.2.78 TEST: red non-touchable touch markers retained; diagnostic
-        // Copy/Fermer controls moved above the scrollable report.
+        versionCode 98
+        versionName '1.2.79'
+        // Jarvis 1.2.79 TEST: Copy visible for ALL reports including TEST ANDROID,
+        // fallback copy from the bubble menu; bounded scrolling on long reports.
     }
 
     signingConfigs {
