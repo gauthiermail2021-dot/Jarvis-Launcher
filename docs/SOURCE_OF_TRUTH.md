@@ -2,6 +2,16 @@
 
 État établi : **13 novembre 2026**.
 
+## Point de reprise interconversations — 21 novembre 2026
+
+**Dernier état communiqué par l'utilisateur (à distinguer de la validation du code sur `main`)** : le parcours Jarvis Bridge → Gmail/SVG → xTool → Conception → Dégrouper → panneau **Calques** est atteint. Ne pas lui demander de réexpliquer ces étapes déjà couvertes.
+
+**Étape suivante demandée** : depuis le panneau Calques, ouvrir **Paramètres** pour le calque concerné, puis prévoir l'association **couleur du calque → paramètres correspondants**. Cette association est un objectif à concevoir et vérifier ; elle n'est **pas attestée comme implémentée ou fonctionnelle** dans l'APK. Aucun barème de valeurs ni aucune couleur précise n'a été communiqué dans ce point de reprise : ne pas les inventer.
+
+**Restrictions inchangées** : le lancement du laser et ses paramètres de traitement restent sous contrôle humain ; aucune action automatique de démarrage, de gravure, de découpe ou de réglage machine. Ne pas confondre accès à un panneau, clic réussi et réglages réellement appliqués. Toute évolution de l'interface doit être testée sur Samsung et garder une preuve de résultat avant validation.
+
+**Continuité** : avant chaque reprise après limite de conversation, consulter d'abord ce fichier, `README.md`, `AGENTS.md`, les branches/commits actuels et la dernière validation utilisateur. Le dépôt GitHub constitue la référence durable ; les comptes rendus de chat peuvent être incomplets.
+
 ## Dépôt unique et application stable
 
 - **Dépôt officiel :** `gauthiermail2021-dot/Jarvis-Launcher`.
