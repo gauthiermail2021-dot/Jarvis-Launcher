@@ -6,7 +6,7 @@ name: Build canonical Jarvis Android APK (tests and signature)
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'integration/audit-p1-from-main']
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
@@ -92,6 +92,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: Jarvis-Bridge-canonical-main-signed
+          name: ${{ github.ref_name == 'main' && 'Jarvis-Bridge-canonical-main-signed' || 'Jarvis-Bridge-mainbased-security-CI-only' }}
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
