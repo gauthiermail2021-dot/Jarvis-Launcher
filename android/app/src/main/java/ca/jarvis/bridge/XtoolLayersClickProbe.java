@@ -52,7 +52,7 @@ final class XtoolLayersClickProbe {
         AccessibilityNodeInfo root = null;
         Scan scan = new Scan();
         StringBuilder report = new StringBuilder(512);
-        report.append(HEADER).append("ACTIVATION CALQUES IDENTIFIÉE — une fois\\n");
+        report.append(HEADER).append("ACTIVATION CALQUES IDENTIFIÉE — une fois\n");
         try {
             root = service.getRootInActiveWindow();
             if (!isXtool(root)) {
@@ -76,7 +76,7 @@ final class XtoolLayersClickProbe {
             inspectTree(root, display, 0, scan);
             report.append("Libellés Calques exacts : ").append(scan.named)
                     .append(" ; visibles en bas : ").append(scan.bounded)
-                    .append(" ; cliquables : ").append(scan.targets.size()).append("\\n");
+                    .append(" ; cliquables : ").append(scan.targets.size()).append("\n");
             XtoolLayerActivationPolicy.Strategy strategy =
                     XtoolLayerActivationPolicy.strategy(
                             scan.named, scan.bounded, scan.namedTiles.size(),
@@ -101,7 +101,7 @@ final class XtoolLayersClickProbe {
             }
             report.append("Zone nommée : [").append(area.left).append(",")
                     .append(area.top).append(" – ").append(area.right)
-                    .append(",").append(area.bottom).append("]\\n");
+                    .append(",").append(area.bottom).append("]\n");
             if (strategy == XtoolLayerActivationPolicy.Strategy.ACTION_CLICK) {
                 AccessibilityNodeInfo target = scan.targets.get(0);
                 Rect control = new Rect();
@@ -166,7 +166,7 @@ final class XtoolLayersClickProbe {
                                               String prefix) {
         // ACTION_CLICK accepted and dispatchGesture completed are only Android
         // results. Read xTool's CURRENT window after its update settles.
-        handler.postDelayed(() -> callback.finished(prefix + "\\n"
+        handler.postDelayed(() -> callback.finished(prefix + "\n"
                 + XtoolLayerPanelEvidence.inspect(service)), 750L);
     }
     private static String execute(AccessibilityService service, boolean click) {
