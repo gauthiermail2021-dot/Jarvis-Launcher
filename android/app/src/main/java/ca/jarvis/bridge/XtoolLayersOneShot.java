@@ -210,6 +210,7 @@ final class XtoolLayersOneShot {
             boolean accepted = service.dispatchGesture(gesture,
                     new AccessibilityService.GestureResultCallback() {
                         @Override public void onCompleted(GestureDescription description) {
+                            JarvisBubbleService.showXtoolTouchMarker(x, y);
                             lastAttempt = "Coin inférieur droit du dessin touché; "
                                     + "désélection visuelle à confirmer.";
                             callback.finished(true);
@@ -219,9 +220,7 @@ final class XtoolLayersOneShot {
                             callback.finished(false);
                         }
                     }, handler);
-            if (accepted) {
-                JarvisBubbleService.showXtoolTouchMarker(x, y);
-            } else {
+            if (!accepted) {
                 lastAttempt = "Désélection : Android a refusé le geste.";
                 handler.post(() -> callback.finished(false));
             }
@@ -302,6 +301,8 @@ final class XtoolLayersOneShot {
         boolean accepted = service.dispatchGesture(gesture,
                 new AccessibilityService.GestureResultCallback() {
                     @Override public void onCompleted(GestureDescription d) {
+                        JarvisBubbleService.showXtoolTouchMarker(
+                                box.centerX(), box.centerY());
                         lastAttempt = "Toucher Calques envoyé; ouverture à vérifier.";
                         callback.finished(true);
                     }
@@ -310,10 +311,7 @@ final class XtoolLayersOneShot {
                         callback.finished(false);
                     }
                 }, handler);
-        if (accepted) {
-            JarvisBubbleService.showXtoolTouchMarker(
-                    box.centerX(), box.centerY());
-        } else {
+        if (!accepted) {
             lastAttempt = "Toucher Calques refusé par Android.";
             callback.finished(false);
         }
