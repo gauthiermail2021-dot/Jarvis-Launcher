@@ -326,29 +326,38 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             // If an ungroup popup is still visible, require a real
             // accessibility dismiss action. Never tap a guessed corner.
             if (XtoolLayersOneShot.ungroupPopupVisible(this)) {
-            boolean started = XtoolLayersOneShot.dismissUngroupMenu(
-                    this, panelHandler, delivered -> {
-                        if (!layersPending || ticket != layersTicket) return;
-                        layersDismissInFlight = false;
-                        lastLayersSequence = delivered
-                                ? "Toucher de fermeture de menu envoyé; recherche Calques."
-                                : "Menu non fermé; recherche Calques si accessible.";
-                        panelHandler.postDelayed(
-                                () -> attemptLayersButton(ticket), 550L);
-                    });
-            if (started) {
-                layersDismissInFlight = true;
+                boolean started = XtoolLayersOneShot.dismissUngroupMenu(
+                        this, panelHandler, delivered -> {
+                            if (!layersPending || ticket != layersTicket) return;
+                            layersDismissInFlight = false;
+                            lastLayersSequence = delivered
+                                    ? "Fermeture du menu demandée; nouvel examen."
+                                    : "Menu non fermé; aucun clic supplémentaire.";
+                            panelHandler.postDelayed(
+                                    () -> attemptLayersButton(ticket), 550L);
+                        });
+                if (started) {
+                    layersDismissInFlight = true;
+                    return;
+                }
+                lastLayersSequence = "Menu Dégrouper visible sans fermeture "
+                        + "accessibilité; séquence arrêtée (aucun clic aveugle).";
+                cancelLayersAfterSvg();
+                JarvisBubbleService.onLayersAutoUnavailable();
                 return;
-            }
-            lastLayersSequence = "Menu Dégrouper visible sans fermeture "
-                    + "accessibilité; séquence arrêtée (aucun clic aveugle).";
-            cancelLayersAfterSvg();
-            JarvisBubbleService.onLayersAutoUnavailable();
-            return;
             }
             lastLayersSequence = "Menu Dégrouper absent; "
                     + "recherche du bouton Calques nommé.";
         }
+        // If Android accepted the popup dismissal but xTool kept it,
+        // do not tap a Calques node that could be covered by another control.
+        if (XtoolLayersOneShot.ungroupPopupVisible(this)) {
+            lastLayersSequence = "Menu Dégrouper toujours visible; arrêt sans clic.";
+            cancelLayersAfterSvg();
+            JarvisBubbleService.onLayersAutoUnavailable();
+            return;
+        }
+
         // The blank-corner deselection used by 1.2.71 hit "Réglages" on
         // the Samsung. This step is deliberately NOT automated without an
         // identified canvas control; only the exact named Calques is touched.
