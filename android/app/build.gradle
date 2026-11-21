@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 105
-        versionName '1.2.86'
-        // Jarvis 1.2.86 TEST: single upper-right canvas deselection after Dégrouper;
+        versionCode 106
+        versionName '1.2.87'
+        // Jarvis 1.2.87 TEST: cyan-marked blank-board deselection with corrected geometry;
         // Calques prefers ACTION_CLICK and reads resulting color labels.
     }
 
