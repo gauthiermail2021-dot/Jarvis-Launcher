@@ -28,6 +28,15 @@ public class XtoolLayerStripPolicyTest {
                 1288, 2718, 1440, 3098, 1440, 3088));
     }
 
+    @Test public void namedToolbarAnchorCanRevealOffscreenCalque() {
+        assertTrue(XtoolLayerStripPolicy.validToolbarAnchor(
+                550, 2740, 740, 2900, 1440, 3088));
+        assertFalse(XtoolLayerStripPolicy.validToolbarAnchor(
+                550, 900, 740, 1080, 1440, 3088));
+        assertFalse(XtoolLayerStripPolicy.validToolbarAnchor(
+                1350, 2740, 1480, 2900, 1440, 3088));
+    }
+
     @Test public void horizontalGestureMustStayInObservedBottomStrip() {
         assertTrue(XtoolLayerStripPolicy.safeSwipe(
                 1137, 345, 2812, 1440, 3088, 2718, 2907));
