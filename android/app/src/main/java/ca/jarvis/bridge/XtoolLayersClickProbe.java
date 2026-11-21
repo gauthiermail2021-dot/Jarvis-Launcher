@@ -38,9 +38,9 @@ final class XtoolLayersClickProbe {
     interface TapOutcome { void finished(String result); }
 
     /**
-     * User-triggered only: at most one gesture at the center of an exact
-     * live Calques accessibility label, never a hardcoded screen coordinate.
-     * A completed Android gesture is NOT proof the Calques panel opened.
+     * One verified activation of the exact, visible bottom Calques tile.
+     * Prefer ACTION_CLICK on a unique accessible target; otherwise deliver
+     * one gesture at the current named tile center. Never do both.
      */
     static void tapNamedOnce(AccessibilityService service, Handler handler,
                              TapOutcome callback) {
@@ -52,7 +52,7 @@ final class XtoolLayersClickProbe {
         AccessibilityNodeInfo root = null;
         Scan scan = new Scan();
         StringBuilder report = new StringBuilder(512);
-        report.append(HEADER).append("TEST TOUCHER CALQUES NOMMÉ — une fois\n");
+        report.append(HEADER).append("ACTIVATION CALQUES IDENTIFIÉE — une fois\\n");
         try {
             root = service.getRootInActiveWindow();
             if (!isXtool(root)) {
@@ -76,31 +76,60 @@ final class XtoolLayersClickProbe {
             inspectTree(root, display, 0, scan);
             report.append("Libellés Calques exacts : ").append(scan.named)
                     .append(" ; visibles en bas : ").append(scan.bounded)
-                    .append(" ; cliquables : ").append(scan.targets.size()).append("\n");
-            if (scan.named != 1 || scan.bounded != 1
-                    || scan.namedTiles.size() != 1 || scan.targets.size() != 0) {
-                callback.finished(report.append("Aucun toucher : cible ambiguë, absente "
-                        + "ou accessible par ACTION_CLICK.").toString());
+                    .append(" ; cliquables : ").append(scan.targets.size()).append("\\n");
+            XtoolLayerActivationPolicy.Strategy strategy =
+                    XtoolLayerActivationPolicy.strategy(
+                            scan.named, scan.bounded, scan.namedTiles.size(),
+                            scan.targets.size());
+            if (strategy == XtoolLayerActivationPolicy.Strategy.NONE) {
+                callback.finished(report.append("Aucune action : cible absente, "
+                        + "ambiguë ou hors écran.").toString());
                 return;
             }
             Rect area = new Rect(scan.namedTiles.get(0));
             if (!XtoolLayersPolicy.validNamedIconTile(
                     area.left, area.top, area.right, area.bottom,
                     display.x, display.y)) {
-                callback.finished(report.append("Aucun toucher : rectangle hors zone Calques.")
+                callback.finished(report.append("Aucune action : rectangle Calques invalide.")
                         .toString());
                 return;
             }
-            // Never blindly touch through xTool's contextual Dégrouper popup.
             if (XtoolLayersOneShot.ungroupPopupVisible(service)) {
                 callback.finished(report.append("Menu Dégrouper visible. Aucun geste.")
                         .toString());
                 return;
             }
-            int x = area.centerX(), y = area.centerY();
-            report.append("Zone ciblée : [").append(area.left).append(",")
+            report.append("Zone nommée : [").append(area.left).append(",")
                     .append(area.top).append(" – ").append(area.right)
-                    .append(",").append(area.bottom).append("]\n");
+                    .append(",").append(area.bottom).append("]\\n");
+            if (strategy == XtoolLayerActivationPolicy.Strategy.ACTION_CLICK) {
+                AccessibilityNodeInfo target = scan.targets.get(0);
+                Rect control = new Rect();
+                target.getBoundsInScreen(control);
+                if (!target.isVisibleToUser() || !target.isEnabled()
+                        || !target.isClickable()
+                        || !XtoolLayersPolicy.validBottomButton(control.left,
+                        control.top, control.right, control.bottom,
+                        display.x, display.y)) {
+                    callback.finished(report.append("Contrôle ACTION_CLICK non valide. "
+                            + "Aucun geste de secours.").toString());
+                    return;
+                }
+                boolean accepted = target.performAction(
+                        AccessibilityNodeInfo.ACTION_CLICK);
+                if (!accepted) {
+                    callback.finished(report.append("ACTION_CLICK refusée par xTool. "
+                            + "Aucun toucher supplémentaire.").toString());
+                    return;
+                }
+                JarvisBubbleService.showXtoolTouchMarker(
+                        control.centerX(), control.centerY());
+                checkAfterActivation(service, handler, callback,
+                        report.toString() + "ACTION_CLICK acceptée sur Calques.");
+                return;
+            }
+
+            int x = area.centerX(), y = area.centerY();
             Path path = new Path();
             path.moveTo(x, y);
             GestureDescription gesture = new GestureDescription.Builder()
@@ -111,8 +140,8 @@ final class XtoolLayersClickProbe {
                     new AccessibilityService.GestureResultCallback() {
                         @Override public void onCompleted(GestureDescription ignored) {
                             JarvisBubbleService.showXtoolTouchMarker(x, y);
-                            callback.finished(prefix + "Geste livré au contrôle nommé Calques."
-                                    + "\nOuverture du panneau : NON CONFIRMÉE.");
+                            checkAfterActivation(service, handler, callback,
+                                    prefix + "Geste livré au contrôle nommé Calques.");
                         }
                         @Override public void onCancelled(GestureDescription ignored) {
                             callback.finished(prefix + "Geste annulé par Android."
@@ -122,13 +151,23 @@ final class XtoolLayersClickProbe {
             if (!accepted) callback.finished(prefix
                     + "Geste refusé par Android. Aucun autre toucher.");
         } catch (RuntimeException error) {
-            callback.finished(report.append("Test impossible : ")
+            callback.finished(report.append("Activation impossible : ")
                     .append(error.getClass().getSimpleName())
                     .append(". Aucun geste de secours.").toString());
         } finally {
             scan.recycle();
             if (root != null) root.recycle();
         }
+    }
+
+    private static void checkAfterActivation(AccessibilityService service,
+                                              Handler handler,
+                                              TapOutcome callback,
+                                              String prefix) {
+        // ACTION_CLICK accepted and dispatchGesture completed are only Android
+        // results. Read xTool's CURRENT window after its update settles.
+        handler.postDelayed(() -> callback.finished(prefix + "\\n"
+                + XtoolLayerPanelEvidence.inspect(service)), 750L);
     }
     private static String execute(AccessibilityService service, boolean click) {
         AccessibilityNodeInfo root = null;
