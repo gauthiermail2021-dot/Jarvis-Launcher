@@ -164,23 +164,24 @@ final class XtoolLayersOneShot {
 
 
     /**
-     * One bounded tap inside the bottom-right of the xTool drawing area.
-     * The actual Conception tab and xTool window bounds determine the position.
-     * No top-right screen corner, no settings controls, and no machine action.
-     * A completed gesture is NOT proof that the shapes are deselected.
+     * ONE guarded tap at the upper-right blank WHITE board area identified
+     * by the user in xTool's Samsung screenshot. Not a generic emptiness
+     * detector: caller must use a known drawing with that area actually blank.
+     *
+     * Returns true if dispatch was attempted; callback indicates only whether
+     * Android delivered the gesture, not whether selection was cleared.
      */
-    static boolean deselectAtDrawingBottomRight(AccessibilityService service,
+    static boolean deselectAtMarkedBlankCanvas(AccessibilityService service,
                                                Handler handler, Outcome callback) {
-        AccessibilityNodeInfo root = null, tab = null, layers = null;
+        AccessibilityNodeInfo root = null, tab = null;
         try {
             root = service.getRootInActiveWindow();
             if (!isXtool(root)) return false;
             Point display = screen(service);
             if (display == null) return false;
             tab = findSelectedConception(root, 0);
-            layers = findBottomLayers(root, display, 0);
-            if (tab == null || layers == null) {
-                lastAttempt = "Désélection : onglet Conception ou Calques introuvable.";
+            if (tab == null) {
+                lastAttempt = "Désélection : onglet Conception sélectionné introuvable.";
                 return false;
             }
             Rect rootArea = new Rect();
@@ -188,17 +189,18 @@ final class XtoolLayersOneShot {
             root.getBoundsInScreen(rootArea);
             tab.getBoundsInScreen(tabArea);
             int drawingBottom = tabArea.top;
-            int x = rootArea.left + rootArea.width() * 89 / 100;
-            int y = rootArea.top + (drawingBottom - rootArea.top) * 84 / 100;
-            if (!XtoolLayersPolicy.validDrawingBottomRightTap(
+            int x = rootArea.left + rootArea.width() * 86 / 100;
+            int y = rootArea.top + (drawingBottom - rootArea.top) * 30 / 100;
+            if (!XtoolLayersPolicy.validMarkedBlankCanvasTap(
                     x, y, rootArea.left, rootArea.top, rootArea.right,
                     drawingBottom, display.x, display.y)) {
-                lastAttempt = "Désélection : coin droit hors de la page de dessin.";
+                lastAttempt = "Désélection : zone blanche marquée hors limites.";
                 return false;
             }
             if (coveredByAccessibleControl(root, x, y,
                     display.x, display.y, 0)) {
-                lastAttempt = "Désélection : bouton ou libellé au coin droit; arrêt.";
+                lastAttempt = "Désélection : contrôle accessible détecté au point ciblé."
+                        + " Aucun toucher.";
                 return false;
             }
 
@@ -211,17 +213,17 @@ final class XtoolLayersOneShot {
                     new AccessibilityService.GestureResultCallback() {
                         @Override public void onCompleted(GestureDescription description) {
                             JarvisBubbleService.showXtoolTouchMarker(x, y);
-                            lastAttempt = "Coin inférieur droit du dessin touché; "
-                                    + "désélection visuelle à confirmer.";
+                            lastAttempt = "Zone blanche marquée touchée (" + x + "," + y
+                                    + "); désélection visuelle NON confirmée.";
                             callback.finished(true);
                         }
                         @Override public void onCancelled(GestureDescription description) {
-                            lastAttempt = "Désélection : geste annulé par Android.";
+                            lastAttempt = "Désélection : toucher annulé par Android.";
                             callback.finished(false);
                         }
                     }, handler);
             if (!accepted) {
-                lastAttempt = "Désélection : Android a refusé le geste.";
+                lastAttempt = "Désélection : Android a refusé le toucher.";
                 handler.post(() -> callback.finished(false));
             }
             return true;
@@ -229,7 +231,6 @@ final class XtoolLayersOneShot {
             lastAttempt = "Désélection : " + e.getClass().getSimpleName();
             return false;
         } finally {
-            if (layers != null) layers.recycle();
             if (tab != null) tab.recycle();
             if (root != null) root.recycle();
         }
