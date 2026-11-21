@@ -1,5 +1,12 @@
 # Jarvis — source officielle et protocole de validation
 
+## Régression 1.2.71 et correctif 1.2.72 — 21 novembre 2026
+
+- **Retour utilisateur sur Samsung 1.2.71 :** Jarvis a ouvert **Réglages** au lieu de désélectionner le dessin après Dégrouper. Les coordonnées calculées pour un supposé coin vide ne sont pas sûres : NE PAS réutiliser cette méthode.
+- **Correctif candidate 1.2.72** : [PR #46](https://github.com/gauthiermail2021-dot/Jarvis-Launcher/pull/46), branche `fix/1.2.72-stop-blind-canvas-taps`, dérivée de 1.2.71/1.2.70. Suppression des deux gestes non identifiés, fermeture du menu via ACTION_DISMISS uniquement, blocage si le popup reste visible, puis ciblage exclusivement du bouton Calques accessible.
+- La désélection automatique n'est **pas réglée** dans 1.2.72 : la candidate vise uniquement à supprimer le clic incorrect. Les étapes Rouge, fermeture Calques, Paramètres et EasySet restent à coder/vérifier sans envoi automatique de valeurs ni démarrage du laser.
+- Statut : candidate de compilation, **ne pas présenter comme testée sur Samsung** sans retour utilisateur. 1.2.70 demeure référence maintenance ; 1.2.71 a une régression documentée.
+
 ## Proposition 1.2.71 — désélection avant Calques (non validée)
 
 - Branche candidate : `feature/deselect-before-layers-1.2.71`, issue de `fix/audit-stability-1.2.70-clean` (version installée/testée par l'utilisateur : 1.2.70).
