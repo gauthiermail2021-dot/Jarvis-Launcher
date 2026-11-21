@@ -231,6 +231,9 @@ public final class JarvisBubbleService extends Service {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.LEFT;
+        // Android 12+ restricts pass-through touches under opaque overlays.
+        // Keep this purely visual marker below the obscuring threshold.
+        lp.alpha = 0.65f;
         lp.x = x - diameter / 2;
         lp.y = y - diameter / 2;
         try {
