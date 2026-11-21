@@ -16,7 +16,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
  * the horizontal bar is swiped left. This class uses the CURRENT exact
  * accessible label as its anchor, never a stored pixel location.
  *
- * Maximum two swipes and one named tap, once per invocation. No deselection,
+ * One long swipe and one named tap, once per invocation. No deselection,
  * settings changes or laser actions. A delivered gesture is not UI proof.
  */
 final class XtoolLayerStripNavigation {
@@ -24,8 +24,8 @@ final class XtoolLayerStripNavigation {
 
     private static final int MAX_DEPTH = 18;
     private static final int MAX_CHILDREN = 50;
-    private static final int MAX_SWIPES = 2;
-    private static final long SWIPE_DURATION_MS = 390L;
+    private static final int MAX_SWIPES = 1;
+    private static final long SWIPE_DURATION_MS = 550L;
 
     private XtoolLayerStripNavigation() { }
 
@@ -121,13 +121,18 @@ final class XtoolLayerStripNavigation {
                 return;
             }
             if (swipes >= MAX_SWIPES) {
-                callback.finished("Calque pas entièrement visible après deux "
+                callback.finished("Calque non entièrement visible après un long "
                         + "glissements. Aucun toucher.");
                 return;
             }
 
-            int startX = screen.x * 79 / 100;
-            int endX = screen.x * 24 / 100;
+            // In the Samsung recording, the Settings ("réglage") tile
+            // starts around 78% of the screen and is FIXED, not scrollable.
+            // Prior versions started at 79%, on that fixed tile, so the
+            // gesture was delivered but the toolbar did not move.
+            // One full-length swipe from the mobile strip to the far left.
+            int startX = screen.x * 70 / 100;
+            int endX = screen.x * 9 / 100;
             int y = r.centerY();
             if (!XtoolLayerStripPolicy.safeSwipe(
                     startX, endX, y, screen.x, screen.y, r.top, r.bottom)) {

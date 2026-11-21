@@ -42,11 +42,13 @@ final class XtoolLayerStripPolicy {
                              int screenWidth, int screenHeight,
                              int labelTop, int labelBottom) {
         return screenWidth > 0 && screenHeight > 0
-                && startX >= screenWidth * 65L / 100
-                && startX <= screenWidth * 88L / 100
-                && endX >= screenWidth * 15L / 100
-                && endX <= screenWidth * 35L / 100
-                && startX - endX > screenWidth * 35L / 100
+                // The fixed Settings tile begins near 78% on Samsung.
+                // Never start a scroll over that non-scrollable zone.
+                && startX >= screenWidth * 60L / 100
+                && startX <= screenWidth * 73L / 100
+                && endX >= screenWidth * 7L / 100
+                && endX <= screenWidth * 12L / 100
+                && startX - endX >= screenWidth * 55L / 100
                 && y >= labelTop && y <= labelBottom
                 && y >= screenHeight * 72L / 100
                 && y <= screenHeight * 96L / 100;

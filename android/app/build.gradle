@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 102
-        versionName '1.2.83'
-        // Jarvis 1.2.83 TEST: allow explicit Calque scroll when xTool is foreground
-        // even if the Jarvis SVG session is complete; auto path remains guarded.
+        versionCode 103
+        versionName '1.2.84'
+        // Jarvis 1.2.84 TEST: start horizontal swipe inside moving toolbar,
+        // not on the fixed right-hand réglage control.
     }
 
     signingConfigs {
