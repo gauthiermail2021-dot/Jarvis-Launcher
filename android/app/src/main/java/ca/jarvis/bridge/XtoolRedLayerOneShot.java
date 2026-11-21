@@ -56,7 +56,7 @@ final class XtoolRedLayerOneShot {
                 return;
             }
             collectExactRed(root, 0, matches);
-            if (matches.size() != 1) {
+            if (!XtoolLayerTapPolicy.uniqueRedTarget(matches.size())) {
                 callback.complete(false, matches.isEmpty()
                         ? "Calque « Rouge » non identifié par Android : aucun clic."
                         : "Plusieurs cibles « Rouge » : aucun clic ambigu.");
