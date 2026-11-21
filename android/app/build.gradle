@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 90
-        versionName '1.2.71'
-        // Jarvis 1.2.71 TEST: one-shot canvas deselection before Calques.
-        // Based on 1.2.70 clean; requires Samsung validation before release.
+        versionCode 91
+        versionName '1.2.72'
+        // Jarvis 1.2.72 TEST: remove unverified blank-corner taps causing
+        // an accidental Réglages activation. Based on 1.2.70 maintenance.
     }
 
     signingConfigs {
