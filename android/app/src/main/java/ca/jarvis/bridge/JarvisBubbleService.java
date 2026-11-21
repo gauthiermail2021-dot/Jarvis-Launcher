@@ -463,6 +463,8 @@ public final class JarvisBubbleService extends Service {
             Button copy = new Button(this);
             copy.setAllCaps(false);
             copy.setText("Copier le rapport");
+            copy.setContentDescription("Copier le rapport de diagnostic complet");
+            copy.setMinHeight(dp(48));
             copy.setOnClickListener(v -> {
                 ClipboardManager clipboard = (ClipboardManager)
                         getSystemService(Context.CLIPBOARD_SERVICE);
@@ -487,7 +489,9 @@ public final class JarvisBubbleService extends Service {
             dismiss.setText("Fermer");
             actions.addView(dismiss, new LinearLayout.LayoutParams(
                     0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            panel.addView(actions);
+            // Keep Copy/Fermer above the long scrollable diagnostic, so it
+            // cannot fall below the visible screen on the Samsung overlay.
+            panel.addView(actions, 1);
         } else {
             dismiss.setText("Fermer le résultat");
             panel.addView(dismiss);
