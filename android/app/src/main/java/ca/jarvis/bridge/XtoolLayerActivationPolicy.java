@@ -10,6 +10,11 @@ final class XtoolLayerActivationPolicy {
 
     private XtoolLayerActivationPolicy() { }
 
+    static boolean actionSent(String report) {
+        return report != null && (report.contains("ACTION_CLICK acceptée sur Calques.")
+                || report.contains("Geste livré au contrôle nommé Calques."));
+    }
+
     static Strategy strategy(int exactLabels, int visibleLabels,
                              int boundedTiles, int clickableTargets) {
         if (exactLabels != 1 || visibleLabels != 1 || boundedTiles != 1)
