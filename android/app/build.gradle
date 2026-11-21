@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 98
-        versionName '1.2.79'
-        // Jarvis 1.2.79 TEST: Copy visible for ALL reports including TEST ANDROID,
-        // fallback copy from the bubble menu; bounded scrolling on long reports.
+        versionCode 99
+        versionName '1.2.80'
+        // Jarvis 1.2.80 TEST: no root CLEAR_SELECTION or blind canvas taps.
+        // Read Calques target after ungroup; optional single guarded ACTION_CLICK.
     }
 
     signingConfigs {

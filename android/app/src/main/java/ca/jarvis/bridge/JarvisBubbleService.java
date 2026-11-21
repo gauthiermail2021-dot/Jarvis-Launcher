@@ -877,6 +877,10 @@ public final class JarvisBubbleService extends Service {
         // La reconnaissance des calques est le diagnostic actif.
         // Les anciens tests de toucher EasySet et de selection rouge
         // restent dans le code mais ne surchargent plus le menu.
+        addMenuButton(menu, "Inspecter cible Calques (sans clic)", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolLayersTargetDiagnostic());
+        addMenuButton(menu, "Tester clic direct Calques (1 fois)", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolLayersClickProbe());
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
         addMenuButton(menu, "Inspecter sélection Android", () ->
