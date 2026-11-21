@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 92
-        versionName '1.2.73'
-        // Jarvis 1.2.73 TEST: only the bounded bottom-right corner of the
-        // drawing page, not the top-right Settings area. Samsung test pending.
+        versionCode 93
+        versionName '1.2.74'
+        // Jarvis 1.2.74 TEST: read-only selected-node and accessibility-action
+        // snapshot after Degrouper; no deselect or Calques tap.
     }
 
     signingConfigs {

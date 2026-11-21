@@ -136,6 +136,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private final List<Runnable> layersChecks = new ArrayList<>();
     private static volatile String lastLayersSequence =
             "Aucune demande Calques depuis le démarrage.";
+    private int selectionDiagnosticTicket;
+    private Runnable pendingSelectionDiagnostic;
 
     static String automaticLayersStatus() {
         return lastLayersSequence;
@@ -168,6 +170,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private void armUngroupAfterSvg() {
         // A new SVG supersedes every incomplete Calques attempt.
         cancelLayersAfterSvg();
+        cancelSelectionDiagnosticAfterSvg();
+        cancelAutomaticEasySet(); // diagnostic build: no separate EasySet click
         cancelUngroupAfterSvg();
         ungroupPending = true;
         lastLayersSequence = "En attente de Dégrouper.";
@@ -232,7 +236,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                             JarvisBubbleService.onUngroupAutoFinished(
                                     touchSent, confirmed);
                             cancelUngroupAfterSvg();
-                            if (touchSent) armLayersAfterUngroup();
+                            if (touchSent) armSelectionDiagnosticAfterUngroup();
                         });
                 if (found) {
                     // Keep the ticket until the actual result arrives.
@@ -273,6 +277,62 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ungroupDispatched = false;
         for (Runnable check : ungroupChecks) panelHandler.removeCallbacks(check);
         ungroupChecks.clear();
+    }
+
+
+    /**
+     * Diagnostic-only candidate 1.2.74. After the known Dégrouper action,
+     * inspect selected nodes, available SELECT/CLEAR_SELECTION actions,
+     * and candidate canvas bounds. Do NOT deselect, open Calques, or change
+     * any power/speed/pass settings in this candidate.
+     */
+    private void armSelectionDiagnosticAfterUngroup() {
+        cancelLayersAfterSvg();
+        cancelSelectionDiagnosticAfterSvg();
+        cancelAutomaticEasySet();
+        lastLayersSequence = "DIAGNOSTIC 1.2.74 : aucun toucher après Dégrouper.";
+        final int ticket = selectionDiagnosticTicket;
+        pendingSelectionDiagnostic = () -> {
+            pendingSelectionDiagnostic = null;
+            if (ticket != selectionDiagnosticTicket) return;
+            if (!XtoolSessionManager.isActive(this)) {
+                lastLayersSequence = "Diagnostic : session xTool inactive.";
+                JarvisBubbleService.showEasySetResult(
+                        "DIAGNOSTIC XTOOL — SÉLECTION\n"
+                        + "Session Jarvis inactive. Aucun clic effectué.");
+                return;
+            }
+            // The inspector recycles the obtained root after a single snapshot.
+            String report = XtoolSelectionInspector.inspect(getRootInActiveWindow());
+            lastLayersSequence = "Instantané sélection capturé; "
+                    + "aucun clic de désélection ni Calques.";
+            JarvisBubbleService.showEasySetResult(report);
+        };
+        panelHandler.postDelayed(pendingSelectionDiagnostic, 850L);
+    }
+
+    private void cancelSelectionDiagnosticAfterSvg() {
+        selectionDiagnosticTicket++;
+        if (pendingSelectionDiagnostic != null) {
+            panelHandler.removeCallbacks(pendingSelectionDiagnostic);
+            pendingSelectionDiagnostic = null;
+        }
+    }
+
+    /** Explicit manual repeat of the same read-only diagnostic. */
+    static void requestXtoolSelectionDiagnostic() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "DIAGNOSTIC XTOOL — SÉLECTION\n"
+                    + "Accessibilité Jarvis inactive.");
+            return;
+        }
+        svc.panelHandler.postDelayed(() -> {
+            String report = XtoolSelectionInspector.inspect(
+                    svc.getRootInActiveWindow());
+            JarvisBubbleService.showEasySetResult(report);
+        }, 250L);
     }
 
     private void armLayersAfterUngroup() {
