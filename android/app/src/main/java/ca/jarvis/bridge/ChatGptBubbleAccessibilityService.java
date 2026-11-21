@@ -281,16 +281,16 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
 
     /**
-     * Diagnostic-only candidate 1.2.74. After the known Dégrouper action,
-     * inspect selected nodes, available SELECT/CLEAR_SELECTION actions,
-     * and candidate canvas bounds. Do NOT deselect, open Calques, or change
-     * any power/speed/pass settings in this candidate.
+     * Trial candidate 1.2.76. After Degrouper, try exactly one advertised
+     * CLEAR_SELECTION accessibility action on the xTool FrameLayout root.
+     * Then inspect Android node selection again, and show both reports.
+     * No gestures, no Calques, no machine settings or output.
      */
     private void armSelectionDiagnosticAfterUngroup() {
         cancelLayersAfterSvg();
         cancelSelectionDiagnosticAfterSvg();
         cancelAutomaticEasySet();
-        lastLayersSequence = "DIAGNOSTIC 1.2.74 : aucun toucher après Dégrouper.";
+        lastLayersSequence = "TEST 1.2.76 : une action CLEAR_SELECTION sur racine après Dégrouper.";
         final int ticket = selectionDiagnosticTicket;
         pendingSelectionDiagnostic = () -> {
             pendingSelectionDiagnostic = null;
@@ -302,11 +302,20 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                         + "Session Jarvis inactive. Aucun clic effectué.");
                 return;
             }
-            // The inspector recycles the obtained root after a single snapshot.
-            String report = XtoolSelectionInspector.inspect(getRootInActiveWindow());
-            lastLayersSequence = "Instantané sélection capturé; "
-                    + "aucun clic de désélection ni Calques.";
-            JarvisBubbleService.showEasySetResult(report);
+            // One explicit Android accessibility action, only on the xTool
+            // FrameLayout root that advertised CLEAR_SELECTION in 1.2.75.
+            // No coordinate gestures. Capture a fresh read-only tree afterwards.
+            final String actionReport =
+                    XtoolClearSelectionRootTrial.performOnce(this);
+            lastLayersSequence = "CLEAR_SELECTION essayée sur racine xTool; "
+                    + "résultat affiché, aucun clic Calques.";
+            panelHandler.postDelayed(() -> {
+                if (ticket != selectionDiagnosticTicket) return;
+                String after = XtoolSelectionInspector.inspect(
+                        getRootInActiveWindow());
+                JarvisBubbleService.showEasySetResult(
+                        actionReport + "\n\n" + after);
+            }, 350L);
         };
         panelHandler.postDelayed(pendingSelectionDiagnostic, 850L);
     }
