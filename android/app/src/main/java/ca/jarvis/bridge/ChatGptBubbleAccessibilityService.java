@@ -273,29 +273,69 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
 
     /**
-     * After Dégrouper, inspect the actual named Calques target in xTool's
-     * accessible WebView. No click or deselection is attempted automatically.
+     * A finite post-SVG window watches for the real bottom toolbar.
+     * xTool keeps the Conception sheet over that toolbar while the imported
+     * geometry is selected. We never tap a guessed blank canvas point.
+     *
+     * As soon as the user has cleared selection and the exact Calque(s)
+     * label is available, perform up to two bounded horizontal swipes and
+     * one named touch. No repeated actions from accessibility events.
      */
     private void armLayerTargetDiagnosticAfterUngroup() {
         cancelSelectionDiagnosticAfterSvg();
         cancelAutomaticEasySet();
-        lastLayersSequence = "Lecture seule : recherche du contrôle Calques après Dégrouper.";
+        lastLayersSequence = "En attente de la barre inférieure Calques "
+                + "(désélectionner le dessin si Conception est visible).";
         final int ticket = selectionDiagnosticTicket;
-        pendingSelectionDiagnostic = () -> {
-            pendingSelectionDiagnostic = null;
-            if (ticket != selectionDiagnosticTicket) return;
-            if (!XtoolSessionManager.isActive(this)) {
-                lastLayersSequence = "Session xTool inactive : aucune tentative.";
-                JarvisBubbleService.showEasySetResult(
-                        "DIAGNOSTIC XTOOL — CIBLE CALQUES\n"
-                        + "Session Jarvis inactive. Aucun clic effectué.");
-                return;
+        final int[] checks = {0};
+        Runnable check = new Runnable() {
+            @Override public void run() {
+                pendingSelectionDiagnostic = null;
+                if (ticket != selectionDiagnosticTicket) return;
+                if (!XtoolSessionManager.isActive(
+                        ChatGptBubbleAccessibilityService.this)) {
+                    lastLayersSequence = "Session xTool terminée avant Calques.";
+                    cancelSelectionDiagnosticAfterSvg();
+                    return;
+                }
+                if (!clickTestPending && !redLayerTapPending
+                        && XtoolLayerStripNavigation.ready(
+                                ChatGptBubbleAccessibilityService.this)) {
+                    // Consume before dispatch; the gesture cannot retrigger.
+                    cancelSelectionDiagnosticAfterSvg();
+                    lastLayersSequence = "Barre inférieure identifiée : "
+                            + "défilement et ouverture Calques en cours.";
+                    JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
+                    panelHandler.postDelayed(() ->
+                            XtoolLayerStripNavigation.revealAndOpen(
+                                    ChatGptBubbleAccessibilityService.this,
+                                    panelHandler, report -> {
+                                        lastLayersSequence = report;
+                                        JarvisBubbleService.showEasySetResult(
+                                                "NAVIGATION XTOOL — CALQUES\n"
+                                                + report + "\nAucun paramètre "
+                                                + "machine modifié.");
+                                    }), 350L);
+                    return;
+                }
+                if (++checks[0] >= 12) {
+                    lastLayersSequence = "Barre Calques non disponible : "
+                            + "volet Conception encore affiché ou cible absente.";
+                    cancelSelectionDiagnosticAfterSvg();
+                    JarvisBubbleService.showEasySetResult(
+                            "NAVIGATION XTOOL — CALQUES\n"
+                            + lastLayersSequence + "\nDésélectionner le "
+                            + "dessin puis utiliser « Défiler et ouvrir "
+                            + "Calque » dans la bulle Jarvis. Aucun clic "
+                            + "hasardeux effectué.");
+                    return;
+                }
+                pendingSelectionDiagnostic = this;
+                panelHandler.postDelayed(this, 850L);
             }
-            String report = XtoolLayersClickProbe.inspect(this);
-            lastLayersSequence = "Cible Calques inspectée, aucun toucher envoyé.";
-            JarvisBubbleService.showEasySetResult(report);
         };
-        panelHandler.postDelayed(pendingSelectionDiagnostic, 850L);
+        pendingSelectionDiagnostic = check;
+        panelHandler.postDelayed(check, 1000L);
     }
 
     private void cancelSelectionDiagnosticAfterSvg() {
@@ -375,6 +415,28 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                 + observed);
                     }, 550L);
                 }), 450L);
+    }
+
+    /** Explicit one-shot replay on the currently visible xTool toolbar. */
+    static void requestXtoolStripScrollToLayers() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "NAVIGATION XTOOL — CALQUES\n"
+                    + "Service d'accessibilité Jarvis inactif.");
+            return;
+        }
+        if (svc.clickTestPending || svc.redLayerTapPending) return;
+        svc.cancelSelectionDiagnosticAfterSvg();
+        JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
+        svc.panelHandler.postDelayed(() ->
+                XtoolLayerStripNavigation.revealAndOpen(
+                        svc, svc.panelHandler, report -> {
+                            lastLayersSequence = report;
+                            JarvisBubbleService.showEasySetResult(
+                                    "NAVIGATION XTOOL — CALQUES\n" + report
+                                    + "\nAucun paramètre machine modifié.");
+                        }), 450L);
     }
 
     /** Read-only target report without requiring a new SVG. */

@@ -888,6 +888,8 @@ public final class JarvisBubbleService extends Service {
                 ChatGptBubbleAccessibilityService.requestXtoolLayersTargetDiagnostic());
         addMenuButton(menu, "Tester clic direct Calques (1 fois)", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayersClickProbe());
+        addMenuButton(menu, "Défiler et ouvrir Calque (1 fois)", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolStripScrollToLayers());
         addMenuButton(menu, "Toucher Calques identifié (1 fois)", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolNamedLayersTap());
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
