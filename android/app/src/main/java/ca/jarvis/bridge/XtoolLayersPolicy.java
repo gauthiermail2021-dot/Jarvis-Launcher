@@ -56,33 +56,39 @@ final class XtoolLayersPolicy {
     }
 
     /**
-     * One user-approved test location, in the top-right BLANK area of
-     * the xTool drawing board shown on Samsung. It is defined relative
-     * to the actual Conception toolbar, not as an absolute screen pixel.
+     * A user-marked upper-right WHITE board spot while the Conception
+     * bottom sheet is open. The screenshot's selected Conception label is
+     * around the middle of the screen, with the marked point near 93% of
+     * window width and 48% of the label's top edge.
      *
-     * These geometric checks cannot prove that an arbitrary imported
-     * SVG has no shape at this position. Validate on known test drawings.
+     * Always REFUSE if the sheet isn't in the expected upper-half/middle
+     * position. This is an observed test-SVG position, not a generic free
+     * canvas detector for arbitrary drawings.
      */
     static boolean validMarkedBlankCanvasTap(int x, int y,
                                              int viewLeft, int viewTop,
-                                             int viewRight, int designBottom,
+                                             int viewRight, int conceptionTop,
                                              int screenWidth, int screenHeight) {
         int width = viewRight - viewLeft;
-        int height = designBottom - viewTop;
-        return screenWidth > 0 && screenHeight > 0
-                && viewLeft >= 0 && viewTop >= 0
+        int canvasHeight = conceptionTop - viewTop;
+        if (screenWidth <= 0 || screenHeight <= 0 || width <= 0
+                || canvasHeight <= 0) return false;
+        return viewLeft >= 0 && viewTop >= 0
                 && viewRight <= screenWidth
-                && designBottom <= screenHeight
+                && conceptionTop <= screenHeight
                 && width > screenWidth * 70L / 100
-                && height > screenHeight * 45L / 100
-                // Marked spot: around 86% of canvas width, 30% of height.
-                && x >= viewLeft + width * 82L / 100
-                && x <= viewLeft + width * 91L / 100
-                && y >= viewTop + height * 25L / 100
-                && y <= viewTop + height * 35L / 100
-                // Exclude top-ruler / notification overlay and bottom toolbar.
+                && viewTop < screenHeight * 7L / 100
+                // Must really be the expanded Conception sheet, not a footer.
+                && conceptionTop >= screenHeight * 39L / 100
+                && conceptionTop <= screenHeight * 64L / 100
+                && x >= viewLeft + width * 90L / 100
+                && x <= viewLeft + width * 96L / 100
+                && y >= viewTop + canvasHeight * 46L / 100
+                && y <= viewTop + canvasHeight * 50L / 100
+                // Never touch the controls, rulers, or grey-bottom zone.
                 && y >= screenHeight * 18L / 100
-                && y < screenHeight * 45L / 100;
+                && y < screenHeight * 34L / 100
+                && y < conceptionTop - screenHeight * 8L / 100;
     }
 
     /** Dismiss a nearby contextual popup, not a full-screen editor surface. */

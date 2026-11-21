@@ -193,10 +193,19 @@ public final class JarvisBubbleService extends Service {
      * such as ACTION_CLEAR_SELECTION cannot be plotted here.
      */
     static void showXtoolTouchMarker(int screenX, int screenY) {
+        showXtoolMarker(screenX, screenY, false);
+    }
+
+    /** Cyan: a delivered one-shot deselection attempt, never Dégrouper. */
+    static void showXtoolDeselectMarker(int screenX, int screenY) {
+        showXtoolMarker(screenX, screenY, true);
+    }
+
+    private static void showXtoolMarker(int x, int y, boolean isDeselect) {
         JarvisBubbleService current = activeService;
         if (current == null) return;
         current.gestureHandler.post(() ->
-                current.showXtoolTouchMarkerOnUi(screenX, screenY));
+                current.showXtoolTouchMarkerOnUi(x, y, isDeselect));
     }
 
     private void clearXtoolTouchMarker() {
@@ -211,7 +220,7 @@ public final class JarvisBubbleService extends Service {
         touchMarkerView = null;
     }
 
-    private void showXtoolTouchMarkerOnUi(int x, int y) {
+    private void showXtoolTouchMarkerOnUi(int x, int y, boolean isDeselect) {
         if (wm == null || !Settings.canDrawOverlays(this)) return;
         Point screen = new Point();
         wm.getDefaultDisplay().getRealSize(screen);
@@ -221,7 +230,8 @@ public final class JarvisBubbleService extends Service {
         View marker = new View(this);
         GradientDrawable dot = new GradientDrawable();
         dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(Color.rgb(239, 35, 42));
+        dot.setColor(isDeselect ? Color.rgb(0, 192, 210)
+                : Color.rgb(239, 35, 42));
         dot.setStroke(dp(2), Color.WHITE);
         marker.setBackground(dot);
         marker.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -603,6 +613,12 @@ public final class JarvisBubbleService extends Service {
     static void onUngroupServiceUnavailable() {
         showStageAfterObservedEvent(STATE_XTOOL, "DÉGROUPER",
                 "ACCÈS INACTIF");
+    }
+
+    /** "Point envoyé" intentionally never claims selection was cleared. */
+    static void onDeselectAttemptFinished(boolean touchSent) {
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉSÉLECTION",
+                touchSent ? "POINT CYAN" : "NON EFFECTUÉE");
     }
 
     static void onLayersAutoFinished(boolean touchSent) {

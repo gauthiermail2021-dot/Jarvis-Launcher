@@ -189,12 +189,18 @@ final class XtoolLayersOneShot {
             root.getBoundsInScreen(rootArea);
             tab.getBoundsInScreen(tabArea);
             int drawingBottom = tabArea.top;
-            int x = rootArea.left + rootArea.width() * 86 / 100;
-            int y = rootArea.top + (drawingBottom - rootArea.top) * 30 / 100;
+            // Samsung screenshot: cyan target at ~93% of width, ~48% of
+            // the currently selected Conception header's top position.
+            // Old 86% / 30% was NOT the user-marked spot.
+            int x = rootArea.left + rootArea.width() * 93 / 100;
+            int y = rootArea.top + (drawingBottom - rootArea.top) * 48 / 100;
             if (!XtoolLayersPolicy.validMarkedBlankCanvasTap(
                     x, y, rootArea.left, rootArea.top, rootArea.right,
                     drawingBottom, display.x, display.y)) {
-                lastAttempt = "Désélection : zone blanche marquée hors limites.";
+                lastAttempt = "Désélection refusée : géométrie inattendue. "
+                        + "Point calculé (" + x + "," + y + "), "
+                        + "Conception commence à y=" + drawingBottom
+                        + ". Aucun toucher.";
                 return false;
             }
             if (coveredByAccessibleControl(root, x, y,
@@ -212,8 +218,10 @@ final class XtoolLayersOneShot {
             boolean accepted = service.dispatchGesture(gesture,
                     new AccessibilityService.GestureResultCallback() {
                         @Override public void onCompleted(GestureDescription description) {
-                            JarvisBubbleService.showXtoolTouchMarker(x, y);
-                            lastAttempt = "Zone blanche marquée touchée (" + x + "," + y
+                            // Cyan marker: distinguish actual deselection
+                            // from the RED marker of the Dégrouper button.
+                            JarvisBubbleService.showXtoolDeselectMarker(x, y);
+                            lastAttempt = "DÉSÉLECTION (point cyan) touché (" + x + "," + y
                                     + "); désélection visuelle NON confirmée.";
                             callback.finished(true);
                         }

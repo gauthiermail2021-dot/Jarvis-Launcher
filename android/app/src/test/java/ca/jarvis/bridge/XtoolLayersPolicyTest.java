@@ -36,23 +36,31 @@ public class XtoolLayersPolicyTest {
                 1353, 620, 0, 0, 1440, 2000, 1440, 3088));
     }
 
-    @Test public void userMarkedUpperRightCanvasPointIsGuarded() {
-        // Galaxy-class display: bottom Conception toolbar at y=2800,
-        // target x=86% of 1440 and y=30% of the editing region.
+    @Test public void userMarkedCyanSpotInNewSamsungScreenshot() {
+        // Screenshot supplied by the user: 879 x 1536, teal target near
+        // (817, 374), Conception label beginning around y=780.
         assertTrue(XtoolLayersPolicy.validMarkedBlankCanvasTap(
-                1238, 840, 0, 0, 1440, 2800, 1440, 3088));
-        // A historic corner test above the canvas must not pass.
+                817, 374, 0, 0, 879, 780, 879, 1536));
+        // The old 1.2.86 computed point at 86% / 30% misses that target.
         assertFalse(XtoolLayersPolicy.validMarkedBlankCanvasTap(
-                1353, 620, 0, 0, 1440, 2800, 1440, 3088));
-        // Bottom grey region, far from the screenshot-marked white spot.
+                756, 234, 0, 0, 879, 780, 879, 1536));
+        // Red-circled Dégrouper tool within the Conception bottom sheet.
         assertFalse(XtoolLayersPolicy.validMarkedBlankCanvasTap(
-                1238, 2250, 0, 0, 1440, 2800, 1440, 3088));
-        // A bottom toolbar tile is never a valid deselect target.
+                460, 1480, 0, 0, 879, 780, 879, 1536));
+        // Grey region below the white canvas, not a blank board target.
         assertFalse(XtoolLayersPolicy.validMarkedBlankCanvasTap(
-                1238, 2800, 0, 0, 1440, 2800, 1440, 3088));
-        // Missing editor bounds must never authorize an arbitrary screen tap.
+                817, 600, 0, 0, 879, 780, 879, 1536));
+        // The Conception tab may be in the page footer on other screens:
+        // never use a guessed point when there is no expanded bottom sheet.
         assertFalse(XtoolLayersPolicy.validMarkedBlankCanvasTap(
-                1238, 840, 0, 0, 1440, 1000, 1440, 3088));
+                817, 1344, 0, 0, 879, 2800, 879, 3088));
+    }
+
+    @Test public void correspondingFullResolutionSamsungPoint() {
+        assertTrue(XtoolLayersPolicy.validMarkedBlankCanvasTap(
+                1339, 768, 0, 0, 1440, 1600, 1440, 3088));
+        assertFalse(XtoolLayersPolicy.validMarkedBlankCanvasTap(
+                1339, 768, 0, 0, 1440, 200, 1440, 3088));
     }
 
     @Test public void onlyPopupSizedMenuMayBeDismissed() {
