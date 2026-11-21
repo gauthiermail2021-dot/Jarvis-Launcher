@@ -43,6 +43,7 @@ final class XtoolLayerStripNavigation {
             if (conceptionSheetVisible(root, screen, 0)) return false;
             Matches matches = new Matches();
             collect(root, screen, 0, matches);
+            if (matches.count == 0) return matches.anchor != null;
             if (matches.count != 1 || matches.area == null) return false;
             Rect r = matches.area;
             return XtoolLayerStripPolicy.clippedAtRight(
@@ -90,13 +91,12 @@ final class XtoolLayerStripNavigation {
             }
             Matches matches = new Matches();
             collect(root, screen, 0, matches);
-            if (matches.count != 1 || matches.area == null) {
-                callback.finished("Calque(s) absent ou ambigu ("
-                        + matches.count + " libellés). Aucun geste.");
+            if (matches.count > 1 || (matches.count == 1 && matches.area == null)) {
+                callback.finished("Cible Calque ambiguë ou hors écran. Aucun geste.");
                 return;
             }
             Rect r = matches.area;
-            if (XtoolLayerStripPolicy.fullyRevealed(
+            if (r != null && XtoolLayerStripPolicy.fullyRevealed(
                     r.left, r.top, r.right, r.bottom, screen.x, screen.y)) {
                 final int completedSwipes = swipes;
                 XtoolLayersClickProbe.tapNamedOnce(service, handler, report ->
@@ -105,14 +105,20 @@ final class XtoolLayerStripNavigation {
                                 + "\nOuverture à vérifier visuellement."));
                 return;
             }
-            if (!XtoolLayerStripPolicy.clippedAtRight(
+            if (r != null && !XtoolLayerStripPolicy.clippedAtRight(
                     r.left, r.top, r.right, r.bottom, screen.x, screen.y)) {
-                callback.finished("Calques ni entièrement visible ni "
-                        + "ancré à droite : arrêt sûr après " + swipes + " glissement(s).");
+                callback.finished("Calque visible mais emplacement non validé. "
+                        + "Aucun autre geste.");
+                return;
+            }
+            if (r == null) r = matches.anchor;
+            if (r == null) {
+                callback.finished("Calque invisible et aucun outil nommé de "
+                        + "la barre inférieure repéré. Aucun geste.");
                 return;
             }
             if (swipes >= MAX_SWIPES) {
-                callback.finished("Calques toujours tronqué après deux "
+                callback.finished("Calque pas entièrement visible après deux "
                         + "glissements. Aucun toucher.");
                 return;
             }
@@ -193,6 +199,22 @@ final class XtoolLayerStripNavigation {
                 matches.area = new Rect(bounds);
             }
         }
+        if (toolbarAnchor(node.getText()) || toolbarAnchor(
+                node.getContentDescription())) {
+            Rect anchor = new Rect();
+            node.getBoundsInScreen(anchor);
+            if (node.isVisibleToUser() && node.isEnabled()
+                    && XtoolLayerStripPolicy.validToolbarAnchor(
+                    anchor.left, anchor.top, anchor.right, anchor.bottom,
+                    screen.x, screen.y)) {
+                // Prefer the central item, keeping the swipe fully within the strip.
+                if (matches.anchor == null
+                        || Math.abs(anchor.centerX() - screen.x / 2)
+                        < Math.abs(matches.anchor.centerX() - screen.x / 2)) {
+                    matches.anchor = new Rect(anchor);
+                }
+            }
+        }
         int count = Math.min(MAX_CHILDREN, node.getChildCount());
         for (int i = 0; i < count; i++) {
             AccessibilityNodeInfo child = node.getChild(i);
@@ -203,6 +225,15 @@ final class XtoolLayerStripNavigation {
                 child.recycle();
             }
         }
+    }
+
+    private static boolean toolbarAnchor(CharSequence label) {
+        if (label == null) return false;
+        String word = label.toString().trim().toLowerCase(
+                java.util.Locale.ROOT);
+        return "forme".equals(word) || "graffiti".equals(word)
+                || "toile".equals(word) || "image".equals(word)
+                || "texte".equals(word);
     }
 
     private static Point screen(AccessibilityService service) {
@@ -224,5 +255,6 @@ final class XtoolLayerStripNavigation {
         int count;
         int visited;
         Rect area;
+        Rect anchor;
     }
 }
