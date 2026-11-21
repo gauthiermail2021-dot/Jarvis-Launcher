@@ -142,6 +142,8 @@ final class XtoolUngroupOneShot {
         boolean accepted = service.dispatchGesture(gesture,
                 new AccessibilityService.GestureResultCallback() {
                     @Override public void onCompleted(GestureDescription description) {
+                        JarvisBubbleService.showXtoolTouchMarker(
+                                target.centerX(), target.centerY());
                         lastAttempt = "Toucher Android envoyé sur " + kind
                                 + ". Séparation visuelle non vérifiée.";
                         callback.onComplete(true, false);
@@ -151,10 +153,7 @@ final class XtoolUngroupOneShot {
                         callback.onComplete(false, false);
                     }
                 }, handler);
-        if (accepted) {
-            JarvisBubbleService.showXtoolTouchMarker(
-                    target.centerX(), target.centerY());
-        } else {
+        if (!accepted) {
             lastAttempt = "Android a refusé le toucher sur " + kind + ".";
             callback.onComplete(false, false);
         }
