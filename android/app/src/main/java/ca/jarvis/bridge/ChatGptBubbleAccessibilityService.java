@@ -311,17 +311,23 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                     lastLayersSequence = XtoolLayersOneShot.lastAttempt()
                                             + " Navigation Calques automatique arrêtée.";
                                     cancelSelectionDiagnosticAfterSvg();
+                                    JarvisBubbleService.onDeselectAttemptFinished(false);
                                     return;
                                 }
+                                JarvisBubbleService.onDeselectAttemptFinished(true);
                                 lastLayersSequence = XtoolLayersOneShot.lastAttempt()
                                         + " Vérification de la barre Calques en cours.";
                                 pendingSelectionDiagnostic = this;
                                 panelHandler.postDelayed(this, 900L);
                             });
                     if (started) return;
-                    // A missing Conception tab does not justify a guessed tap.
-                    // The bounded poll can still find Calques normally.
-                    deselectionAttempted[0] = false;
+                    // Never interpret a missing/invalid target as a license to
+                    // continue clicking the panel or to retry another point.
+                    lastLayersSequence = XtoolLayersOneShot.lastAttempt()
+                            + " Désélection non effectuée : séquence arrêtée.";
+                    cancelSelectionDiagnosticAfterSvg();
+                    JarvisBubbleService.onDeselectAttemptFinished(false);
+                    return;
                 }
                 if (!clickTestPending && !redLayerTapPending
                         && !layerStripPending
