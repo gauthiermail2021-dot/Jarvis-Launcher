@@ -615,6 +615,12 @@ public final class JarvisBubbleService extends Service {
                 "ACCÈS INACTIF");
     }
 
+    /** "Point envoyé" intentionally never claims selection was cleared. */
+    static void onDeselectAttemptFinished(boolean touchSent) {
+        showStageAfterObservedEvent(STATE_XTOOL, "DÉSÉLECTION",
+                touchSent ? "POINT CYAN" : "NON EFFECTUÉE");
+    }
+
     static void onLayersAutoFinished(boolean touchSent) {
         showStageAfterObservedEvent(STATE_XTOOL, "CALQUES",
                 touchSent ? "TOUCHER ENVOYÉ" : "ÉCHEC TOUCHER");
