@@ -14,6 +14,20 @@ public class XtoolLayerTapPolicyTest {
         assertFalse(XtoolLayerTapPolicy.exactRed(null));
     }
 
+    @Test public void onlyExactHeadingAndUniqueRedMayBeTargeted() {
+        assertTrue(XtoolLayerTapPolicy.exactLayerHeading("Calque"));
+        assertTrue(XtoolLayerTapPolicy.exactLayerHeading("Calques"));
+        assertTrue(XtoolLayerTapPolicy.exactLayerHeading(" Layers "));
+        assertFalse(XtoolLayerTapPolicy.exactLayerHeading("Paramètres"));
+        assertFalse(XtoolLayerTapPolicy.exactLayerHeading("Couleur de calque"));
+        assertFalse(XtoolLayerTapPolicy.exactLayerHeading(null));
+
+        assertTrue(XtoolLayerTapPolicy.uniqueRedTarget(1));
+        assertFalse(XtoolLayerTapPolicy.uniqueRedTarget(0));
+        assertFalse(XtoolLayerTapPolicy.uniqueRedTarget(2));
+        assertFalse(XtoolLayerTapPolicy.uniqueRedTarget(3));
+    }
+
     @Test public void boundsAreStrictAndVisible() {
         assertTrue(XtoolLayerTapPolicy.isValidTarget(
                 213, 2774, 399, 2865, 1440, 3088));

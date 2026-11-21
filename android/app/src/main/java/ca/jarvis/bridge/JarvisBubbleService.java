@@ -630,6 +630,12 @@ public final class JarvisBubbleService extends Service {
         showStageAfterObservedEvent(STATE_XTOOL, "CALQUES", "À VÉRIFIER");
     }
 
+    /** Only confirms Android delivered a named click, not layer selection. */
+    static void onRedLayerAutoFinished(boolean sent) {
+        showStageAfterObservedEvent(STATE_XTOOL, "CALQUE ROUGE",
+                sent ? "TOUCHER ENVOYÉ" : "NON IDENTIFIÉ");
+    }
+
     static void onSvgOpenRequested(boolean xToolTarget) {
         if (xToolTarget) {
             // This is a REQUEST to Android, not proof of successful import.
@@ -897,9 +903,8 @@ public final class JarvisBubbleService extends Service {
         if (wm == null || bubble == null || menuView != null) return;
         LinearLayout menu = createMenuPanel("JARVIS · RÉGLAGES");
 
-        // La reconnaissance des calques est le diagnostic actif.
-        // Les anciens tests de toucher EasySet et de selection rouge
-        // restent dans le code mais ne surchargent plus le menu.
+        // Calques fonctionne sur Samsung 1.2.87. Le test de sélection
+        // Rouge est maintenant accessible à la demande et après Calques.
         addMenuButton(menu, "Inspecter cible Calques (sans clic)", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayersTargetDiagnostic());
         addMenuButton(menu, "Tester clic direct Calques (1 fois)", () ->
@@ -910,6 +915,8 @@ public final class JarvisBubbleService extends Service {
                 ChatGptBubbleAccessibilityService.requestXtoolNamedLayersTap());
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
+        addMenuButton(menu, "Cliquer sur calque rouge (1 fois)", () ->
+                ChatGptBubbleAccessibilityService.requestRedLayerTapTest());
         addMenuButton(menu, "Inspecter sélection Android", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolSelectionDiagnostic());
         addMenuButton(menu, "Copier le dernier rapport", () ->

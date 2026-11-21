@@ -347,8 +347,37 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                         lastLayersSequence = report;
                                         // Never cover the very panel being opened
                                         // with a large diagnostic overlay.
+                                        boolean openedByGesture =
+                                                XtoolLayerActivationPolicy.actionSent(report);
                                         JarvisBubbleService.onLayersAutoFinished(
-                                                XtoolLayerActivationPolicy.actionSent(report));
+                                                openedByGesture);
+                                        // The Samsung-validated Calques sequence is
+                                        // complete. Only after that, attempt ONE
+                                        // named red layer selection. No guessing,
+                                        // no retry, and no laser settings.
+                                        if (openedByGesture && !clickTestPending
+                                                && !redLayerTapPending
+                                                && XtoolSessionManager.isActive(
+                                                        ChatGptBubbleAccessibilityService.this)) {
+                                            redLayerTapPending = true;
+                                            panelHandler.postDelayed(() -> {
+                                                if (!XtoolSessionManager.isActive(
+                                                        ChatGptBubbleAccessibilityService.this)) {
+                                                    redLayerTapPending = false;
+                                                    return;
+                                                }
+                                                XtoolRedLayerOneShot.runAutomatically(
+                                                        ChatGptBubbleAccessibilityService.this,
+                                                        panelHandler, (sent, details) -> {
+                                                            redLayerTapPending = false;
+                                                            lastLayersSequence = report
+                                                                    + "\nCalque rouge : "
+                                                                    + details;
+                                                            JarvisBubbleService
+                                                                    .onRedLayerAutoFinished(sent);
+                                                        });
+                                            }, 1100L);
+                                        }
                                     }), 350L);
                     return;
                 }
@@ -519,7 +548,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     "TEST CALQUE ROUGE\nAccessibilite Jarvis — xTool inactive.");
             return;
         }
-        if (svc.clickTestPending || svc.redLayerTapPending) return;
+        if (svc.clickTestPending || svc.redLayerTapPending
+                || svc.layerStripPending) return;
         svc.cancelAutomaticEasySet();
         svc.redLayerTapPending = true;
         svc.panelHandler.postDelayed(() ->
