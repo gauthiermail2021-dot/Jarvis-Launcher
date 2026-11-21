@@ -2,6 +2,18 @@
 
 ## Mise à jour du 21 novembre 2026 — sélection des calques
 
+**Séquence xTool confirmée par l'utilisateur le 21 novembre 2026 (ordre exact) :**
+
+1. Désélectionner toutes les formes après le dégroupement.
+2. Ouvrir « Calques ».
+3. Choisir une couleur, par exemple « Rouge ».
+4. **Fermer « Calques »** en gardant le calque choisi.
+5. Aller dans l'onglet « Paramètres ».
+6. Ouvrir le « Volet EasySet ».
+7. Accéder aux champs **Puissance**, **Vitesse** et **Passes** pour le calque choisi ; la validation/saisie des paramètres de traitement et le lancement du laser restent sous contrôle humain.
+
+**État :** workflow décrit par l'utilisateur, pas encore implémenté ni vérifié par test automatique. Ne pas sauter l'étape de fermeture du panneau Calques. L'OCR EasySet existant reste en lecture seule tant que l'évolution des règles de sécurité et sa validation n'ont pas été examinées.
+
 **Constat de test communiqué par l'utilisateur :** après « Dégrouper » dans xTool Creative Space, toutes les formes restent sélectionnées. Le dégroupement fonctionne; cette sélection globale empêche de cibler sans ambiguïté les paramètres d'une seule couleur.
 
 **Séquence de prochaine implémentation (non validée / non codée à ce stade) :** désélectionner les formes par une zone vide sûre du canevas; afficher Calques; sélectionner une couleur précise (ex. rouge); ouvrir « Paramètres » pour cette couleur; permettre la modification des valeurs de cette couleur et confirmer l'effet à l'écran. Répéter la sélection de couleur seulement pour les calques présents. Éviter toute modification de tous les objets par erreur.
