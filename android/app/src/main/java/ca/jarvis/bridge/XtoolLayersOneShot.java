@@ -148,6 +148,69 @@ final class XtoolLayersOneShot {
         return touchClearCanvasCorner(service, handler, callback);
     }
 
+    /**
+     * One bounded touch in an explicitly checked blank canvas corner after
+     * dismissing Dégrouper. This is the requested DESELECTION step, not
+     * a setting change. A successful Android gesture does not prove that
+     * xTool cleared its shape selection; the Samsung test must verify it.
+     *
+     * Requires foreground XCS, selected Conception, an accessible Calques
+     * bottom control, and no small visible control covering the target.
+     */
+    static boolean deselectAfterUngroup(AccessibilityService service,
+                                       Handler handler, Outcome callback) {
+        AccessibilityNodeInfo root = null, tab = null, layers = null;
+        try {
+            root = service.getRootInActiveWindow();
+            if (!isXtool(root)) return false;
+            Point display = screen(service);
+            if (display == null) return false;
+            tab = findSelectedConception(root, 0);
+            layers = findBottomLayers(root, display, 0);
+            if (tab == null || layers == null) return false;
+
+            Rect tabArea = new Rect();
+            tab.getBoundsInScreen(tabArea);
+            int x = display.x * 94 / 100;
+            int y = tabArea.top * 38 / 100;
+            if (!XtoolLayersPolicy.validBlankCanvasCorner(
+                    x, y, display.x, display.y, tabArea.top)) return false;
+            if (containsSmallAccessibleControl(root, x, y,
+                    display.x, display.y, 0)) return false;
+
+            Path path = new Path();
+            path.moveTo(x, y);
+            GestureDescription gesture = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(
+                            path, 0L, 95L)).build();
+            boolean accepted = service.dispatchGesture(gesture,
+                    new AccessibilityService.GestureResultCallback() {
+                        @Override public void onCompleted(GestureDescription description) {
+                            lastAttempt = "Toucher de désélection envoyé; "
+                                    + "état du dessin non vérifié.";
+                            callback.finished(true);
+                        }
+                        @Override public void onCancelled(GestureDescription description) {
+                            lastAttempt = "Toucher de désélection annulé.";
+                            callback.finished(false);
+                        }
+                    }, handler);
+            if (!accepted) {
+                lastAttempt = "Toucher de désélection refusé par Android.";
+                handler.post(() -> callback.finished(false));
+            }
+            return true;
+        } catch (RuntimeException error) {
+            lastAttempt = "Désélection indisponible : "
+                    + error.getClass().getSimpleName();
+            return false;
+        } finally {
+            if (layers != null) layers.recycle();
+            if (tab != null) tab.recycle();
+            if (root != null) root.recycle();
+        }
+    }
+
     private static boolean touchClearCanvasCorner(AccessibilityService service,
                                                    Handler handler,
                                                    Outcome callback) {
