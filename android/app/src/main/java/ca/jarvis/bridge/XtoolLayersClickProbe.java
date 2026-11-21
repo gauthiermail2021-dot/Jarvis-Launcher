@@ -1,9 +1,12 @@
 package ca.jarvis.bridge;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
 import android.content.Context;
 import android.graphics.Point;
+import android.graphics.Path;
 import android.graphics.Rect;
+import android.os.Handler;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -12,8 +15,9 @@ import java.util.List;
 
 /**
  * Diagnostic and explicit one-shot ACTION_CLICK on an unambiguous, named xTool
- * Calques control. Never clicks coordinates, taps canvases, dismisses menus,
- * changes EasySet, or operates the laser.
+ * Calques control. The explicitly requested fallback is one coordinate tap
+ * ONLY on the center of a currently visible, exact Calques label's bounded
+ * rectangle. Never taps the canvas, dismisses menus, or changes laser settings.
  */
 final class XtoolLayersClickProbe {
     private static final int MAX_DEPTH = 18;
@@ -31,6 +35,87 @@ final class XtoolLayersClickProbe {
         return execute(service, true);
     }
 
+    interface TapOutcome { void finished(String result); }
+
+    /**
+     * User-triggered only: at most one gesture at the center of an exact
+     * live Calques accessibility label, never a hardcoded screen coordinate.
+     * A completed Android gesture is NOT proof the Calques panel opened.
+     */
+    static void tapNamedOnce(AccessibilityService service, Handler handler,
+                             TapOutcome callback) {
+        AccessibilityNodeInfo root = null;
+        Scan scan = new Scan();
+        StringBuilder report = new StringBuilder(512);
+        report.append(HEADER).append("TEST TOUCHER CALQUES NOMMÉ — une fois\n");
+        try {
+            root = service.getRootInActiveWindow();
+            if (!isXtool(root)) {
+                callback.finished(report.append("Fenêtre xTool absente. Aucun geste.").toString());
+                return;
+            }
+            Point display = screen(service);
+            if (display == null || !XtoolSessionManager.isActive(service)) {
+                callback.finished(report.append("Session xTool inactive. Aucun geste.").toString());
+                return;
+            }
+            inspectTree(root, display, 0, scan);
+            report.append("Libellés Calques exacts : ").append(scan.named)
+                    .append(" ; visibles en bas : ").append(scan.bounded)
+                    .append(" ; cliquables : ").append(scan.targets.size()).append("\n");
+            if (scan.named != 1 || scan.bounded != 1
+                    || scan.namedTiles.size() != 1 || scan.targets.size() != 0) {
+                callback.finished(report.append("Aucun toucher : cible ambiguë, absente "
+                        + "ou accessible par ACTION_CLICK.").toString());
+                return;
+            }
+            Rect area = new Rect(scan.namedTiles.get(0));
+            if (!XtoolLayersPolicy.validNamedIconTile(
+                    area.left, area.top, area.right, area.bottom,
+                    display.x, display.y)) {
+                callback.finished(report.append("Aucun toucher : rectangle hors zone Calques.")
+                        .toString());
+                return;
+            }
+            // Never blindly touch through xTool's contextual Dégrouper popup.
+            if (XtoolLayersOneShot.ungroupPopupVisible(service)) {
+                callback.finished(report.append("Menu Dégrouper visible. Aucun geste.")
+                        .toString());
+                return;
+            }
+            int x = area.centerX(), y = area.centerY();
+            report.append("Zone ciblée : [").append(area.left).append(",")
+                    .append(area.top).append(" – ").append(area.right)
+                    .append(",").append(area.bottom).append("]\n");
+            Path path = new Path();
+            path.moveTo(x, y);
+            GestureDescription gesture = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(path, 0L, 95L))
+                    .build();
+            final String prefix = report.toString();
+            boolean accepted = service.dispatchGesture(gesture,
+                    new AccessibilityService.GestureResultCallback() {
+                        @Override public void onCompleted(GestureDescription ignored) {
+                            JarvisBubbleService.showXtoolTouchMarker(x, y);
+                            callback.finished(prefix + "Geste livré au contrôle nommé Calques."
+                                    + "\nOuverture du panneau : NON CONFIRMÉE.");
+                        }
+                        @Override public void onCancelled(GestureDescription ignored) {
+                            callback.finished(prefix + "Geste annulé par Android."
+                                    + " Aucun autre toucher.");
+                        }
+                    }, handler);
+            if (!accepted) callback.finished(prefix
+                    + "Geste refusé par Android. Aucun autre toucher.");
+        } catch (RuntimeException error) {
+            callback.finished(report.append("Test impossible : ")
+                    .append(error.getClass().getSimpleName())
+                    .append(". Aucun geste de secours.").toString());
+        } finally {
+            scan.recycle();
+            if (root != null) root.recycle();
+        }
+    }
     private static String execute(AccessibilityService service, boolean click) {
         AccessibilityNodeInfo root = null;
         Scan scan = new Scan();
@@ -124,6 +209,7 @@ final class XtoolLayersClickProbe {
                     labelArea.bottom, display.x, display.y);
             if (bounded) {
                 scan.bounded++;
+                scan.namedTiles.add(new Rect(labelArea));
                 AccessibilityNodeInfo target = findClickable(node, display);
                 if (target != null) {
                     Rect targetArea = new Rect();
@@ -201,6 +287,7 @@ final class XtoolLayersClickProbe {
         int named;
         int bounded;
         final List<AccessibilityNodeInfo> targets = new ArrayList<>();
+        final List<Rect> namedTiles = new ArrayList<>();
         final List<String> summaries = new ArrayList<>();
 
         void recycle() {
