@@ -46,9 +46,9 @@ final class XtoolLayerStripPolicy {
                 // Never start a scroll over that non-scrollable zone.
                 && startX >= screenWidth * 60L / 100
                 && startX <= screenWidth * 73L / 100
-                && endX >= screenWidth * 15L / 100
-                && endX <= screenWidth * 30L / 100
-                && startX - endX > screenWidth * 35L / 100
+                && endX >= screenWidth * 7L / 100
+                && endX <= screenWidth * 12L / 100
+                && startX - endX >= screenWidth * 55L / 100
                 && y >= labelTop && y <= labelBottom
                 && y >= screenHeight * 72L / 100
                 && y <= screenHeight * 96L / 100;
