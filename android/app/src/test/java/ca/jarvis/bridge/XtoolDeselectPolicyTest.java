@@ -5,26 +5,26 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-/** Guards geometry used by the one-shot, non-machine canvas selection test. */
+/** 1.2.73: only the bottom-right of the drawing canvas, not Réglages. */
 public final class XtoolDeselectPolicyTest {
-    @Test public void acceptsBoundedBlankCornerAboveConceptionTab() {
-        assertTrue(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 760, 1440, 3088, 2000));
+    @Test public void acceptsRightCornerInsideDrawingPage() {
+        assertTrue(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1281, 1680, 0, 0, 1440, 2000, 1440, 3088));
     }
 
-    @Test public void rejectsControlsAndUnexpectedCanvasPositions() {
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                720, 760, 1440, 3088, 2000)); // drawing center
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 3000, 1440, 3088, 2000)); // bottom toolbar
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 760, 1440, 3088, 0)); // no known tab
+    @Test public void rejectsOldSettingsCornerAndToolbar() {
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1353, 760, 0, 0, 1440, 2000, 1440, 3088));
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1281, 2800, 0, 0, 1440, 2000, 1440, 3088));
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                720, 1680, 0, 0, 1440, 2000, 1440, 3088));
     }
 
-    @Test public void bottomLayersControlMustBeOnScreen() {
-        assertTrue(XtoolLayersPolicy.validBottomButton(
-                160, 2600, 350, 2740, 1440, 3088));
-        assertFalse(XtoolLayersPolicy.validBottomButton(
-                0, 100, 1440, 2800, 1440, 3088));
+    @Test public void unknownDrawingBoundsAlwaysFailClosed() {
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1281, 1680, 0, 0, 1440, 0, 1440, 3088));
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1281, 1680, 0, 0, 1440, 2950, 1440, 3088));
     }
 }

@@ -158,6 +158,134 @@ final class XtoolLayersOneShot {
         }
     }
 
+
+    /**
+     * One bounded tap inside the bottom-right of the xTool drawing area.
+     * The actual Conception tab and xTool window bounds determine the position.
+     * No top-right screen corner, no settings controls, and no machine action.
+     * A completed gesture is NOT proof that the shapes are deselected.
+     */
+    static boolean deselectAtDrawingBottomRight(AccessibilityService service,
+                                               Handler handler, Outcome callback) {
+        AccessibilityNodeInfo root = null, tab = null, layers = null;
+        try {
+            root = service.getRootInActiveWindow();
+            if (!isXtool(root)) return false;
+            Point display = screen(service);
+            if (display == null) return false;
+            tab = findSelectedConception(root, 0);
+            layers = findBottomLayers(root, display, 0);
+            if (tab == null || layers == null) {
+                lastAttempt = "Désélection : onglet Conception ou Calques introuvable.";
+                return false;
+            }
+            Rect rootArea = new Rect();
+            Rect tabArea = new Rect();
+            root.getBoundsInScreen(rootArea);
+            tab.getBoundsInScreen(tabArea);
+            int drawingBottom = tabArea.top;
+            int x = rootArea.left + rootArea.width() * 89 / 100;
+            int y = rootArea.top + (drawingBottom - rootArea.top) * 84 / 100;
+            if (!XtoolLayersPolicy.validDrawingBottomRightTap(
+                    x, y, rootArea.left, rootArea.top, rootArea.right,
+                    drawingBottom, display.x, display.y)) {
+                lastAttempt = "Désélection : coin droit hors de la page de dessin.";
+                return false;
+            }
+            if (coveredByAccessibleControl(root, x, y,
+                    display.x, display.y, 0)) {
+                lastAttempt = "Désélection : bouton ou libellé au coin droit; arrêt.";
+                return false;
+            }
+
+            Path path = new Path();
+            path.moveTo(x, y);
+            GestureDescription gesture = new GestureDescription.Builder()
+                    .addStroke(new GestureDescription.StrokeDescription(
+                            path, 0L, 95L)).build();
+            boolean accepted = service.dispatchGesture(gesture,
+                    new AccessibilityService.GestureResultCallback() {
+                        @Override public void onCompleted(GestureDescription description) {
+                            lastAttempt = "Coin inférieur droit du dessin touché; "
+                                    + "désélection visuelle à confirmer.";
+                            callback.finished(true);
+                        }
+                        @Override public void onCancelled(GestureDescription description) {
+                            lastAttempt = "Désélection : geste annulé par Android.";
+                            callback.finished(false);
+                        }
+                    }, handler);
+            if (!accepted) {
+                lastAttempt = "Désélection : Android a refusé le geste.";
+                handler.post(() -> callback.finished(false));
+            }
+            return true;
+        } catch (RuntimeException e) {
+            lastAttempt = "Désélection : " + e.getClass().getSimpleName();
+            return false;
+        } finally {
+            if (layers != null) layers.recycle();
+            if (tab != null) tab.recycle();
+            if (root != null) root.recycle();
+        }
+    }
+
+    private static boolean coveredByAccessibleControl(AccessibilityNodeInfo node,
+                                                       int x, int y, int width,
+                                                       int height, int depth) {
+        if (!isXtool(node) || depth > 14) return false;
+        Rect box = new Rect();
+        node.getBoundsInScreen(box);
+        if (node.isVisibleToUser() && box.contains(x, y)
+                && box.width() > 0 && box.height() > 0
+                && box.width() < width * 65L / 100
+                && box.height() < height * 45L / 100
+                && (node.isClickable() || node.isLongClickable()
+                    || hasText(node.getText())
+                    || hasText(node.getContentDescription()))) {
+            return true;
+        }
+        int n = Math.min(40, node.getChildCount());
+        for (int i = 0; i < n; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try {
+                if (coveredByAccessibleControl(child, x, y,
+                        width, height, depth + 1)) return true;
+            } finally {
+                child.recycle();
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasText(CharSequence value) {
+        return value != null && value.length() > 0;
+    }
+
+    private static AccessibilityNodeInfo findSelectedConception(
+            AccessibilityNodeInfo node, int depth) {
+        if (!isXtool(node) || depth > 14) return null;
+        if (node.isVisibleToUser() && node.isSelected()
+                && (XtoolConceptionTabPolicy.isConception(node.getText())
+                || XtoolConceptionTabPolicy.isConception(
+                        node.getContentDescription()))) {
+            return AccessibilityNodeInfo.obtain(node);
+        }
+        int n = Math.min(40, node.getChildCount());
+        for (int i = 0; i < n; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try {
+                AccessibilityNodeInfo match = findSelectedConception(child, depth + 1);
+                if (match != null) return match;
+            } finally {
+                child.recycle();
+            }
+        }
+        return null;
+    }
+
     private static void tap(AccessibilityService service, Handler handler,
                             Rect box, Outcome callback) {
         Path path = new Path();

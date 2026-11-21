@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 91
-        versionName '1.2.72'
-        // Jarvis 1.2.72 TEST: remove unverified blank-corner taps causing
-        // an accidental Réglages activation. Based on 1.2.70 maintenance.
+        versionCode 92
+        versionName '1.2.73'
+        // Jarvis 1.2.73 TEST: only the bounded bottom-right corner of the
+        // drawing page, not the top-right Settings area. Samsung test pending.
     }
 
     signingConfigs {
