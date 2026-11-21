@@ -126,8 +126,13 @@ final class XtoolLayerStripNavigation {
                 return;
             }
 
-            int startX = screen.x * 79 / 100;
-            int endX = screen.x * 24 / 100;
+            // In the Samsung recording, the Settings ("réglage") tile
+            // starts around 78% of the screen and is FIXED, not scrollable.
+            // Prior versions started at 79%, on that fixed tile, so the
+            // gesture was delivered but the toolbar did not move.
+            // Stay well to its left, inside the scrolling tool strip.
+            int startX = screen.x * 68 / 100;
+            int endX = screen.x * 20 / 100;
             int y = r.centerY();
             if (!XtoolLayerStripPolicy.safeSwipe(
                     startX, endX, y, screen.x, screen.y, r.top, r.bottom)) {
