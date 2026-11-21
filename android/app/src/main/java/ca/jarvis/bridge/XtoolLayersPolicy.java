@@ -31,20 +31,28 @@ final class XtoolLayersPolicy {
     }
 
     /**
-     * The user-approved empty top-right drawing corner, derived from the
-     * currently selected Conception tab rather than hardcoded pixels.
-     * If xTool's layout cannot be trusted, refuse the gesture.
+     * Only a tap inside the lower-right part of the DRAWING area is accepted.
+     * The visible Conception tab marks the end of that area; the display
+     * corner is not a drawing corner. Excludes the old top-right position
+     * that unintentionally opened Réglages on the Samsung.
      */
-    static boolean validBlankCanvasCorner(int x, int y, int screenWidth,
-                                          int screenHeight, int tabTop) {
+    static boolean validDrawingBottomRightTap(int x, int y,
+                                              int viewLeft, int viewTop,
+                                              int viewRight, int designBottom,
+                                              int screenWidth, int screenHeight) {
+        int width = viewRight - viewLeft;
+        int height = designBottom - viewTop;
         return screenWidth > 0 && screenHeight > 0
-                && tabTop > screenHeight * 30L / 100
-                && tabTop < screenHeight * 95L / 100
-                && x >= screenWidth * 88L / 100
-                && x <= screenWidth * 97L / 100
-                && y >= screenHeight * 10L / 100
-                && y >= tabTop * 25L / 100
-                && y <= tabTop * 52L / 100;
+                && width > screenWidth * 65L / 100
+                && height > screenHeight * 35L / 100
+                && viewLeft >= 0 && viewRight <= screenWidth
+                && viewTop >= 0 && designBottom < screenHeight * 85L / 100
+                && x >= viewLeft + width * 80L / 100
+                && x <= viewLeft + width * 95L / 100
+                && y >= viewTop + height * 76L / 100
+                && y <= viewTop + height * 94L / 100
+                && y >= screenHeight * 48L / 100
+                && y < designBottom;
     }
 
     /** Dismiss a nearby contextual popup, not a full-screen editor surface. */
