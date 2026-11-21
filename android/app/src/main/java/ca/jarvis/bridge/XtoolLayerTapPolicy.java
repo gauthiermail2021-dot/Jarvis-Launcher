@@ -14,6 +14,19 @@ final class XtoolLayerTapPolicy {
                 && "rouge".equals(label.trim().toLowerCase(Locale.ROOT));
     }
 
+    /** Require a named layer-panel heading, not a bottom toolbar icon. */
+    static boolean exactLayerHeading(String label) {
+        if (label == null) return false;
+        String name = label.trim().toLowerCase(Locale.ROOT);
+        return "calque".equals(name) || "calques".equals(name)
+                || "layer".equals(name) || "layers".equals(name);
+    }
+
+    /** A duplicate accessible red row is ambiguous: never guess one. */
+    static boolean uniqueRedTarget(int count) {
+        return count == 1;
+    }
+
     static boolean isValidTarget(int left, int top, int right, int bottom,
                                  int screenWidth, int screenHeight) {
         if (screenWidth <= 0 || screenHeight <= 0) return false;
