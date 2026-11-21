@@ -349,6 +349,34 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }, 350L);
     }
 
+    /**
+     * Explicit user-requested fallback after the device proves ACTION_CLICK
+     * unavailable: one gesture on the exact Calques label, never the canvas.
+     */
+    static void requestXtoolNamedLayersTap() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\n"
+                    + "Service d'accessibilité Jarvis inactif. Aucun geste.");
+            return;
+        }
+        JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
+        svc.panelHandler.postDelayed(() ->
+                XtoolLayersClickProbe.tapNamedOnce(svc, svc.panelHandler, result -> {
+                    svc.lastLayersSequence = result.contains("Geste livré")
+                            ? "Toucher ciblé Calques livré; ouverture non confirmée."
+                            : "Toucher Calques refusé ou non tenté : voir rapport.";
+                    svc.panelHandler.postDelayed(() -> {
+                        String observed = XtoolLayerInspector.inspect(
+                                svc.getRootInActiveWindow());
+                        JarvisBubbleService.showEasySetResult(result + "\n\n"
+                                + "LECTURE APRÈS TOUCHER (contrôle visuel requis)\n"
+                                + observed);
+                    }, 550L);
+                }), 450L);
+    }
+
     /** Read-only target report without requiring a new SVG. */
     static void requestXtoolLayersTargetDiagnostic() {
         ChatGptBubbleAccessibilityService svc = clickTestService;
