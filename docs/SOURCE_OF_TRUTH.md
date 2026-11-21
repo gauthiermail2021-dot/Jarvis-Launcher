@@ -1,5 +1,11 @@
 # Jarvis — source officielle et protocole de validation
 
+## Retour de test 1.2.70 sur Samsung — 21 novembre 2026
+
+L'utilisateur précise que son essai récent de Jarvis est effectué avec **la version 1.2.70**, non 1.2.69. Résultat observé : **Dégrouper fonctionne mais l'ensemble des formes demeure sélectionné**. La prochaine correction doit partir du code **1.2.70** (`fix/audit-stability-1.2.70-clean`, `versionCode 89`), sans revenir à 1.2.69 ni perdre les corrections de maintenance. Le test utilisateur ne confirme pas encore que toutes les autres étapes xTool sont validées sous 1.2.70.
+
+**Workflow à développer et vérifier dans cet ordre :** après Dégrouper, désélectionner les formes; ouvrir Calques; sélectionner Rouge; fermer Calques; ouvrir l'onglet Paramètres; ouvrir Volet EasySet. Les valeurs Puissance, Vitesse et Passes ne sont pour l'instant qu'à lire/vérifier : pas de modification automatique ni de mise en marche du laser.
+
 ## Mise à jour du 21 novembre 2026 — sélection des calques
 
 **Séquence xTool confirmée par l'utilisateur le 21 novembre 2026 (ordre exact) :**
