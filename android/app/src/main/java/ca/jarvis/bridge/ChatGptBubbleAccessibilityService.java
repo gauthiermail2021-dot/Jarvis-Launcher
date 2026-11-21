@@ -127,13 +127,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
     // Short, event-aware window after the validated one-shot Dégrouper touch.
     // No continuous surveillance of xTool or its process.
-    private int layersTicket;
-    private boolean layersPending;
-    private boolean layersDispatched;
-    private boolean layersDeselectAttempted;
-    private boolean layersDeselectInFlight;
-    private Runnable layersEventCheck;
-    private final List<Runnable> layersChecks = new ArrayList<>();
     private static volatile String lastLayersSequence =
             "Aucune demande Calques depuis le démarrage.";
     private int selectionDiagnosticTicket;
@@ -169,7 +162,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
     private void armUngroupAfterSvg() {
         // A new SVG supersedes every incomplete Calques attempt.
-        cancelLayersAfterSvg();
         cancelSelectionDiagnosticAfterSvg();
         cancelAutomaticEasySet(); // diagnostic build: no separate EasySet click
         cancelUngroupAfterSvg();
@@ -236,7 +228,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                             JarvisBubbleService.onUngroupAutoFinished(
                                     touchSent, confirmed);
                             cancelUngroupAfterSvg();
-                            if (touchSent) armSelectionDiagnosticAfterUngroup();
+                            if (touchSent) armLayerTargetDiagnosticAfterUngroup();
                         });
                 if (found) {
                     // Keep the ticket until the actual result arrives.
@@ -281,41 +273,27 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
 
     /**
-     * Trial candidate 1.2.76. After Degrouper, try exactly one advertised
-     * CLEAR_SELECTION accessibility action on the xTool FrameLayout root.
-     * Then inspect Android node selection again, and show both reports.
-     * No gestures, no Calques, no machine settings or output.
+     * After Dégrouper, inspect the actual named Calques target in xTool's
+     * accessible WebView. No click or deselection is attempted automatically.
      */
-    private void armSelectionDiagnosticAfterUngroup() {
-        cancelLayersAfterSvg();
+    private void armLayerTargetDiagnosticAfterUngroup() {
         cancelSelectionDiagnosticAfterSvg();
         cancelAutomaticEasySet();
-        lastLayersSequence = "TEST 1.2.76 : une action CLEAR_SELECTION sur racine après Dégrouper.";
+        lastLayersSequence = "Lecture seule : recherche du contrôle Calques après Dégrouper.";
         final int ticket = selectionDiagnosticTicket;
         pendingSelectionDiagnostic = () -> {
             pendingSelectionDiagnostic = null;
             if (ticket != selectionDiagnosticTicket) return;
             if (!XtoolSessionManager.isActive(this)) {
-                lastLayersSequence = "Diagnostic : session xTool inactive.";
+                lastLayersSequence = "Session xTool inactive : aucune tentative.";
                 JarvisBubbleService.showEasySetResult(
-                        "DIAGNOSTIC XTOOL — SÉLECTION\n"
+                        "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
                         + "Session Jarvis inactive. Aucun clic effectué.");
                 return;
             }
-            // One explicit Android accessibility action, only on the xTool
-            // FrameLayout root that advertised CLEAR_SELECTION in 1.2.75.
-            // No coordinate gestures. Capture a fresh read-only tree afterwards.
-            final String actionReport =
-                    XtoolClearSelectionRootTrial.performOnce(this);
-            lastLayersSequence = "CLEAR_SELECTION essayée sur racine xTool; "
-                    + "résultat affiché, aucun clic Calques.";
-            panelHandler.postDelayed(() -> {
-                if (ticket != selectionDiagnosticTicket) return;
-                String after = XtoolSelectionInspector.inspect(
-                        getRootInActiveWindow());
-                JarvisBubbleService.showEasySetResult(
-                        actionReport + "\n\n" + after);
-            }, 350L);
+            String report = XtoolLayersClickProbe.inspect(this);
+            lastLayersSequence = "Cible Calques inspectée, aucun toucher envoyé.";
+            JarvisBubbleService.showEasySetResult(report);
         };
         panelHandler.postDelayed(pendingSelectionDiagnostic, 850L);
     }
@@ -344,114 +322,45 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         }, 250L);
     }
 
-    private void armLayersAfterUngroup() {
-        cancelLayersAfterSvg();
-        layersPending = true;
-        lastLayersSequence = "Dégrouper touché; recherche du bouton Calques.";
-        final int ticket = layersTicket;
-        // Only a bounded 7-second post-action window; not repeated background
-        // checks for xTool closure or anything related to laser operation.
-        final long[] delays = {800L, 1600L, 3100L, 4800L};
-        for (long delay : delays) {
-            Runnable check = () -> attemptLayersButton(ticket);
-            layersChecks.add(check);
-            panelHandler.postDelayed(check, delay);
-        }
-        Runnable end = () -> {
-            if (!layersPending || ticket != layersTicket) return;
-            lastLayersSequence = "Calques non trouvé dans le bas de xTool. "
-                    + "Menu à fermer manuellement, puis vérifier le diagnostic.";
-            cancelLayersAfterSvg();
-            JarvisBubbleService.onLayersAutoUnavailable();
-        };
-        layersChecks.add(end);
-        panelHandler.postDelayed(end, 7000L);
-    }
-
-    private void scheduleLayersEventCheck() {
-        if (!layersPending || layersDispatched || layersEventCheck != null) return;
-        final int ticket = layersTicket;
-        layersEventCheck = () -> {
-            layersEventCheck = null;
-            attemptLayersButton(ticket);
-        };
-        panelHandler.postDelayed(layersEventCheck, 250L);
-    }
-
-    private void attemptLayersButton(int ticket) {
-        if (!layersPending || ticket != layersTicket
-                || layersDispatched || layersDeselectInFlight) return;
-        if (!XtoolSessionManager.isActive(this)) {
-            lastLayersSequence = "Session Jarvis terminée; Calques non touché.";
-            cancelLayersAfterSvg();
+    /**
+     * User-initiated one-shot attempt. The candidate must be a unique visible
+     * Calques label with a bounded clickable target; never use a gesture.
+     */
+    static void requestXtoolLayersClickProbe() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
+                    + "Service d'accessibilité Jarvis inactif. Aucun clic.");
             return;
         }
-        if (clickTestPending || redLayerTapPending) return;
-
-        // Samsung test 1.2.71: a tap on Réglages cleared selection but
-        // changed tabs. 1.2.73 instead taps once in the lower-right area
-        // of the DRAWING, bounded by the Conception tab and UI elements.
-        // This is explicitly the sole new operation for this test build.
-        if (!layersDeselectAttempted) {
-            boolean started = XtoolLayersOneShot.deselectAtDrawingBottomRight(
-                    this, panelHandler, delivered -> {
-                        if (!layersPending || ticket != layersTicket) return;
-                        layersDeselectInFlight = false;
-                        if (!delivered) {
-                            lastLayersSequence = "Désélection annulée; aucun clic Calques.";
-                            cancelLayersAfterSvg();
-                            JarvisBubbleService.onLayersAutoUnavailable();
-                            return;
-                        }
-                        lastLayersSequence = "Coin droit du dessin touché; "
-                                + "désélection à confirmer sur Samsung.";
-                        panelHandler.postDelayed(
-                                () -> attemptLayersButton(ticket), 550L);
-                    });
-            if (!started) {
-                lastLayersSequence = "Coin droit du dessin non identifié; "
-                        + "aucun toucher envoyé.";
-                cancelLayersAfterSvg();
-                JarvisBubbleService.onLayersAutoUnavailable();
-                return;
-            }
-            layersDeselectAttempted = true;
-            layersDeselectInFlight = true;
-            return;
-        }
-        // A completed gesture doesn't guarantee that xTool dismissed its
-        // contextual Dégrouper menu. Do not tap Calques through that menu.
-        if (XtoolLayersOneShot.ungroupPopupVisible(this)) {
-            lastLayersSequence = "Dégrouper reste affiché; "
-                    + "désélection non confirmée, Calques non touché.";
-            cancelLayersAfterSvg();
-            JarvisBubbleService.onLayersAutoUnavailable();
-            return;
-        }
-
-        boolean found = XtoolLayersOneShot.tryOnce(
-                this, panelHandler, touched -> {
-                    if (!layersPending || ticket != layersTicket) return;
-                    lastLayersSequence = touched
-                            ? "Bouton Calques touché; panneau à vérifier."
-                            : "Bouton Calques trouvé mais toucher non effectué.";
-                    cancelLayersAfterSvg();
-                    JarvisBubbleService.onLayersAutoFinished(touched);
-                });
-        if (found) layersDispatched = true;
+        svc.panelHandler.postDelayed(() -> {
+            String result = XtoolLayersClickProbe.clickOnce(svc);
+            svc.lastLayersSequence = result.contains("ACTION_CLICK : ACCEPTÉE")
+                    ? "ACTION_CLICK Calques acceptée ; panneau non confirmé."
+                    : "Calques non activé : voir le diagnostic détaillé.";
+            svc.panelHandler.postDelayed(() -> {
+                String observed = XtoolLayerInspector.inspect(
+                        svc.getRootInActiveWindow());
+                JarvisBubbleService.showEasySetResult(result + "\\n\\n"
+                        + "LECTURE APRÈS TEST (ne prouve pas l'ouverture)\\n"
+                        + observed);
+            }, 550L);
+        }, 350L);
     }
 
-    private void cancelLayersAfterSvg() {
-        layersTicket++;
-        layersPending = false;
-        layersDispatched = false;
-        layersDeselectAttempted = false;
-        layersDeselectInFlight = false;
-        for (Runnable check : layersChecks) panelHandler.removeCallbacks(check);
-        layersChecks.clear();
-        if (layersEventCheck != null)
-            panelHandler.removeCallbacks(layersEventCheck);
-        layersEventCheck = null;
+    /** Read-only target report without requiring a new SVG. */
+    static void requestXtoolLayersTargetDiagnostic() {
+        ChatGptBubbleAccessibilityService svc = clickTestService;
+        if (svc == null) {
+            JarvisBubbleService.showEasySetResult(
+                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
+                    + "Service d'accessibilité Jarvis inactif.");
+            return;
+        }
+        svc.panelHandler.postDelayed(() ->
+                JarvisBubbleService.showEasySetResult(
+                        XtoolLayersClickProbe.inspect(svc)), 300L);
     }
 
     /**
@@ -625,8 +534,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
         CharSequence pkg = event.getPackageName();
         if (EasySetForegroundScanPolicy.XCS_PACKAGE.contentEquals(pkg)) {
-            if (layersPending)
-                scheduleLayersEventCheck();
             lastXtoolEventAt = SystemClock.elapsedRealtime();
             lastXtoolEventType = type;
             if (foregroundTransition || contentChanged)
@@ -894,7 +801,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         redLayerTapPending = false;
         cancelAutomaticEasySet();
         cancelUngroupAfterSvg();
-        cancelLayersAfterSvg();
         lastDiscoveredXtoolWords = "Aucune inspection xTool disponible.";
         lastDiscoveredWordsAt = 0L;
         lastEasySetControlProperties = "Aucune inspection des commandes disponible.";
