@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 106
-        versionName '1.2.87'
-        // Jarvis 1.2.87 TEST: cyan-marked blank-board deselection with corrected geometry;
+        versionCode 107
+        versionName '1.2.88'
+        // Jarvis 1.2.88 TEST: keep cyan deselection and add a guarded one-shot Red layer click;
         // Calques prefers ACTION_CLICK and reads resulting color labels.
     }
 
