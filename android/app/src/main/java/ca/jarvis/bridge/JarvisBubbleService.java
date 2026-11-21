@@ -9,6 +9,8 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Service;
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
@@ -348,6 +350,8 @@ public final class JarvisBubbleService extends Service {
         TextView title = new TextView(this);
         title.setText(summary != null && summary.startsWith("TEST CALQUE ROUGE")
                 ? "JARVIS • TEST CALQUE ROUGE"
+                : summary != null && summary.startsWith("DIAGNOSTIC XTOOL — SÉLECTION")
+                ? "JARVIS • DIAGNOSTIC SÉLECTION"
                 : summary != null && summary.startsWith("DIAGNOSTIC XTOOL")
                 ? "JARVIS • DIAGNOSTIC CALQUES"
                 : summary != null && summary.startsWith("DIAGNOSTIC EASYSET")
@@ -384,10 +388,44 @@ public final class JarvisBubbleService extends Service {
 
         Button dismiss = new Button(this);
         dismiss.setAllCaps(false);
-        dismiss.setText(connectionDiagnostic
-                ? "Fermer le diagnostic" : "Fermer le résultat");
-        panel.addView(dismiss);
         dismiss.setOnClickListener(v -> dismissEasySetBanner());
+        if (connectionDiagnostic) {
+            // One-tap copy of the WHOLE diagnostic, not just the scrolled
+            // visible lines. Do not close the report before confirmation.
+            LinearLayout actions = new LinearLayout(this);
+            actions.setOrientation(LinearLayout.HORIZONTAL);
+            Button copy = new Button(this);
+            copy.setAllCaps(false);
+            copy.setText("Copier le rapport");
+            copy.setOnClickListener(v -> {
+                ClipboardManager clipboard = (ClipboardManager)
+                        getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    Toast.makeText(this, "Presse-papiers indisponible.",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                try {
+                    clipboard.setPrimaryClip(ClipData.newPlainText(
+                            "Rapport diagnostic Jarvis",
+                            summary == null ? "" : summary));
+                    Toast.makeText(this, "Rapport copié. Colle-le dans ChatGPT.",
+                            Toast.LENGTH_SHORT).show();
+                } catch (RuntimeException error) {
+                    Toast.makeText(this, "Impossible de copier le rapport.",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+            actions.addView(copy, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
+            dismiss.setText("Fermer");
+            actions.addView(dismiss, new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+            panel.addView(actions);
+        } else {
+            dismiss.setText("Fermer le résultat");
+            panel.addView(dismiss);
+        }
 
         Point display = new Point();
         wm.getDefaultDisplay().getRealSize(display);
