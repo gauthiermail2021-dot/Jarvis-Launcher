@@ -132,8 +132,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
     private boolean layersDispatched;
     private boolean layersDismissAttempted;
     private boolean layersDismissInFlight;
-    private boolean layersDeselectAttempted;
-    private boolean layersDeselectInFlight;
     private Runnable layersEventCheck;
     private final List<Runnable> layersChecks = new ArrayList<>();
     private static volatile String lastLayersSequence =
@@ -313,8 +311,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
     private void attemptLayersButton(int ticket) {
         if (!layersPending || ticket != layersTicket
-                || layersDispatched || layersDismissInFlight
-                || layersDeselectInFlight) return;
+                || layersDispatched || layersDismissInFlight) return;
         if (!XtoolSessionManager.isActive(this)) {
             lastLayersSequence = "Session Jarvis terminée; Calques non touché.";
             cancelLayersAfterSvg();
@@ -326,6 +323,9 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         // may expose Calques underneath it but send the tap to the menu.
         if (!layersDismissAttempted) {
             layersDismissAttempted = true;
+            // If an ungroup popup is still visible, require a real
+            // accessibility dismiss action. Never tap a guessed corner.
+            if (XtoolLayersOneShot.ungroupPopupVisible(this)) {
             boolean started = XtoolLayersOneShot.dismissUngroupMenu(
                     this, panelHandler, delivered -> {
                         if (!layersPending || ticket != layersTicket) return;
@@ -340,41 +340,20 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                 layersDismissInFlight = true;
                 return;
             }
-            lastLayersSequence = "Aucun menu Dégrouper identifié; "
-                    + "recherche du bouton Calques.";
-        }
-        // The initial corner touch closes the Dégrouper popup, but xTool
-        // may keep all drawing shapes selected. Make one SEPARATE bounded
-        // touch in an accessible blank canvas area before opening Calques.
-        // Do not proceed if a safe target cannot be identified.
-        if (!layersDeselectAttempted) {
-            boolean started = XtoolLayersOneShot.deselectAfterUngroup(
-                    this, panelHandler, delivered -> {
-                        if (!layersPending || ticket != layersTicket) return;
-                        layersDeselectInFlight = false;
-                        if (!delivered) {
-                            lastLayersSequence =
-                                    "Désélection annulée; suite interrompue.";
-                            cancelLayersAfterSvg();
-                            JarvisBubbleService.onLayersAutoUnavailable();
-                            return;
-                        }
-                        lastLayersSequence =
-                                "Toucher de désélection envoyé; "
-                                + "état des formes à vérifier sur Samsung.";
-                        panelHandler.postDelayed(
-                                () -> attemptLayersButton(ticket), 550L);
-                    });
-            if (!started) {
-                lastLayersSequence =
-                        "Aucune zone de désélection sûre trouvée; "
-                        + "Calques non touché.";
-                return; // bounded existing retries only
-            }
-            layersDeselectAttempted = true;
-            layersDeselectInFlight = true;
+            lastLayersSequence = "Menu Dégrouper visible sans fermeture "
+                    + "accessibilité; séquence arrêtée (aucun clic aveugle).";
+            cancelLayersAfterSvg();
+            JarvisBubbleService.onLayersAutoUnavailable();
             return;
+            }
+            lastLayersSequence = "Menu Dégrouper absent; "
+                    + "recherche du bouton Calques nommé.";
         }
+        // The blank-corner deselection used by 1.2.71 hit "Réglages" on
+        // the Samsung. This step is deliberately NOT automated without an
+        // identified canvas control; only the exact named Calques is touched.
+        lastLayersSequence = "Aucun clic de désélection hasardeux; "
+                + "ouverture du bouton Calques nommé uniquement.";
 
         boolean found = XtoolLayersOneShot.tryOnce(
                 this, panelHandler, touched -> {
@@ -394,8 +373,6 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         layersDispatched = false;
         layersDismissAttempted = false;
         layersDismissInFlight = false;
-        layersDeselectAttempted = false;
-        layersDeselectInFlight = false;
         for (Runnable check : layersChecks) panelHandler.removeCallbacks(check);
         layersChecks.clear();
         if (layersEventCheck != null)
