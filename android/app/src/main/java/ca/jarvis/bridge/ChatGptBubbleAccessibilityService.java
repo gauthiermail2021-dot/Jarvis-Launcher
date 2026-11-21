@@ -131,6 +131,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             "Aucune demande Calques depuis le démarrage.";
     private int selectionDiagnosticTicket;
     private Runnable pendingSelectionDiagnostic;
+    private boolean layerStripPending;
 
     static String automaticLayersStatus() {
         return lastLayersSequence;
@@ -299,10 +300,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     return;
                 }
                 if (!clickTestPending && !redLayerTapPending
+                        && !layerStripPending
                         && XtoolLayerStripNavigation.ready(
                                 ChatGptBubbleAccessibilityService.this)) {
                     // Consume before dispatch; the gesture cannot retrigger.
                     cancelSelectionDiagnosticAfterSvg();
+                    layerStripPending = true;
                     lastLayersSequence = "Barre inférieure identifiée : "
                             + "défilement et ouverture Calques en cours.";
                     JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
@@ -310,11 +313,12 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                             XtoolLayerStripNavigation.revealAndOpen(
                                     ChatGptBubbleAccessibilityService.this,
                                     panelHandler, report -> {
+                                        layerStripPending = false;
                                         lastLayersSequence = report;
-                                        JarvisBubbleService.showEasySetResult(
-                                                "NAVIGATION XTOOL — CALQUES\n"
-                                                + report + "\nAucun paramètre "
-                                                + "machine modifié.");
+                                        // Never cover the very panel being opened
+                                        // with a large diagnostic overlay.
+                                        JarvisBubbleService.onLayersAutoFinished(
+                                                report.contains("Geste livré"));
                                     }), 350L);
                     return;
                 }
@@ -426,12 +430,15 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     + "Service d'accessibilité Jarvis inactif.");
             return;
         }
-        if (svc.clickTestPending || svc.redLayerTapPending) return;
+        if (svc.clickTestPending || svc.redLayerTapPending
+                || svc.layerStripPending) return;
+        svc.layerStripPending = true;
         svc.cancelSelectionDiagnosticAfterSvg();
         JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
         svc.panelHandler.postDelayed(() ->
                 XtoolLayerStripNavigation.revealAndOpen(
                         svc, svc.panelHandler, report -> {
+                            svc.layerStripPending = false;
                             lastLayersSequence = report;
                             JarvisBubbleService.showEasySetResult(
                                     "NAVIGATION XTOOL — CALQUES\n" + report
