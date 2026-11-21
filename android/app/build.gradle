@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 95
-        versionName '1.2.76'
-        // Jarvis 1.2.76 TEST: one explicit root ACTION_CLEAR_SELECTION after
-        // Degrouper, then read-only diagnostic with copy button. No other UI taps.
+        versionCode 96
+        versionName '1.2.77'
+        // Jarvis 1.2.77 TEST: keeps root ACTION_CLEAR_SELECTION trial and copied
+        // diagnostic; red non-touchable visual marker for real xTool gestures.
     }
 
     signingConfigs {
