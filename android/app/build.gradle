@@ -11,9 +11,9 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 104
-        versionName '1.2.85'
-        // Jarvis 1.2.85 TEST: exported TEST SVG launch requires confirmation;
+        versionCode 105
+        versionName '1.2.86'
+        // Jarvis 1.2.86 TEST: single upper-right canvas deselection after Dégrouper;
         // Calques prefers ACTION_CLICK and reads resulting color labels.
     }
 

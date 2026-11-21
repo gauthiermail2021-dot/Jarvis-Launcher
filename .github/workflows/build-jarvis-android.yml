@@ -6,7 +6,7 @@ name: Build canonical Jarvis Android APK (tests and signature)
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'feature/1.2.82-scroll-bottom-calque', 'fix/1.2.83-manual-calques-foreground', 'fix/1.2.84-xtool-toolbar-swipe-zone', 'fix/1.2.85-audit-p1-hardening']
+    branches: [main, 'feature/1.2.82-scroll-bottom-calque', 'fix/1.2.83-manual-calques-foreground', 'fix/1.2.84-xtool-toolbar-swipe-zone', 'fix/1.2.85-audit-p1-hardening' , 'fix/1.2.86-canvas-deselect-before-calques']
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
@@ -89,9 +89,12 @@ jobs:
           elif [ "$GITHUB_REF_NAME" = "fix/1.2.84-xtool-toolbar-swipe-zone" ]; then
             grep -F "versionCode 103" android/app/build.gradle
             grep -F "versionName '1.2.84'" android/app/build.gradle
-          else
+          elif [ "$GITHUB_REF_NAME" = "fix/1.2.85-audit-p1-hardening" ]; then
             grep -F "versionCode 104" android/app/build.gradle
             grep -F "versionName '1.2.85'" android/app/build.gradle
+          else
+            grep -F "versionCode 105" android/app/build.gradle
+            grep -F "versionName '1.2.86'" android/app/build.gradle
           fi
           grep -F "applicationId 'ca.jarvis.bridge'" android/app/build.gradle
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging \
@@ -106,6 +109,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref_name == 'main' && 'Jarvis-Bridge-canonical-main-signed' || github.ref_name == 'fix/1.2.85-audit-p1-hardening' && 'Jarvis-Bridge-1.2.85-audit-candidate-signed' || 'Jarvis-Bridge-1.2.84-candidate-signed' }}
+          name: ${{ github.ref_name == 'main' && 'Jarvis-Bridge-canonical-main-signed' || github.ref_name == 'fix/1.2.85-audit-p1-hardening' && 'Jarvis-Bridge-1.2.85-audit-candidate-signed' || github.ref_name == 'fix/1.2.86-canvas-deselect-before-calques' && 'Jarvis-Bridge-1.2.86-deselect-candidate-signed' || 'Jarvis-Bridge-1.2.84-candidate-signed' }}
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error

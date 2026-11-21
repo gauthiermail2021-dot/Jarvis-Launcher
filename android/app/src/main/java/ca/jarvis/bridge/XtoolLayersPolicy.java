@@ -55,6 +55,36 @@ final class XtoolLayersPolicy {
                 && y < designBottom;
     }
 
+    /**
+     * One user-approved test location, in the top-right BLANK area of
+     * the xTool drawing board shown on Samsung. It is defined relative
+     * to the actual Conception toolbar, not as an absolute screen pixel.
+     *
+     * These geometric checks cannot prove that an arbitrary imported
+     * SVG has no shape at this position. Validate on known test drawings.
+     */
+    static boolean validMarkedBlankCanvasTap(int x, int y,
+                                             int viewLeft, int viewTop,
+                                             int viewRight, int designBottom,
+                                             int screenWidth, int screenHeight) {
+        int width = viewRight - viewLeft;
+        int height = designBottom - viewTop;
+        return screenWidth > 0 && screenHeight > 0
+                && viewLeft >= 0 && viewTop >= 0
+                && viewRight <= screenWidth
+                && designBottom <= screenHeight
+                && width > screenWidth * 70L / 100
+                && height > screenHeight * 45L / 100
+                // Marked spot: around 86% of canvas width, 30% of height.
+                && x >= viewLeft + width * 82L / 100
+                && x <= viewLeft + width * 91L / 100
+                && y >= viewTop + height * 25L / 100
+                && y <= viewTop + height * 35L / 100
+                // Exclude top-ruler / notification overlay and bottom toolbar.
+                && y >= screenHeight * 18L / 100
+                && y < screenHeight * 45L / 100;
+    }
+
     /** Dismiss a nearby contextual popup, not a full-screen editor surface. */
     static boolean validMenuToDismiss(int left, int top, int right, int bottom,
                                       int screenWidth, int screenHeight) {

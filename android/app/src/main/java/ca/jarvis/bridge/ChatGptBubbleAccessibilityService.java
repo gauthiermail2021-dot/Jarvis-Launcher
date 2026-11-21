@@ -274,21 +274,22 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
 
 
     /**
-     * A finite post-SVG window watches for the real bottom toolbar.
-     * xTool keeps the Conception sheet over that toolbar while the imported
-     * geometry is selected. We never tap a guessed blank canvas point.
+     * After Dégrouper, try ONE tap on the user-marked empty white board
+     * area before looking for the bottom Calques toolbar. Do not repeat
+     * the tap in the bounded polling window. The following Calques swipe
+     * and named click remain unchanged from the Samsung-tested 1.2.85.
      *
-     * As soon as the user has cleared selection and the exact Calque(s)
-     * label is available, perform up to two bounded horizontal swipes and
-     * one named touch. No repeated actions from accessibility events.
+     * This is a geometric test spot, not visual proof of an empty area on
+     * every arbitrary SVG. A delivered tap does not confirm deselection.
      */
     private void armLayerTargetDiagnosticAfterUngroup() {
         cancelSelectionDiagnosticAfterSvg();
         cancelAutomaticEasySet();
-        lastLayersSequence = "En attente de la barre inférieure Calques "
-                + "(désélectionner le dessin si Conception est visible).";
+        lastLayersSequence = "Après Dégrouper : tentative unique de désélection "
+                + "sur la zone blanche repérée, puis Calques.";
         final int ticket = selectionDiagnosticTicket;
         final int[] checks = {0};
+        final boolean[] deselectionAttempted = {false};
         Runnable check = new Runnable() {
             @Override public void run() {
                 pendingSelectionDiagnostic = null;
@@ -298,6 +299,29 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                     lastLayersSequence = "Session xTool terminée avant Calques.";
                     cancelSelectionDiagnosticAfterSvg();
                     return;
+                }
+                if (!clickTestPending && !redLayerTapPending
+                        && !layerStripPending && !deselectionAttempted[0]) {
+                    deselectionAttempted[0] = true;
+                    boolean started = XtoolLayersOneShot.deselectAtMarkedBlankCanvas(
+                            ChatGptBubbleAccessibilityService.this,
+                            panelHandler, delivered -> {
+                                if (ticket != selectionDiagnosticTicket) return;
+                                if (!delivered) {
+                                    lastLayersSequence = XtoolLayersOneShot.lastAttempt()
+                                            + " Navigation Calques automatique arrêtée.";
+                                    cancelSelectionDiagnosticAfterSvg();
+                                    return;
+                                }
+                                lastLayersSequence = XtoolLayersOneShot.lastAttempt()
+                                        + " Vérification de la barre Calques en cours.";
+                                pendingSelectionDiagnostic = this;
+                                panelHandler.postDelayed(this, 900L);
+                            });
+                    if (started) return;
+                    // A missing Conception tab does not justify a guessed tap.
+                    // The bounded poll can still find Calques normally.
+                    deselectionAttempted[0] = false;
                 }
                 if (!clickTestPending && !redLayerTapPending
                         && !layerStripPending
