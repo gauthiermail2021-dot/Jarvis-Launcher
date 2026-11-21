@@ -38,6 +38,9 @@ final class XtoolLayerStripNavigation {
             if (!isXtool(root)) return false;
             Point screen = screen(service);
             if (screen == null) return false;
+            // The toolbar in the user video only becomes active after
+            // the Conception contextual sheet has disappeared.
+            if (conceptionSheetVisible(root, screen, 0)) return false;
             Matches matches = new Matches();
             collect(root, screen, 0, matches);
             if (matches.count != 1 || matches.area == null) return false;
@@ -78,6 +81,11 @@ final class XtoolLayerStripNavigation {
             Point screen = screen(service);
             if (screen == null) {
                 callback.finished("Dimensions Android indisponibles.");
+                return;
+            }
+            if (conceptionSheetVisible(root, screen, 0)) {
+                callback.finished("Volet Conception encore visible : "
+                        + "désélectionner le dessin avant de défiler.");
                 return;
             }
             Matches matches = new Matches();
@@ -145,6 +153,29 @@ final class XtoolLayerStripNavigation {
         } finally {
             if (root != null) root.recycle();
         }
+    }
+
+    private static boolean conceptionSheetVisible(AccessibilityNodeInfo node,
+                                                    Point screen, int depth) {
+        if (!isXtool(node) || depth > MAX_DEPTH) return false;
+        Rect b = new Rect();
+        node.getBoundsInScreen(b);
+        boolean tab = XtoolConceptionTabPolicy.isConception(node.getText())
+                || XtoolConceptionTabPolicy.isConception(
+                        node.getContentDescription());
+        if (tab && node.isVisibleToUser() && b.centerY() > screen.y * 55L / 100
+                && b.centerY() < screen.y * 96L / 100) return true;
+        for (int i = 0, n = Math.min(MAX_CHILDREN, node.getChildCount());
+                i < n; i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child == null) continue;
+            try {
+                if (conceptionSheetVisible(child, screen, depth + 1)) return true;
+            } finally {
+                child.recycle();
+            }
+        }
+        return false;
     }
 
     private static void collect(AccessibilityNodeInfo node, Point screen,
