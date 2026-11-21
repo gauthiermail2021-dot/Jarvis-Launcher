@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 99
-        versionName '1.2.80'
-        // Jarvis 1.2.80 TEST: no root CLEAR_SELECTION or blind canvas taps.
-        // Read Calques target after ungroup; optional single guarded ACTION_CLICK.
+        versionCode 100
+        versionName '1.2.81'
+        // Jarvis 1.2.81 TEST: exact named Calques tile may accept one user-triggered
+        // touch when ACTION_CLICK is not exposed. Never sends a blind canvas tap.
     }
 
     signingConfigs {
