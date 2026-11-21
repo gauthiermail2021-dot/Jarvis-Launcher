@@ -4,7 +4,7 @@
 
 - **Retour Samsung 1.2.83 :** « Calque pas entièrement visible après deux glissements. Aucun toucher. »
 - Analyse croisée de la vidéo `Screen_Recording_20261121_113431_Creative Space.mp4` et du code : **« Réglage » est un outil fixe à droite**, derrière une séparation verticale vers **78 % de la largeur**. Le code précédent lançait le geste à **79 %**, donc probablement dans la zone fixe plutôt que dans le ruban défilant.
-- Correction ciblée : départ **68 %**, arrivée **20 %** de largeur, même bande inférieure, vérification du libellé xTool exact, maximum deux gestes, aucun toucher dans le canevas ni réglage laser.
+- Correction simplifiée : **un seul grand glissement** de **70 % à 9 %** de la largeur d’écran, dans la barre mobile, puis recherche du bouton Calque. Aucune répétition du geste, aucun toucher dans le canevas ni réglage laser.
 - Test ajouté : le point précédent (79 %) est désormais **explicitement refusé** par la politique de sécurité du geste.
 - Le déplacement effectif du ruban et l'ouverture de Calque sont **à vérifier sur Samsung** ; `dispatchGesture()` accepté ne vaut pas preuve.
 - Base candidate 1.2.83 (PR #57) conservée, `main` inchangée.
