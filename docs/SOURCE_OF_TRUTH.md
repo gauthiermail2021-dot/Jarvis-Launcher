@@ -1,5 +1,13 @@
 # Jarvis — source officielle et protocole de validation
 
+## Proposition 1.2.71 — désélection avant Calques (non validée)
+
+- Branche candidate : `feature/deselect-before-layers-1.2.71`, issue de `fix/audit-stability-1.2.70-clean` (version installée/testée par l'utilisateur : 1.2.70).
+- [PR #45 — désélection autonome du canevas avant Calques](https://github.com/gauthiermail2021-dot/Jarvis-Launcher/pull/45) : correction ciblée, brouillon en attente des tests GitHub Actions et d'une validation sur Samsung.
+- Comportement ajouté : un toucher distinct, borné et unique sur une zone de canevas contrôlée, après fermeture du menu Dégrouper, avant le toucher Calques. Si la zone sûre n'est pas identifiable, la séquence s'arrête sans réglages ni commandes machine.
+- Versions de la candidate : `versionName 1.2.71`, `versionCode 90` ; ne pas déclarer stable sans APK signé, tests et vérification visuelle que **les formes sont effectivement désélectionnées**.
+- Étapes non implémentées à ce stade : sélectionner Rouge, fermer Calques, ouvrir Paramètres, ouvrir EasySet ; aucune écriture de Puissance/Vitesse/Passes ni lancement laser.
+
 ## Retour de test 1.2.70 sur Samsung — 21 novembre 2026
 
 L'utilisateur précise que son essai récent de Jarvis est effectué avec **la version 1.2.70**, non 1.2.69. Résultat observé : **Dégrouper fonctionne mais l'ensemble des formes demeure sélectionné**. La prochaine correction doit partir du code **1.2.70** (`fix/audit-stability-1.2.70-clean`, `versionCode 89`), sans revenir à 1.2.69 ni perdre les corrections de maintenance. Le test utilisateur ne confirme pas encore que toutes les autres étapes xTool sont validées sous 1.2.70.
