@@ -19,7 +19,7 @@ final class XtoolLayersClickProbe {
     private static final int MAX_DEPTH = 18;
     private static final int MAX_NODES = 250;
     private static final int MAX_CHILDREN = 50;
-    private static final String HEADER = "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n";
+    private static final String HEADER = "DIAGNOSTIC XTOOL — CIBLE CALQUES\n";
 
     private XtoolLayersClickProbe() { }
 
@@ -48,26 +48,26 @@ final class XtoolLayersClickProbe {
             report.append(HEADER)
                     .append("Mode : ").append(click
                             ? "TEST ACTION_CLICK unique" : "LECTURE SEULE")
-                    .append("\\nNœuds examinés : ").append(scan.visited)
-                    .append("\\nLibellés exacts Calques : ").append(scan.named)
-                    .append("\\nLibellés visibles en bas : ").append(scan.bounded)
-                    .append("\\nContrôles cliquables uniques : ")
-                    .append(scan.targets.size()).append("\\n");
+                    .append("\nNœuds examinés : ").append(scan.visited)
+                    .append("\nLibellés exacts Calques : ").append(scan.named)
+                    .append("\nLibellés visibles en bas : ").append(scan.bounded)
+                    .append("\nContrôles cliquables uniques : ")
+                    .append(scan.targets.size()).append("\n");
             if (!scan.summaries.isEmpty()) {
-                report.append("\\nCandidats :\\n");
-                for (String line : scan.summaries) report.append(line).append("\\n");
+                report.append("\nCandidats :\n");
+                for (String line : scan.summaries) report.append(line).append("\n");
             }
             if (!click) {
-                report.append("\\nAucun toucher. Test direct possible uniquement ")
+                report.append("\nAucun toucher. Test direct possible uniquement ")
                         .append("si un seul contrôle cliquable est identifié.");
                 return report.toString();
             }
             if (!XtoolSessionManager.isActive(service)) {
-                return report.append("\\nACTION_CLICK NON TENTÉE : session xTool inactive.")
+                return report.append("\nACTION_CLICK NON TENTÉE : session xTool inactive.")
                         .toString();
             }
             if (scan.targets.size() != 1) {
-                return report.append("\\nACTION_CLICK NON TENTÉE : contrôle ")
+                return report.append("\nACTION_CLICK NON TENTÉE : contrôle ")
                         .append(scan.targets.isEmpty()
                                 ? "introuvable ou non cliquable."
                                 : "ambigu (plusieurs cibles).")
@@ -75,7 +75,7 @@ final class XtoolLayersClickProbe {
             }
             // Never click through a still-exposed contextual Dégrouper menu.
             if (XtoolLayersOneShot.ungroupPopupVisible(service)) {
-                return report.append("\\nACTION_CLICK NON TENTÉE : ")
+                return report.append("\nACTION_CLICK NON TENTÉE : ")
                         .append("menu Dégrouper encore visible. Aucun geste.")
                         .toString();
             }
@@ -86,17 +86,17 @@ final class XtoolLayersClickProbe {
                     || !target.isClickable()
                     || !XtoolLayersPolicy.validBottomButton(area.left,
                     area.top, area.right, area.bottom, display.x, display.y)) {
-                return report.append("\\nACTION_CLICK NON TENTÉE : cible ")
+                return report.append("\nACTION_CLICK NON TENTÉE : cible ")
                         .append("non valide au moment du clic.").toString();
             }
             boolean accepted = target.performAction(
                     AccessibilityNodeInfo.ACTION_CLICK);
             if (accepted) JarvisBubbleService.showXtoolTouchMarker(
                     area.centerX(), area.centerY());
-            report.append("\\nACTION_CLICK : ")
+            report.append("\nACTION_CLICK : ")
                     .append(accepted ? "ACCEPTÉE" : "REFUSÉE")
-                    .append("\\nOuverture du panneau : NON CONFIRMÉE.")
-                    .append("\\nAucun toucher de coordonnées; aucune autre action.");
+                    .append("\nOuverture du panneau : NON CONFIRMÉE.")
+                    .append("\nAucun toucher de coordonnées; aucune autre action.");
             return report.toString();
         } catch (RuntimeException error) {
             return HEADER + "Inspection/clic interrompu : "
