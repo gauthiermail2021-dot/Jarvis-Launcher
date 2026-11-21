@@ -11,10 +11,10 @@ android {
         applicationId 'ca.jarvis.bridge'
         minSdk 26
         targetSdk 28
-        versionCode 93
-        versionName '1.2.74'
-        // Jarvis 1.2.74 TEST: read-only selected-node and accessibility-action
-        // snapshot after Degrouper; no deselect or Calques tap.
+        versionCode 94
+        versionName '1.2.75'
+        // Jarvis 1.2.75 TEST: same 1.2.74 automatic read-only diagnostic,
+        // with one-tap clipboard copy of the full report from the overlay.
     }
 
     signingConfigs {
