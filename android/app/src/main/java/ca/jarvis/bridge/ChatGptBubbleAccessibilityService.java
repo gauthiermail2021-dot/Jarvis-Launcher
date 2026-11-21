@@ -318,7 +318,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                         // Never cover the very panel being opened
                                         // with a large diagnostic overlay.
                                         JarvisBubbleService.onLayersAutoFinished(
-                                                report.contains("Geste livré"));
+                                                XtoolLayerActivationPolicy.actionSent(report));
                                     }), 350L);
                     return;
                 }
@@ -408,8 +408,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
         svc.panelHandler.postDelayed(() ->
                 XtoolLayersClickProbe.tapNamedOnce(svc, svc.panelHandler, result -> {
-                    svc.lastLayersSequence = result.contains("Geste livré")
-                            ? "Toucher ciblé Calques livré; ouverture non confirmée."
+                    svc.lastLayersSequence = XtoolLayerActivationPolicy.actionSent(result)
+                            ? "Activation Calques envoyée; vérifier le panneau."
                             : "Toucher Calques refusé ou non tenté : voir rapport.";
                     svc.panelHandler.postDelayed(() -> {
                         String observed = XtoolLayerInspector.inspect(
@@ -418,7 +418,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
                                 + "LECTURE APRÈS TOUCHER (contrôle visuel requis)\n"
                                 + observed);
                     }, 550L);
-                }), 450L);
+                }, true), 450L);
     }
 
     /** Explicit one-shot replay on the currently visible xTool toolbar. */

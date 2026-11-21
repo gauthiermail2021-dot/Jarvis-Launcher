@@ -106,15 +106,26 @@ public class JarvisTestShortcutActivity extends ComponentActivity {
         // Activity, without attaching any view at all.
         if (!silentBubbleSend) setContentView(root);
 
-        if (state == null) beginSend();
+        // The exported home-screen launcher can be invoked by other apps.
+        // Never send Gmail just because it was opened. Only the non-exported
+        // bubble entry point has the documented one-tap send behavior.
+        if (state == null && JarvisTestSendPolicy.autoSendOnActivityLaunch(
+                silentBubbleSend)) {
+            beginSend();
+        } else if (!silentBubbleSend) {
+            status.setText("Touchez « Envoyer un nouveau SVG test » pour confirmer l'envoi.");
+        }
     }
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        // Tapping the same home-screen icon a second time reuses this
-        // singleTop Activity. Every deliberate new tap starts the next test.
-        beginSend();
+        // Reusing the EXPORTED launcher is not proof of a user touch.
+        if (JarvisTestSendPolicy.autoSendOnActivityLaunch(silentBubbleSend)) {
+            beginSend();
+        } else if (status != null) {
+            status.setText("Touchez le bouton Envoyer pour confirmer le test.");
+        }
     }
 
     private void beginSend() {
