@@ -38,9 +38,9 @@ final class XtoolLayerStripNavigation {
             if (!isXtool(root)) return false;
             Point screen = screen(service);
             if (screen == null) return false;
-            // The toolbar in the user video only becomes active after
-            // the Conception contextual sheet has disappeared.
-            if (conceptionSheetVisible(root, screen, 0)) return false;
+            // A selected bottom "Conception" tab is not proof that
+            // the contextual design sheet still covers the toolbar.
+            // The live Dégrouper control is checked above instead.
             Matches matches = new Matches();
             collect(root, screen, 0, matches);
             if (matches.count == 0) return matches.anchor != null;
@@ -59,34 +59,37 @@ final class XtoolLayerStripNavigation {
 
     static void revealAndOpen(AccessibilityService service, Handler handler,
                               Result callback) {
-        phase(service, handler, callback, 0);
+        phase(service, handler, callback, 0, false);
+    }
+
+    /** Explicit button command: live xTool foreground, even after SVG session ends. */
+    static void revealAndOpenManual(AccessibilityService service, Handler handler,
+                                    Result callback) {
+        phase(service, handler, callback, 0, true);
     }
 
     private static void phase(AccessibilityService service, Handler handler,
-                              Result callback, int swipes) {
+                              Result callback, int swipes, boolean manual) {
         AccessibilityNodeInfo root = null;
         try {
-            if (!XtoolSessionManager.isActive(service)) {
-                callback.finished("Session xTool terminée. Aucun geste.");
+            root = service.getRootInActiveWindow();
+            if (!isXtool(root)) {
+                callback.finished("xTool n'est pas la fenêtre active. Aucun geste.");
+                return;
+            }
+            if (!XtoolLayerManualAccessPolicy.permitted(
+                    true, XtoolSessionManager.isActive(service), manual)) {
+                callback.finished("Session SVG Jarvis terminée. "
+                        + "Test automatique bloqué; commande manuelle possible.");
                 return;
             }
             if (XtoolLayersOneShot.ungroupPopupVisible(service)) {
                 callback.finished("Menu Dégrouper encore visible. Aucun geste.");
                 return;
             }
-            root = service.getRootInActiveWindow();
-            if (!isXtool(root)) {
-                callback.finished("Fenêtre xTool absente. Aucun geste.");
-                return;
-            }
             Point screen = screen(service);
             if (screen == null) {
                 callback.finished("Dimensions Android indisponibles.");
-                return;
-            }
-            if (conceptionSheetVisible(root, screen, 0)) {
-                callback.finished("Volet Conception encore visible : "
-                        + "désélectionner le dessin avant de défiler.");
                 return;
             }
             Matches matches = new Matches();
@@ -102,7 +105,7 @@ final class XtoolLayerStripNavigation {
                 XtoolLayersClickProbe.tapNamedOnce(service, handler, report ->
                         callback.finished("Défilements livrés : " + completedSwipes
                                 + "\n" + report
-                                + "\nOuverture à vérifier visuellement."));
+                                + "\nOuverture à vérifier visuellement."), manual);
                 return;
             }
             if (r != null && !XtoolLayerStripPolicy.clippedAtRight(
@@ -143,7 +146,8 @@ final class XtoolLayerStripNavigation {
                         @Override public void onCompleted(GestureDescription unused) {
                             // Re-read the live label after the content finishes moving.
                             handler.postDelayed(() ->
-                                    phase(service, handler, callback, swipes + 1), 650L);
+                                    phase(service, handler, callback, swipes + 1,
+                                            manual), 650L);
                         }
                         @Override public void onCancelled(GestureDescription unused) {
                             callback.finished("Glissement annulé par Android. "
@@ -159,29 +163,6 @@ final class XtoolLayerStripNavigation {
         } finally {
             if (root != null) root.recycle();
         }
-    }
-
-    private static boolean conceptionSheetVisible(AccessibilityNodeInfo node,
-                                                    Point screen, int depth) {
-        if (!isXtool(node) || depth > MAX_DEPTH) return false;
-        Rect b = new Rect();
-        node.getBoundsInScreen(b);
-        boolean tab = XtoolConceptionTabPolicy.isConception(node.getText())
-                || XtoolConceptionTabPolicy.isConception(
-                        node.getContentDescription());
-        if (tab && node.isVisibleToUser() && b.centerY() > screen.y * 55L / 100
-                && b.centerY() < screen.y * 96L / 100) return true;
-        for (int i = 0, n = Math.min(MAX_CHILDREN, node.getChildCount());
-                i < n; i++) {
-            AccessibilityNodeInfo child = node.getChild(i);
-            if (child == null) continue;
-            try {
-                if (conceptionSheetVisible(child, screen, depth + 1)) return true;
-            } finally {
-                child.recycle();
-            }
-        }
-        return false;
     }
 
     private static void collect(AccessibilityNodeInfo node, Point screen,
