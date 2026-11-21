@@ -44,6 +44,11 @@ final class XtoolLayersClickProbe {
      */
     static void tapNamedOnce(AccessibilityService service, Handler handler,
                              TapOutcome callback) {
+        tapNamedOnce(service, handler, callback, false);
+    }
+
+    static void tapNamedOnce(AccessibilityService service, Handler handler,
+                             TapOutcome callback, boolean directUserCommand) {
         AccessibilityNodeInfo root = null;
         Scan scan = new Scan();
         StringBuilder report = new StringBuilder(512);
@@ -55,8 +60,17 @@ final class XtoolLayersClickProbe {
                 return;
             }
             Point display = screen(service);
-            if (display == null || !XtoolSessionManager.isActive(service)) {
-                callback.finished(report.append("Session xTool inactive. Aucun geste.").toString());
+            if (display == null) {
+                callback.finished(report.append("Dimensions Android absentes. Aucun geste.")
+                        .toString());
+                return;
+            }
+            if (!XtoolLayerManualAccessPolicy.permitted(
+                    true, XtoolSessionManager.isActive(service),
+                    directUserCommand)) {
+                callback.finished(report.append(
+                        "Session SVG Jarvis inactive. Aucun geste automatique.")
+                        .toString());
                 return;
             }
             inspectTree(root, display, 0, scan);

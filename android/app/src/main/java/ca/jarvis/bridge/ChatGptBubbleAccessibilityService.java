@@ -436,7 +436,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         svc.cancelSelectionDiagnosticAfterSvg();
         JarvisBubbleService.hideDiagnosticBeforeXtoolTap();
         svc.panelHandler.postDelayed(() ->
-                XtoolLayerStripNavigation.revealAndOpen(
+                XtoolLayerStripNavigation.revealAndOpenManual(
                         svc, svc.panelHandler, report -> {
                             svc.layerStripPending = false;
                             lastLayersSequence = report;
