@@ -84,6 +84,8 @@ public final class JarvisBubbleService extends Service {
     private boolean consentAttemptedForThisBubble;
     private View easySetBanner;
     private Runnable easySetBannerDismiss;
+    // Last result stays available from the bubble menu even if Android hides the overlay.
+    private String lastReportText = "";
     private Runnable collapseRunnable;
     private ValueAnimator openingAnimator;
     private long openingSpinUntil = 0L;
@@ -399,6 +401,8 @@ public final class JarvisBubbleService extends Service {
     }
 
     private void showEasySetBanner(String summary) {
+        if (summary != null && !summary.trim().isEmpty())
+            lastReportText = summary;
         if (bubble != null) bubble.setVisibility(View.VISIBLE);
         if (svgTestBubble != null) svgTestBubble.setVisible(true);
         if (wm == null || !Settings.canDrawOverlays(this)) return;
@@ -430,71 +434,45 @@ public final class JarvisBubbleService extends Service {
         TextView details = new TextView(this);
         details.setText(summary == null ? "Résultat indisponible." : summary);
         details.setTextColor(Color.WHITE);
-        final boolean detailedEasySet = summary != null
-                && summary.contains("DIAGNOSTIC PASSER (temporaire)");
-        final boolean connectionDiagnostic = summary != null
-                && (summary.startsWith("DIAGNOSTIC EASYSET")
-                || summary.startsWith("DIAGNOSTIC XTOOL"));
-        details.setTextSize(detailedEasySet || connectionDiagnostic ? 12 : 15);
+        final boolean longReport = summary != null
+                && (summary.length() > 180 || summary.contains("\n"));
+        details.setTextSize(longReport ? 12 : 15);
         details.setPadding(0, dp(8), 0, dp(8));
-        if (connectionDiagnostic) {
-            // Five exact accessibility labels need more lines than before.
-            // Keep the dialog and its dismiss button on-screen; allow the
-            // diagnostic to scroll without moving xTool or the SVG bubble.
-            ScrollView scroll = new ScrollView(this);
-            scroll.setFillViewport(false);
-            scroll.addView(details);
-            int maxDiagnosticHeight = Math.min(dp(330),
-                    getResources().getDisplayMetrics().heightPixels / 2);
-            panel.addView(scroll, new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT, maxDiagnosticHeight));
-        } else {
-            panel.addView(details);
-        }
+
+        // ALWAYS show the copy button. The xTool CLEAR_SELECTION trial produces
+        // a report beginning with "TEST ANDROID", not "DIAGNOSTIC XTOOL".
+        // Filtering by the report prefix silently hid Copy in 1.2.78.
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button copy = new Button(this);
+        copy.setAllCaps(false);
+        copy.setText("Copier le rapport");
+        copy.setContentDescription("Copier le rapport complet dans le presse-papiers");
+        copy.setMinHeight(dp(48));
+        copy.setOnClickListener(v -> copyReportToClipboard(summary));
+        actions.addView(copy, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
 
         Button dismiss = new Button(this);
         dismiss.setAllCaps(false);
+        dismiss.setText("Fermer");
         dismiss.setOnClickListener(v -> dismissEasySetBanner());
-        if (connectionDiagnostic) {
-            // One-tap copy of the WHOLE diagnostic, not just the scrolled
-            // visible lines. Do not close the report before confirmation.
-            LinearLayout actions = new LinearLayout(this);
-            actions.setOrientation(LinearLayout.HORIZONTAL);
-            Button copy = new Button(this);
-            copy.setAllCaps(false);
-            copy.setText("Copier le rapport");
-            copy.setContentDescription("Copier le rapport de diagnostic complet");
-            copy.setMinHeight(dp(48));
-            copy.setOnClickListener(v -> {
-                ClipboardManager clipboard = (ClipboardManager)
-                        getSystemService(Context.CLIPBOARD_SERVICE);
-                if (clipboard == null) {
-                    Toast.makeText(this, "Presse-papiers indisponible.",
-                            Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                try {
-                    clipboard.setPrimaryClip(ClipData.newPlainText(
-                            "Rapport diagnostic Jarvis",
-                            summary == null ? "" : summary));
-                    Toast.makeText(this, "Rapport copié. Colle-le dans ChatGPT.",
-                            Toast.LENGTH_SHORT).show();
-                } catch (RuntimeException error) {
-                    Toast.makeText(this, "Impossible de copier le rapport.",
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
-            actions.addView(copy, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f));
-            dismiss.setText("Fermer");
-            actions.addView(dismiss, new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            // Keep Copy/Fermer above the long scrollable diagnostic, so it
-            // cannot fall below the visible screen on the Samsung overlay.
-            panel.addView(actions, 1);
+        actions.addView(dismiss, new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        panel.addView(actions);
+
+        if (longReport) {
+            ScrollView scroll = new ScrollView(this);
+            scroll.setFillViewport(false);
+            scroll.setVerticalScrollBarEnabled(true);
+            scroll.addView(details);
+            int maxReportHeight = Math.min(dp(320),
+                    Math.max(dp(140),
+                            getResources().getDisplayMetrics().heightPixels / 3));
+            panel.addView(scroll, new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, maxReportHeight));
         } else {
-            dismiss.setText("Fermer le résultat");
-            panel.addView(dismiss);
+            panel.addView(details);
         }
 
         Point display = new Point();
@@ -511,8 +489,8 @@ public final class JarvisBubbleService extends Service {
                 display.x - width - dp(12)));
         lp.y = Math.max(dp(65), Math.min(params != null
                 ? params.y + params.height + dp(8) : dp(65), display.y - dp(285)));
-        if (detailedEasySet || connectionDiagnostic) {
-            // Keep the temporary OCR trace and connection diagnostic inside the phone screen instead
+        if (longReport) {
+            // Keep long reports inside the phone screen instead
             // of letting a taller banner hang below the navigation bar.
             panel.measure(
                     View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
@@ -527,10 +505,34 @@ public final class JarvisBubbleService extends Service {
             easySetBanner = panel;
             easySetBannerDismiss = this::dismissEasySetBanner;
             gestureHandler.postDelayed(easySetBannerDismiss,
-                    detailedEasySet || connectionDiagnostic ? 40000L : 20000L);
+                    longReport ? 60000L : 20000L);
         } catch (RuntimeException ignored) {
             easySetBanner = null;
             Toast.makeText(this, summary, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /** Keep clipboard handling identical in the banner and long-press menu. */
+    private void copyReportToClipboard(String report) {
+        if (report == null || report.trim().isEmpty()) {
+            Toast.makeText(this, "Aucun rapport à copier.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ClipboardManager clipboard = (ClipboardManager)
+                getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard == null) {
+            Toast.makeText(this, "Presse-papiers indisponible.",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            clipboard.setPrimaryClip(ClipData.newPlainText(
+                    "Rapport diagnostic Jarvis", report));
+            Toast.makeText(this, "Rapport copié. Colle-le dans ChatGPT.",
+                    Toast.LENGTH_SHORT).show();
+        } catch (RuntimeException error) {
+            Toast.makeText(this, "Impossible de copier le rapport.",
+                    Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -879,6 +881,8 @@ public final class JarvisBubbleService extends Service {
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
         addMenuButton(menu, "Inspecter sélection Android", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolSelectionDiagnostic());
+        addMenuButton(menu, "Copier le dernier rapport", () ->
+                copyReportToClipboard(lastReportText));
 
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->
