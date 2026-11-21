@@ -769,6 +769,8 @@ public final class JarvisBubbleService extends Service {
         // restent dans le code mais ne surchargent plus le menu.
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
+        addMenuButton(menu, "Inspecter sélection Android", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolSelectionDiagnostic());
 
         if (EasySetSessionService.isActive()) {
             addMenuButton(menu, "Analyser EasySet maintenant", () ->
