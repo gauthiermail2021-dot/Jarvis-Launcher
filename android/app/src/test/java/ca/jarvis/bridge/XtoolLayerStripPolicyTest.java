@@ -38,11 +38,14 @@ public class XtoolLayerStripPolicyTest {
     }
 
     @Test public void horizontalGestureMustStayInObservedBottomStrip() {
+        // x=79% was on xTool's fixed right-hand Settings tile.
         assertTrue(XtoolLayerStripPolicy.safeSwipe(
+                979, 288, 2812, 1440, 3088, 2718, 2907));
+        assertFalse(XtoolLayerStripPolicy.safeSwipe(
                 1137, 345, 2812, 1440, 3088, 2718, 2907));
         assertFalse(XtoolLayerStripPolicy.safeSwipe(
-                1137, 345, 620, 1440, 3088, 2718, 2907));
+                979, 288, 620, 1440, 3088, 2718, 2907));
         assertFalse(XtoolLayerStripPolicy.safeSwipe(
-                345, 1137, 2812, 1440, 3088, 2718, 2907));
+                288, 979, 2812, 1440, 3088, 2718, 2907));
     }
 }
