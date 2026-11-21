@@ -287,7 +287,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             if (!XtoolSessionManager.isActive(this)) {
                 lastLayersSequence = "Session xTool inactive : aucune tentative.";
                 JarvisBubbleService.showEasySetResult(
-                        "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
+                        "DIAGNOSTIC XTOOL — CIBLE CALQUES\n"
                         + "Session Jarvis inactive. Aucun clic effectué.");
                 return;
             }
@@ -330,7 +330,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ChatGptBubbleAccessibilityService svc = clickTestService;
         if (svc == null) {
             JarvisBubbleService.showEasySetResult(
-                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
+                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\n"
                     + "Service d'accessibilité Jarvis inactif. Aucun clic.");
             return;
         }
@@ -342,8 +342,8 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
             svc.panelHandler.postDelayed(() -> {
                 String observed = XtoolLayerInspector.inspect(
                         svc.getRootInActiveWindow());
-                JarvisBubbleService.showEasySetResult(result + "\\n\\n"
-                        + "LECTURE APRÈS TEST (ne prouve pas l'ouverture)\\n"
+                JarvisBubbleService.showEasySetResult(result + "\n\n"
+                        + "LECTURE APRÈS TEST (ne prouve pas l'ouverture)\n"
                         + observed);
             }, 550L);
         }, 350L);
@@ -354,7 +354,7 @@ public final class ChatGptBubbleAccessibilityService extends AccessibilityServic
         ChatGptBubbleAccessibilityService svc = clickTestService;
         if (svc == null) {
             JarvisBubbleService.showEasySetResult(
-                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\\n"
+                    "DIAGNOSTIC XTOOL — CIBLE CALQUES\n"
                     + "Service d'accessibilité Jarvis inactif.");
             return;
         }
