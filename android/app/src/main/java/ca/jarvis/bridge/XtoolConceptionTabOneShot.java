@@ -53,6 +53,10 @@ final class XtoolConceptionTabOneShot {
             boolean accepted = svc.dispatchGesture(gesture,
                     new AccessibilityService.GestureResultCallback() {
                         @Override public void onCompleted(GestureDescription desc) {
+                            // Draw the marker only AFTER the gesture finished
+                            // so adding an overlay cannot interrupt the tap.
+                            JarvisBubbleService.showXtoolTouchMarker(
+                                    rect.centerX(), rect.centerY());
                             // Delivered does not prove the tab is selected.
                             callback.onComplete(true);
                         }
@@ -60,12 +64,7 @@ final class XtoolConceptionTabOneShot {
                             callback.onComplete(false);
                         }
                     }, handler);
-            if (accepted) {
-                JarvisBubbleService.showXtoolTouchMarker(
-                        rect.centerX(), rect.centerY());
-            } else {
-                callback.onComplete(false);
-            }
+            if (!accepted) callback.onComplete(false);
             return true;
         } catch (RuntimeException error) {
             callback.onComplete(false);
