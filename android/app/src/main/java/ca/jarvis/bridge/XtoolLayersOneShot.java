@@ -49,6 +49,10 @@ final class XtoolLayersOneShot {
             target = closestClickableControl(label, screen);
             if (target != null) {
                 if (target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Rect mark = new Rect();
+                    target.getBoundsInScreen(mark);
+                    JarvisBubbleService.showXtoolTouchMarker(
+                            mark.centerX(), mark.centerY());
                     lastAttempt = "ACTION_CLICK acceptée sur Calques.";
                     callback.finished(true);
                     return true;
@@ -215,7 +219,9 @@ final class XtoolLayersOneShot {
                             callback.finished(false);
                         }
                     }, handler);
-            if (!accepted) {
+            if (accepted) {
+                JarvisBubbleService.showXtoolTouchMarker(x, y);
+            } else {
                 lastAttempt = "Désélection : Android a refusé le geste.";
                 handler.post(() -> callback.finished(false));
             }
@@ -304,7 +310,10 @@ final class XtoolLayersOneShot {
                         callback.finished(false);
                     }
                 }, handler);
-        if (!accepted) {
+        if (accepted) {
+            JarvisBubbleService.showXtoolTouchMarker(
+                    box.centerX(), box.centerY());
+        } else {
             lastAttempt = "Toucher Calques refusé par Android.";
             callback.finished(false);
         }

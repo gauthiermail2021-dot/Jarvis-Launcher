@@ -60,7 +60,12 @@ final class XtoolConceptionTabOneShot {
                             callback.onComplete(false);
                         }
                     }, handler);
-            if (!accepted) callback.onComplete(false);
+            if (accepted) {
+                JarvisBubbleService.showXtoolTouchMarker(
+                        rect.centerX(), rect.centerY());
+            } else {
+                callback.onComplete(false);
+            }
             return true;
         } catch (RuntimeException error) {
             callback.onComplete(false);

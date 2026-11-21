@@ -66,6 +66,10 @@ public final class JarvisBubbleService extends Service {
     private WindowManager wm;
     private WindowManager.LayoutParams params;
     private BubbleView bubble;
+    // Red marker for actual design-editor target coordinates only.
+    // This overlay is never touchable or focusable.
+    private View touchMarkerView;
+    private Runnable touchMarkerDismiss;
     // Independent, movable SVG test overlay; no change to the main bubble UX.
     private JarvisTestBubbleOverlay svgTestBubble;
     private boolean expanded = false;
@@ -178,6 +182,65 @@ public final class JarvisBubbleService extends Service {
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Arrêter", stopAction)
                 .build();
         startForeground(NOTIFICATION_ID, note);
+    }
+
+    /**
+     * Show a temporary red point at the exact screen coordinate of a Jarvis
+     * Android gesture, or at the center of a named accessibility click target.
+     * This is visual feedback only, never a command. A non-coordinate action
+     * such as ACTION_CLEAR_SELECTION cannot be plotted here.
+     */
+    static void showXtoolTouchMarker(int screenX, int screenY) {
+        JarvisBubbleService current = activeService;
+        if (current == null) return;
+        current.gestureHandler.post(() ->
+                current.showXtoolTouchMarkerOnUi(screenX, screenY));
+    }
+
+    private void clearXtoolTouchMarker() {
+        if (touchMarkerDismiss != null)
+            gestureHandler.removeCallbacks(touchMarkerDismiss);
+        touchMarkerDismiss = null;
+        if (touchMarkerView != null && wm != null) {
+            try { wm.removeView(touchMarkerView); }
+            catch (IllegalArgumentException ignored) { }
+            catch (RuntimeException ignored) { }
+        }
+        touchMarkerView = null;
+    }
+
+    private void showXtoolTouchMarkerOnUi(int x, int y) {
+        if (wm == null || !Settings.canDrawOverlays(this)) return;
+        Point screen = new Point();
+        wm.getDefaultDisplay().getRealSize(screen);
+        if (x < 0 || y < 0 || x >= screen.x || y >= screen.y) return;
+        clearXtoolTouchMarker();
+        int diameter = dp(20);
+        View marker = new View(this);
+        GradientDrawable dot = new GradientDrawable();
+        dot.setShape(GradientDrawable.OVAL);
+        dot.setColor(Color.rgb(239, 35, 42));
+        dot.setStroke(dp(2), Color.WHITE);
+        marker.setBackground(dot);
+        marker.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                diameter, diameter,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT);
+        lp.gravity = Gravity.TOP | Gravity.LEFT;
+        lp.x = x - diameter / 2;
+        lp.y = y - diameter / 2;
+        try {
+            wm.addView(marker, lp);
+            touchMarkerView = marker;
+            touchMarkerDismiss = this::clearXtoolTouchMarker;
+            gestureHandler.postDelayed(touchMarkerDismiss, 1300L);
+        } catch (RuntimeException ignored) {
+            touchMarkerView = null;
+        }
     }
 
     private int dp(float size) {
@@ -1047,6 +1110,7 @@ public final class JarvisBubbleService extends Service {
         fingerDown = false;
         dismissMenu();
         dismissEasySetBanner();
+        clearXtoolTouchMarker();
         if (svgTestBubble != null) {
             svgTestBubble.destroy();
             svgTestBubble = null;
