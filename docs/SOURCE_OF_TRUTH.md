@@ -1,5 +1,14 @@
 # Jarvis — source officielle et protocole de validation
 
+## Correction 1.2.83 — session SVG terminée mais xTool reste ouvert
+
+- **Retour Samsung sur 1.2.82 :** « Session xTool terminée. Aucun geste. » en appuyant manuellement sur « Défiler et ouvrir Calque ». Le verrou provenait de `XtoolSessionManager.isActive()`, état de transfert SVG qui ne prouve pas si xTool est ouvert à l'écran.
+- **Changement :** la navigation manuelle explicite peut fonctionner quand le SVG session flag est faux **à condition que la fenêtre active soit réellement `com.makeblock.xcs`** et que le contrôle Calque ou un outil de la barre soit identifié. Le parcours automatique garde l'obligation de session.
+- Le dernier toucher nommé Calque suit la même règle; il n'est jamais autorisé sur une autre application. Aucune réactivation de session persistante ni modification du suivi Gmail.
+- **Autre correction :** la présence du seul libellé « Conception » en bas ne prouve pas la présence d'une feuille contextuelle ; seul un menu Dégrouper accessible et visible bloque désormais le glissement. Aucun clic de désélection hasardeux.
+- Test unitaire ajouté pour distinguer manuel/automatique/fenêtre étrangère. Build et test Samsung nécessaires avant de considérer le comportement résolu.
+
+
 ## Candidate 1.2.82 — barre inférieure xTool (21 novembre 2026)
 
 - Base : branche `feature/1.2.81-calques-named-tap` (version candidate 1.2.81), non promue à `main`.
