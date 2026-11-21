@@ -29,15 +29,11 @@ public class XtoolLayersPolicyTest {
                 30, 2700, 80, 2725, 1440, 3088));
     }
 
-    @Test public void blankCornerOnlyInsideKnownDesignCanvas() {
-        assertTrue(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 620, 1440, 3088, 1633));
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 120, 1440, 3088, 1633));
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                800, 620, 1440, 3088, 1633));
-        assertFalse(XtoolLayersPolicy.validBlankCanvasCorner(
-                1353, 620, 1440, 3088, 200));
+    @Test public void drawingCornerNeverEqualsOldSettingsCorner() {
+        assertTrue(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1281, 1680, 0, 0, 1440, 2000, 1440, 3088));
+        assertFalse(XtoolLayersPolicy.validDrawingBottomRightTap(
+                1353, 620, 0, 0, 1440, 2000, 1440, 3088));
     }
 
     @Test public void onlyPopupSizedMenuMayBeDismissed() {
