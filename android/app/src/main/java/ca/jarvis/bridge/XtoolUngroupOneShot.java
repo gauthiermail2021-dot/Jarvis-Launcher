@@ -78,6 +78,10 @@ final class XtoolUngroupOneShot {
             target = closestClickableControl(label, screen);
             if (target != null) {
                 if (target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    Rect mark = new Rect();
+                    target.getBoundsInScreen(mark);
+                    JarvisBubbleService.showXtoolTouchMarker(
+                            mark.centerX(), mark.centerY());
                     lastAttempt = "ACTION_CLICK acceptée sur le contrôle Dégrouper. "
                             + "Séparation visuelle non vérifiée.";
                     callback.onComplete(true, false);
@@ -147,7 +151,10 @@ final class XtoolUngroupOneShot {
                         callback.onComplete(false, false);
                     }
                 }, handler);
-        if (!accepted) {
+        if (accepted) {
+            JarvisBubbleService.showXtoolTouchMarker(
+                    target.centerX(), target.centerY());
+        } else {
             lastAttempt = "Android a refusé le toucher sur " + kind + ".";
             callback.onComplete(false, false);
         }
