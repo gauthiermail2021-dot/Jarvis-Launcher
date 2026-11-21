@@ -1,5 +1,14 @@
 # Jarvis — source officielle et protocole de validation
 
+## Candidate 1.2.85 — correction P1 de l'audit global (21 novembre 2026)
+
+- **TEST SVG JARVIS / sécurité :** l'activité publique (icone lanceur Android, `exported=true`) ne transmet plus automatiquement un Gmail lors de `onCreate()` ou `onNewIntent()`. Son bouton à l'écran exige une confirmation explicite. **La petite bulle SVG garde son envoi en une seule pression** par l'activité séparée `JarvisSilentSvgSendActivity`, non exportée.
+- **Calques / accessibilité :** la fonction commune d'activation accepte désormais le **seul** `ACTION_CLICK` exact et cliquable si disponible ; sinon elle utilise au plus un toucher au centre du libellé Calques identifié. Jamais les deux pour un essai. Un clic refusé n'entraîne pas un toucher de secours non vérifié.
+- **Vérification après action :** contrôle en lecture seule après 750 ms ; deux couleurs de calques nommées et visibles donnent **des indices positifs**, pas une certitude absolue ni une preuve de paramétrage. Une vue à une seule couleur reste non confirmée.
+- Les règles sont couvertes par des tests JVM ; APK signé de test requis puis validation Samsung. Aucun changement des scopes Gmail, d'identifiant Android, de clé privée ni d'EasySet. `main` est conservée.
+- **Consolidation :** ne pas fusionner directement la chaîne des dizaines de PR non validées sur `main`. Préparer une branche issue de `main` et reprendre seulement les correctifs documentés, avec tests d'appareil, une étape à la fois.
+
+
 ## Correctif 1.2.84 — départ du geste sur la barre défilante (21 novembre 2026)
 
 - **Retour Samsung 1.2.83 :** « Calque pas entièrement visible après deux glissements. Aucun toucher. »
