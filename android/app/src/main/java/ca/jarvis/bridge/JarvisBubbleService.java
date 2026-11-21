@@ -389,6 +389,13 @@ public final class JarvisBubbleService extends Service {
                 current.showEasySetBanner(summary));
     }
 
+    /** Remove the Jarvis report overlay before the user-authorized Calques test. */
+    static void hideDiagnosticBeforeXtoolTap() {
+        JarvisBubbleService current = activeService;
+        if (current != null)
+            current.gestureHandler.post(current::dismissEasySetBanner);
+    }
+
     private void dismissEasySetBanner() {
         if (easySetBannerDismiss != null)
             gestureHandler.removeCallbacks(easySetBannerDismiss);
@@ -881,6 +888,8 @@ public final class JarvisBubbleService extends Service {
                 ChatGptBubbleAccessibilityService.requestXtoolLayersTargetDiagnostic());
         addMenuButton(menu, "Tester clic direct Calques (1 fois)", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayersClickProbe());
+        addMenuButton(menu, "Toucher Calques identifié (1 fois)", () ->
+                ChatGptBubbleAccessibilityService.requestXtoolNamedLayersTap());
         addMenuButton(menu, "Inspecter calques et couleurs", () ->
                 ChatGptBubbleAccessibilityService.requestXtoolLayerDiagnostic());
         addMenuButton(menu, "Inspecter sélection Android", () ->
