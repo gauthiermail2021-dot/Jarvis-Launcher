@@ -6,7 +6,7 @@ name: Build canonical Jarvis Android APK (tests and signature)
 on:
   workflow_dispatch:
   push:
-    branches: [main, 'feature/1.2.82-scroll-bottom-calque']
+    branches: [main, 'feature/1.2.82-scroll-bottom-calque', 'fix/1.2.83-manual-calques-foreground']
     paths:
       - 'android/**'
       - '.github/workflows/build-jarvis-android.yml'
@@ -80,9 +80,12 @@ jobs:
           if [ "$GITHUB_REF_NAME" = "main" ]; then
             grep -F "versionCode 88" android/app/build.gradle
             grep -F "versionName '1.2.69'" android/app/build.gradle
-          else
+          elif [ "$GITHUB_REF_NAME" = "feature/1.2.82-scroll-bottom-calque" ]; then
             grep -F "versionCode 101" android/app/build.gradle
             grep -F "versionName '1.2.82'" android/app/build.gradle
+          else
+            grep -F "versionCode 102" android/app/build.gradle
+            grep -F "versionName '1.2.83'" android/app/build.gradle
           fi
           grep -F "applicationId 'ca.jarvis.bridge'" android/app/build.gradle
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging \
@@ -97,6 +100,6 @@ jobs:
         run: rm -f android/app/jarvis-release.jks
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.ref_name == 'main' && 'Jarvis-Bridge-canonical-main-signed' || 'Jarvis-Bridge-1.2.82-candidate-signed' }}
+          name: ${{ github.ref_name == 'main' && 'Jarvis-Bridge-canonical-main-signed' || 'Jarvis-Bridge-1.2.83-candidate-signed' }}
           path: android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
